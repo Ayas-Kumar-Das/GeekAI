@@ -81,3 +81,4 @@ GeekAI/
 
 ## Review
 - All phases complete. MVP is functional end-to-end.
+
