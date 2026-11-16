@@ -46,7 +46,36 @@ GeekAI/
 
 ## Quick Start
 
-### Prerequisites
+### 🚀 Option A: 1-Command Startup with Docker (Recommended)
+
+The easiest way to run the complete GeekAI platform (PostgreSQL with pgvector, FastAPI Backend, React Frontend, with automated migrations and default account seeding):
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/msVivekRanjan/GeekAI.git
+cd GeekAI
+
+# 2. Start all services
+docker compose up --build
+```
+
+Once started, all services are ready:
+- **Web Application**: [http://localhost:5173](http://localhost:5173)
+- **Backend API Docs (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **PostgreSQL with pgvector**: `localhost:5432`
+
+#### Default Login Credentials
+| Portal | URL | Email | Password |
+|---|---|---|---|
+| **Admin Dashboard** | `http://localhost:5173/admin` | `admin@geekai.in` | `admin123` |
+| **Volunteer Dashboard** | `http://localhost:5173/volunteer` | `volunteer@geekai.in` | `volunteer123` |
+| **Public Registration** | `http://localhost:5173/register` | *(Publicly accessible)* | — |
+
+---
+
+### 💻 Option B: Manual Local Development Setup
+
+#### Prerequisites
 
 - **Python 3.10+**
 - **Node.js 18+** & npm

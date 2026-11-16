@@ -76,3 +76,35 @@ async def run_migrations_async() -> None:
     """Asynchronously execute migrations in a worker thread so the event loop is unblocked."""
     await asyncio.to_thread(run_migrations)
 
+
+async def seed_initial_users_async() -> None:
+    """Auto-seed initial admin and volunteer if the database has zero users."""
+    try:
+        from app.core.deps import async_session_factory
+        from app.core.security import hash_password
+        from app.models.models import User, UserRole
+        from sqlalchemy import func, select
+
+        async with async_session_factory() as session:
+            count = (await session.execute(select(func.count()).select_from(User))).scalar()
+            if count == 0:
+                logger.info("Database has zero users — seeding default admin and volunteer...")
+                admin_user = User(
+                    email="admin@geekai.in",
+                    password_hash=hash_password("admin123"),
+                    name="System Admin",
+                    role=UserRole.ADMIN,
+                )
+                volunteer_user = User(
+                    email="volunteer@geekai.in",
+                    password_hash=hash_password("volunteer123"),
+                    name="Symposium Volunteer",
+                    role=UserRole.VOLUNTEER,
+                )
+                session.add_all([admin_user, volunteer_user])
+                await session.commit()
+                logger.info("Auto-seeded admin@geekai.in and volunteer@geekai.in successfully.")
+    except Exception as exc:
+        logger.warning("Could not auto-seed initial users: %s", exc)
+
+

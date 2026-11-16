@@ -1,3 +1,7 @@
+# =============================================================================
+# GeekAI — .gitignore
+# =============================================================================
+
 # Python
 __pycache__/
 *.py[cod]
@@ -5,6 +9,7 @@ __pycache__/
 *.so
 .Python
 venv/
+.venv/
 ENV/
 env/
 *.egg-info/
@@ -16,17 +21,41 @@ node_modules/
 .npm
 dist/
 
-# Environment & credentials
+# Environment files & credentials
 .env
-.env.local
+.env.*
+!.env.example
 *.pem
+*.key
 
-# Local cache & uploads
-uploads/
-cache/
+# Local uploads & cache (preserve directory structure via .gitkeep)
+uploads/*
+!uploads/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/uploads/photos/*
+!backend/uploads/photos/.gitkeep
+backend/uploads/qrcodes/*
+!backend/uploads/qrcodes/.gitkeep
+face-checkin/cache/*
+!face-checkin/cache/.gitkeep
+face-checkin/cache/photos/*
+!face-checkin/cache/photos/.gitkeep
+
+# InsightFace models download cache
+.insightface/
+models/
+
+# Database data volume
+postgres_data/
+
+# Logs
 *.log
 
-# OS
+# OS & IDE
 .DS_Store
 Thumbs.db
-
+.vscode/
+.idea/
+*.swp
+*.swo
