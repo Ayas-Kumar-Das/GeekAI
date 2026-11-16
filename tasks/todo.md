@@ -5,80 +5,25 @@ Smart registration & attendance management for Odisha AI Symposium (500–1000 p
 
 **Stack**: React+Vite (frontend), FastAPI (backend), PostgreSQL+pgvector (DB), OpenCV+InsightFace (local face check-in)
 
-## Directory Structure
-```
-GeekAI/
-├── frontend/          # React + Vite app (registration, admin, volunteer)
-├── backend/           # FastAPI server
-│   ├── app/
-│   │   ├── api/       # Route modules
-│   │   ├── core/      # Config, security, dependencies
-│   │   ├── models/    # SQLAlchemy models
-│   │   ├── schemas/   # Pydantic schemas
-│   │   ├── services/  # Business logic (email, qr, embeddings)
-│   │   └── main.py
-│   ├── migrations/    # Alembic migrations
-│   └── requirements.txt
-├── face-checkin/      # Local Python app (OpenCV + InsightFace)
-├── .env.example
-└── README.md
-```
+---
 
-## Database Schema
-- **users**: id, email, password_hash, role (ADMIN/VOLUNTEER), name, created_at
-- **participants**: id, name, email, phone, institution, category, photo_url, qr_code_url, registered_at
-- **face_embeddings**: id, participant_id (FK), embedding (vector(512)), created_at
-- **sessions**: id, name, description, start_time, end_time, location, created_at
-- **attendance**: id, participant_id (FK), session_id (FK nullable), method (FACE/QR/MANUAL), marked_by (FK users), marked_at, UNIQUE(participant_id, session_id)
+## Database Initialization & Migration Reliability (`relation "users" does not exist`)
 
-## Implementation Tasks
+### Root Cause
+1. Previously, running `docker compose up` or starting FastAPI directly invoked `uvicorn app.main:app` without applying database schema migrations (`alembic upgrade head`).
+2. When requests arrived at unmigrated PostgreSQL databases, queries targeting the `users` table failed with `relation "users" does not exist`.
+3. `backend/app/models/__init__.py` was empty and did not export the model classes and metadata.
+4. FastAPI `lifespan` in `app/main.py` did not execute migrations on startup.
+5. `backend/Dockerfile` had no entrypoint script to migrate the schema prior to starting the web server.
 
-### Phase 1: Foundation
-- [x] Database schema & Alembic migrations
-- [x] FastAPI project structure & config
-- [x] Auth system (JWT, admin/volunteer roles)
-- [x] SQLAlchemy models
-
-### Phase 2: Backend APIs
-- [x] Participant CRUD + photo upload
-- [x] Face embedding generation (InsightFace on backend for registration)
-- [x] QR code generation
-- [x] Email service (QR delivery)
-- [x] Session CRUD
-- [x] Attendance APIs (record, query, prevent duplicates)
-- [x] Embedding sync endpoint (for local face-checkin to download)
-- [x] CSV/Excel export
-- [x] Admin dashboard stats
-
-### Phase 3: Frontend
-- [x] Vite + React project setup with routing
-- [x] Registration portal (form + photo capture/upload)
-- [x] Login page
-- [x] Admin dashboard (participants list, search, filter)
-- [x] Admin: participant details view
-- [x] Admin: session management (CRUD)
-- [x] Admin: attendance monitoring (event + session)
-- [x] Admin: CSV/Excel export
-- [x] Volunteer: session selector + QR scanner
-- [x] Volunteer: manual lookup fallback
-- [x] Responsive design (desktop admin, mobile volunteer)
-
-### Phase 4: Face Check-in (Local App)
-- [x] OpenCV webcam capture
-- [x] InsightFace face detection + embedding
-- [x] Download embeddings from backend
-- [x] Local cosine similarity matching
-- [x] Display matched participant info + photo
-- [x] Volunteer confirmation UI
-- [x] Record attendance via API
-- [x] Manual lookup fallback
-
-### Phase 5: Integration & Polish
-- [x] End-to-end flow testing
-- [x] Environment variable configuration
-- [x] README with setup instructions
-- [x] Docker compose (optional)
-
-## Review
-- All phases complete. MVP is functional end-to-end.
-
+### Resolved
+- [x] 1. Imported and exported all models (`Base`, `User`, `Participant`, `FaceEmbedding`, `Session`, `Attendance`, and enums) in `backend/app/models/__init__.py`.
+- [x] 2. Updated `backend/migrations/env.py` to allow online migrations to run safely across both sync/CLI contexts and async loop contexts (via thread pool worker).
+- [x] 3. Implemented `backend/app/core/db_init.py` with retry logic and invoked `await run_migrations_async()` inside `backend/app/main.py` lifespan to migrate the schema on application startup before accepting traffic.
+- [x] 4. Created `backend/docker-entrypoint.sh` with a native socket-based PostgreSQL connectivity check and `alembic upgrade head` before handing off to `uvicorn`.
+- [x] 5. Updated `backend/Dockerfile` with `PYTHONUNBUFFERED=1` and `ENTRYPOINT ["/app/docker-entrypoint.sh"]`.
+- [x] 6. Configured `docker-compose.yml` backend service with healthcheck dependency and unbuffered logs.
+- [x] 7. Preserved all existing PostgreSQL data and volumes; verified zero destructive operations.
+- [x] 8. Verified all 6 tables exist in PostgreSQL (`users`, `participants`, `face_embeddings`, `sessions`, `attendance`, `alembic_version`).
+- [x] 9. Verified login, volunteer registration, participant creation, session creation, and attendance recording work end-to-end.
+- [x] 10. Rebuilt Docker container and validated cold-boot migration execution and container health.

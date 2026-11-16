@@ -25,6 +25,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://geekai:geekai123@postgres:5432/geekai
       SECRET_KEY: change-me-in-production
       CORS_ORIGINS: "http://localhost:5173,http://localhost:3000"
+      PYTHONUNBUFFERED: "1"
     ports:
       - "8000:8000"
     volumes:

@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
+from app.core.db_init import run_migrations_async
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -23,6 +24,10 @@ async def lifespan(app: FastAPI):
     settings.photos_dir
     settings.qrcodes_dir
     logger.info("GeekAI backend starting — upload directories ready")
+
+    # Ensure database schema is migrated before accepting traffic
+    await run_migrations_async()
+
     yield
     logger.info("GeekAI backend shutting down")
 
