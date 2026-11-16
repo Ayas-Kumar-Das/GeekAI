@@ -49,6 +49,25 @@ class UserOut(BaseModel):
         from_attributes = True
 
 
+class VolunteerOut(BaseModel):
+    id: int
+    email: str
+    name: str
+    role: UserRole
+    is_active: bool
+    created_at: datetime
+    attendance_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class VolunteerCreate(BaseModel):
+    name: str = Field(min_length=1)
+    email: EmailStr
+    password: str = Field(min_length=6)
+
+
 # ===== Participants =========================================================
 
 class ParticipantCreate(BaseModel):
@@ -160,6 +179,14 @@ class QRValidateRequest(BaseModel):
 class QRValidateResponse(BaseModel):
     valid: bool
     participant: Optional[ParticipantOut] = None
+    message: str
+
+
+class FaceMatchResponse(BaseModel):
+    matched: bool
+    participant: Optional[ParticipantOut] = None
+    similarity: float = 0.0
+    already_checked_in: bool = False
     message: str
 
 

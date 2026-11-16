@@ -75,3 +75,4 @@ def run_migrations(max_retries: int = 5, retry_interval: float = 2.0) -> None:
 async def run_migrations_async() -> None:
     """Asynchronously execute migrations in a worker thread so the event loop is unblocked."""
     await asyncio.to_thread(run_migrations)
+

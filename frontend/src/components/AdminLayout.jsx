@@ -9,6 +9,7 @@ import {
   LogOut,
   Brain,
   ChevronLeft,
+  UserCheck,
 } from 'lucide-react'
 
 const navItems = [
@@ -16,6 +17,7 @@ const navItems = [
   { to: '/admin/participants', label: 'Participants', icon: Users },
   { to: '/admin/sessions', label: 'Sessions', icon: CalendarDays },
   { to: '/admin/attendance', label: 'Attendance', icon: ClipboardCheck },
+  { to: '/admin/volunteers', label: 'Volunteers', icon: UserCheck },
   { to: '/admin/export', label: 'Export Data', icon: Download },
 ]
 

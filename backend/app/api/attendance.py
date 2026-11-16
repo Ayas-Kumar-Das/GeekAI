@@ -3,22 +3,28 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import numpy as np
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_user, get_db
-from app.models.models import Attendance, AttendanceMethod, Participant, Session, User
+from app.models.models import Attendance, AttendanceMethod, FaceEmbedding, Participant, Session, User
 from app.schemas.schemas import (
     AttendanceCreate,
     AttendanceOut,
     AttendanceStats,
+    FaceMatchResponse,
+    ParticipantOut,
     QRValidateRequest,
     QRValidateResponse,
-    ParticipantOut,
 )
+from app.services.embedding_service import generate_embedding
 
 router = APIRouter(prefix="/api/attendance", tags=["attendance"])
 
@@ -199,3 +205,97 @@ async def validate_qr(body: QRValidateRequest, db: AsyncSession = Depends(get_db
         participant=ParticipantOut.model_validate(participant),
         message="Participant verified successfully",
     )
+
+
+@router.post("/face-match", response_model=FaceMatchResponse)
+async def match_face(
+    photo: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Identify a participant from an uploaded face snapshot and check attendance status.
+
+    Reuses the InsightFace embedding generator and cosine similarity matching.
+    Returns matched participant info, similarity score, and whether event attendance
+    has already been marked.
+    """
+    # Save uploaded photo to a temporary file
+    suffix = os.path.splitext(photo.filename or "")[1] or ".jpg"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp_path = tmp.name
+        content = await photo.read()
+        tmp.write(content)
+
+    try:
+        query_vec = generate_embedding(tmp_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+    query_arr = np.array(query_vec, dtype=np.float32)
+    query_norm = np.linalg.norm(query_arr)
+    if query_norm == 0 or np.all(query_arr == 0):
+        return FaceMatchResponse(
+            matched=False,
+            message="No face detected in the photo. Please ensure face is centered and clearly lit.",
+        )
+
+    # Normalize query vector
+    query_unit = query_arr / query_norm
+
+    # Load stored embeddings with participant details
+    result = await db.execute(
+        select(FaceEmbedding).options(selectinload(FaceEmbedding.participant))
+    )
+    embeddings = result.scalars().all()
+
+    if not embeddings:
+        return FaceMatchResponse(
+            matched=False,
+            message="No participant face embeddings available in the database.",
+        )
+
+    best_match: Optional[FaceEmbedding] = None
+    best_sim = -1.0
+
+    for emb in embeddings:
+        if not emb.embedding or not emb.participant:
+            continue
+        vec = np.array(emb.embedding, dtype=np.float32)
+        v_norm = np.linalg.norm(vec)
+        if v_norm == 0:
+            continue
+        sim = float(np.dot(vec / v_norm, query_unit))
+        if sim > best_sim:
+            best_sim = sim
+            best_match = emb
+
+    MATCH_THRESHOLD = 0.40  # Consistent with face-checkin configuration
+    if best_match is None or best_sim < MATCH_THRESHOLD:
+        return FaceMatchResponse(
+            matched=False,
+            similarity=round(max(0.0, best_sim), 4),
+            message="No registered participant matched above the similarity threshold.",
+        )
+
+    participant = best_match.participant
+
+    # Check if event-level attendance is already recorded
+    att_res = await db.execute(
+        select(Attendance).where(
+            and_(
+                Attendance.participant_id == participant.id,
+                Attendance.session_id.is_(None),
+            )
+        )
+    )
+    existing_att = att_res.scalar_one_or_none()
+
+    return FaceMatchResponse(
+        matched=True,
+        participant=ParticipantOut.model_validate(participant),
+        similarity=round(best_sim, 4),
+        already_checked_in=existing_att is not None,
+        message=f"Participant identified: {participant.name}",
+    )
+

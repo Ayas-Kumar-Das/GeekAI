@@ -6,15 +6,16 @@ import csv
 import io
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_admin, get_db
-from app.models.models import Attendance, Participant, ParticipantCategory, Session, User
-from app.schemas.schemas import DashboardStats, ParticipantOut
+from app.core.security import hash_password
+from app.models.models import Attendance, Participant, ParticipantCategory, Session, User, UserRole
+from app.schemas.schemas import DashboardStats, ParticipantOut, VolunteerCreate, VolunteerOut
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -54,6 +55,133 @@ async def dashboard(
         participants_by_category=by_category,
         recent_registrations=recent,
     )
+
+
+# ===== Volunteer Management =================================================
+
+@router.get("/volunteers", response_model=list[VolunteerOut])
+async def list_volunteers(
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """List all volunteers with attendance counts."""
+    stmt = (
+        select(
+            User,
+            func.count(Attendance.id).label("attendance_count"),
+        )
+        .outerjoin(Attendance, Attendance.marked_by == User.id)
+        .where(User.role == UserRole.VOLUNTEER)
+        .group_by(User.id)
+        .order_by(User.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+    return [
+        VolunteerOut(
+            id=u.id,
+            email=u.email,
+            name=u.name,
+            role=u.role,
+            is_active=u.is_active,
+            created_at=u.created_at,
+            attendance_count=count,
+        )
+        for u, count in rows
+    ]
+
+
+@router.post("/volunteers", response_model=VolunteerOut, status_code=status.HTTP_201_CREATED)
+async def create_volunteer(
+    body: VolunteerCreate,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """Admin adds a new volunteer with custom email and password."""
+    existing = await db.execute(select(User).where(User.email == body.email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user with this email address already exists",
+        )
+
+    user = User(
+        email=body.email,
+        password_hash=hash_password(body.password),
+        name=body.name,
+        role=UserRole.VOLUNTEER,
+    )
+    db.add(user)
+    await db.flush()
+    await db.refresh(user)
+
+    return VolunteerOut(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        attendance_count=0,
+    )
+
+
+@router.patch("/volunteers/{volunteer_id}/toggle-status", response_model=VolunteerOut)
+async def toggle_volunteer_status(
+    volunteer_id: int,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """Toggle a volunteer's active status."""
+    result = await db.execute(
+        select(User).where(User.id == volunteer_id, User.role == UserRole.VOLUNTEER)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
+
+    user.is_active = not user.is_active
+    await db.flush()
+    await db.refresh(user)
+
+    count_result = await db.execute(
+        select(func.count()).select_from(Attendance).where(Attendance.marked_by == user.id)
+    )
+    count = count_result.scalar() or 0
+
+    return VolunteerOut(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        attendance_count=count,
+    )
+
+
+@router.delete("/volunteers/{volunteer_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_volunteer(
+    volunteer_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    """Remove a volunteer account."""
+    if volunteer_id == admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own admin account",
+        )
+
+    result = await db.execute(
+        select(User).where(User.id == volunteer_id, User.role == UserRole.VOLUNTEER)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
+
+    await db.delete(user)
+    await db.flush()
 
 
 @router.get("/export/participants")

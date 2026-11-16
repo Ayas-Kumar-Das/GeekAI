@@ -145,13 +145,20 @@ python main.py
 - **Participants** — Searchable, filterable list; click for full profile with attendance history
 - **Sessions** — Create, edit, delete symposium sessions
 - **Attendance** — Event-level and per-session monitoring with method breakdown
+- **Volunteers** — Add/remove volunteers with custom email and password, toggle active status, track check-ins marked
 - **Export** — Download participants (CSV) and attendance (CSV/Excel)
 
 ### 📱 Volunteer Interface (`/volunteer`)
-- **QR Scanner** — Camera-based QR scanning on mobile phones
+- **Event Face Check-In (`/volunteer/face-checkin`)** — Integrated camera-based face recognition for one-time event entry
+  - Captures webcam frame → matches against 512-d embeddings via InsightFace
+  - Displays matched participant profile, photo, category, and similarity score
+  - Options to confirm identity and **Mark Present** or **Mark Absent / Reject**
+  - Enforces one-time check-in (prevents duplicate event check-ins)
+  - Includes manual search fallback for event entry
+- **QR Scanner (`/volunteer/scan`)** — Camera-based QR scanning for individual symposium sessions
   - Select session → scan QR → auto-validate → confirm attendance
   - Clear feedback: ✅ success, ⚠️ already marked, ❌ invalid
-- **Manual Lookup** — Search participant by name, mark attendance manually
+- **Manual Lookup (`/volunteer/manual`)** — Search participant by name, mark session attendance manually
 
 ### 🎥 Face Check-in (Local Desktop App)
 - Webcam-based face detection using InsightFace
@@ -196,6 +203,7 @@ python main.py
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/attendance/` | Record attendance (prevents duplicates) |
+| POST | `/api/attendance/face-match` | Identify participant from face snapshot & check event attendance |
 | GET | `/api/attendance/event` | Event-level check-ins |
 | GET | `/api/attendance/session/{id}` | Session attendance |
 | GET | `/api/attendance/stats` | Aggregate statistics |
@@ -206,6 +214,10 @@ python main.py
 |--------|------|-------------|
 | GET | `/api/embeddings/sync` | Download all embeddings (for face-checkin) |
 | GET | `/api/admin/dashboard` | Dashboard stats |
+| GET | `/api/admin/volunteers` | List all volunteers with attendance counts |
+| POST | `/api/admin/volunteers` | Add a new volunteer (custom name, email, password) |
+| PATCH | `/api/admin/volunteers/{id}/toggle-status` | Toggle volunteer active/inactive status |
+| DELETE | `/api/admin/volunteers/{id}` | Remove a volunteer account |
 | GET | `/api/admin/export/participants` | CSV export |
 | GET | `/api/admin/export/attendance` | CSV/Excel export |
 

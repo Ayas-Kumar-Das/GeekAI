@@ -11,7 +11,9 @@ import ParticipantDetail from './pages/admin/ParticipantDetail'
 import Sessions from './pages/admin/Sessions'
 import Attendance from './pages/admin/Attendance'
 import Export from './pages/admin/Export'
+import Volunteers from './pages/admin/Volunteers'
 import VolunteerDashboard from './pages/volunteer/VolunteerDashboard'
+import FaceCheckIn from './pages/volunteer/FaceCheckIn'
 import QRScanner from './pages/volunteer/QRScanner'
 import ManualLookup from './pages/volunteer/ManualLookup'
 
@@ -41,6 +43,7 @@ export default function App() {
         <Route path="participants/:id" element={<ParticipantDetail />} />
         <Route path="sessions" element={<Sessions />} />
         <Route path="attendance" element={<Attendance />} />
+        <Route path="volunteers" element={<Volunteers />} />
         <Route path="export" element={<Export />} />
       </Route>
 
@@ -55,6 +58,7 @@ export default function App() {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<VolunteerDashboard />} />
+        <Route path="face-checkin" element={<FaceCheckIn />} />
         <Route path="scan" element={<QRScanner />} />
         <Route path="manual" element={<ManualLookup />} />
       </Route>
