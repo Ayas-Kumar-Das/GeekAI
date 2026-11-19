@@ -9,7 +9,7 @@ import Banner from '../components/ui/Banner'
  */
 export default function AssistedRegistration() {
   return (
-    <div className="container-prose py-10 pb-16">
+    <>
       <PageHero
         eyebrow="Staff · walk-in registration"
         title="Assisted registration"
@@ -22,16 +22,18 @@ export default function AssistedRegistration() {
         className="mb-6"
       />
 
-      <Banner tone="info" title="For event staff" className="mb-6">
-        Use the participant's own email if they can access it on event day. The photo and
-        details you submit here are checked at the arrival desk.
-      </Banner>
+      <div className="container-prose pb-16">
+        <Banner tone="info" title="For event staff" className="mb-6">
+          Use the participant's own email if they can access it on event day. The photo and
+          details you submit here are checked at the arrival desk.
+        </Banner>
 
-      <NativeRegisterForm assisted />
+        <NativeRegisterForm assisted />
 
-      <div className="mt-6">
-        <PlaceholderBadge>Walk-in flow — confirm copy with the host office</PlaceholderBadge>
+        <div className="mt-6">
+          <PlaceholderBadge>Walk-in flow — confirm copy with the host office</PlaceholderBadge>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
