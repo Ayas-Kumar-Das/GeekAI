@@ -20,6 +20,7 @@ const Privacy = lazy(() => import('./pages/Privacy'))
 const AccessibilityPage = lazy(() => import('./pages/Accessibility'))
 const CodeOfConduct = lazy(() => import('./pages/CodeOfConduct'))
 const RegistrationStatus = lazy(() => import('./pages/RegistrationStatus'))
+const Ticket = lazy(() => import('./pages/Ticket'))
 const AssistedRegistration = lazy(() => import('./pages/AssistedRegistration'))
 const Dashboard = lazy(() => import('./pages/admin/Dashboard'))
 const Participants = lazy(() => import('./pages/admin/Participants'))
@@ -66,6 +67,10 @@ export default function App() {
               }
             />
           </Route>
+
+          {/* Participant pass (§7.4) — its own app-bar shell, no public masthead;
+              the signed token in the path is the credential (noindex). */}
+          <Route path="/ticket/:token" element={<Ticket />} />
 
           {/* Staff sign-in (legacy shell until Stage 4) */}
           <Route element={<Layout />}>

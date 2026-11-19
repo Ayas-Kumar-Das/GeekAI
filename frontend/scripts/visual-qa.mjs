@@ -40,11 +40,24 @@ const routes = [
   '/faq',
   '/register',
   '/registration/status',
+  // Phase 2 participant screens — demo tokens render without the API (§7.3/§7.4)
+  '/registration/status?token=demo',
+  '/registration/status?token=demo-pass',
+  '/ticket/demo',
+  '/ticket/demo-pass',
   '/privacy',
   '/accessibility',
   '/code-of-conduct',
 ]
 const widths = [360, 1440]
+
+/** Routes that also get a full-page screenshot for the review record. */
+const shotRoutes = new Set([
+  '/',
+  '/registration/status?token=demo',
+  '/registration/status?token=demo-pass',
+  '/ticket/demo-pass',
+])
 
 const shotDir = path.join(root, '..', '.qa')
 fs.mkdirSync(shotDir, { recursive: true })
@@ -119,9 +132,13 @@ for (const width of widths) {
       console.log(`ok   ${width}px ${route}`)
     }
 
-    if (route === '/' ) {
+    if (shotRoutes.has(route)) {
+      const name =
+        route === '/'
+          ? 'home'
+          : route.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '')
       await page.screenshot({
-        path: path.join(shotDir, `home-${width}.png`),
+        path: path.join(shotDir, `${name}-${width}.png`),
         fullPage: true,
       })
     }
