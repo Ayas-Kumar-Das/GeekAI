@@ -1,0 +1,33 @@
+/**
+ * Feature flags for the phased rollout (FrontendPlanning.md §11.2).
+ *
+ * Safe-state rule: in production a flag is OFF unless explicitly enabled
+ * with VITE_FLAG_<NAME>=true, so a deploy never exposes an unrehearsed flow.
+ * In development flags default ON so new screens are visible while building.
+ */
+
+const env = import.meta.env
+
+function flag(name, devDefault = true) {
+  const raw = env[`VITE_FLAG_${name}`]
+  if (raw === 'true') return true
+  if (raw === 'false') return false
+  return env.PROD ? false : devDefault
+}
+
+export const flags = {
+  /** `/register` renders the Google Form handoff instead of the native form. */
+  registrationHandoff: flag('REGISTRATION_HANDOFF'),
+  /** `/registration/status` and `/ticket/:token` participant screens. */
+  ticketPage: flag('TICKET_PAGE', false),
+  /** Volunteer arrival desk v2 (verify → issue pass → print). */
+  arrivalV2: flag('ARRIVAL_V2', false),
+  /** QR scanner v2 (signed-token verification, entry/session modes). */
+  scanV2: flag('SCAN_V2', false),
+  /** Admin live-ops screen (requires backend endpoint). */
+  liveOps: flag('LIVE_OPS', false),
+  /** Admin reconciliation screen (requires backend endpoint). */
+  reconciliation: flag('RECONCILIATION', false),
+}
+
+export default flags

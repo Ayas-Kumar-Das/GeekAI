@@ -193,10 +193,13 @@ export default function Volunteers() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5">
           <button
             title={row.is_active ? 'Deactivate volunteer' : 'Activate volunteer'}
-            onClick={() => toggleMutation.mutate(row.id)}
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleMutation.mutate(row.id)
+            }}
             disabled={toggleMutation.isPending}
             className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
               row.is_active
@@ -212,7 +215,10 @@ export default function Volunteers() {
           </button>
           <button
             title="Remove volunteer"
-            onClick={() => confirmDelete(row)}
+            onClick={(e) => {
+              e.stopPropagation()
+              confirmDelete(row)
+            }}
             className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors cursor-pointer"
           >
             <Trash2 className="h-4 w-4" />

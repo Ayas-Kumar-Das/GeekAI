@@ -1,47 +1,66 @@
 import { Loader2 } from 'lucide-react'
+import { cn } from '../../lib/cn'
 
+/**
+ * Button — one primary action per view. Ink is the default; gold is reserved
+ * for the arrival desk's "Issue QR pass" and ceremonial moments (§5.3).
+ * `loading` keeps the button's width and sets aria-busy.
+ */
 const variants = {
-  primary: 'bg-primary text-white hover:bg-primary-light active:bg-primary-dark',
-  secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300',
-  danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
-  outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white',
-  ghost: 'text-gray-600 hover:bg-gray-100 active:bg-gray-200',
-  accent: 'bg-accent text-white hover:bg-accent-light active:bg-accent-dark',
+  primary: 'bg-ink-900 text-ivory-50 hover:bg-ink-800 active:bg-ink-700',
+  gold: 'bg-gold-500 text-ink-900 hover:bg-gold-600 active:bg-gold-600',
+  secondary:
+    'border border-border-control bg-transparent text-ink-900 hover:bg-sand-100 active:bg-sand-200',
+  ghost: 'text-ink-900 hover:bg-sand-100 active:bg-sand-200',
+  danger: 'bg-red-600 text-white hover:bg-red-600/90 active:bg-red-600/80',
+  link: 'text-accent underline underline-offset-2 hover:text-ink-900',
+  // Legacy aliases (pre-redesign pages) — remove in post-event cleanup.
+  accent: 'bg-gold-500 text-ink-900 hover:bg-gold-600 active:bg-gold-600',
+  outline:
+    'border border-border-control bg-transparent text-ink-900 hover:bg-sand-100 active:bg-sand-200',
 }
 
 const sizes = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base',
+  // sm is 34px visually but keeps a 44px hit area (§8.5).
+  sm: 'h-[34px] px-3 text-sm gap-1.5 relative after:absolute after:-inset-y-[5px] after:inset-x-0 after:content-[""]',
+  md: 'h-11 px-4 text-sm gap-2',
+  lg: 'h-[50px] px-6 text-base gap-2',
 }
 
-export default function Button({
+export function Button({
   children,
   variant = 'primary',
   size = 'md',
   loading = false,
   disabled = false,
-  className = '',
+  className,
   type = 'button',
   ...props
 }) {
+  const isDisabled = disabled || loading
   return (
     <button
       type={type}
-      disabled={disabled || loading}
-      className={`
-        inline-flex items-center justify-center gap-2 rounded-lg font-medium
-        transition-all duration-150 cursor-pointer
-        focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${variants[variant] || variants.primary}
-        ${sizes[size] || sizes.md}
-        ${className}
-      `}
+      disabled={isDisabled}
+      aria-busy={loading || undefined}
+      className={cn(
+        'relative inline-flex cursor-pointer items-center justify-center rounded-sm font-medium',
+        'transition-colors duration-fast',
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        variants[variant] ?? variants.primary,
+        sizes[size] ?? sizes.md,
+        className
+      )}
       {...props}
     >
-      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-      {children}
+      {loading && (
+        <Loader2 className="absolute h-4 w-4 animate-spin" aria-hidden="true" />
+      )}
+      <span className={cn('inline-flex items-center', loading && 'invisible')}>
+        {children}
+      </span>
     </button>
   )
 }
+
+export default Button
