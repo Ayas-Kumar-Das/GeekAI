@@ -13,7 +13,9 @@ const variants = {
     'border border-border-control bg-transparent text-ink-900 hover:bg-sand-100 active:bg-sand-200',
   ghost: 'text-ink-900 hover:bg-sand-100 active:bg-sand-200',
   danger: 'bg-red-600 text-white hover:bg-red-600/90 active:bg-red-600/80',
-  link: 'text-accent underline underline-offset-2 hover:text-ink-900',
+  link: 'text-ink-900 hover:text-ink-700 active:text-ink-700',
+  // Gold text link for dark (ink) surfaces — §7.1 speakers CTA.
+  linkGold: 'text-gold-500 hover:text-gold-100 active:text-gold-100',
   // Legacy aliases (pre-redesign pages) — remove in post-event cleanup.
   accent: 'bg-gold-500 text-ink-900 hover:bg-gold-600 active:bg-gold-600',
   outline:
@@ -25,6 +27,15 @@ const sizes = {
   sm: 'h-[34px] px-3 text-sm gap-1.5 relative after:absolute after:-inset-y-[5px] after:inset-x-0 after:content-[""]',
   md: 'h-11 px-4 text-sm gap-2',
   lg: 'h-[50px] px-6 text-base gap-2',
+}
+
+const baseClasses =
+  'relative inline-flex cursor-pointer items-center justify-center rounded-sm font-medium ' +
+  'transition-colors duration-fast'
+
+/** Shared look for `<button>` and link buttons — one variant map (§5.10). */
+export function linkClasses(variant = 'primary', size = 'md') {
+  return cn(baseClasses, variants[variant] ?? variants.primary, sizes[size] ?? sizes.md)
 }
 
 export function Button({
@@ -44,11 +55,8 @@ export function Button({
       disabled={isDisabled}
       aria-busy={loading || undefined}
       className={cn(
-        'relative inline-flex cursor-pointer items-center justify-center rounded-sm font-medium',
-        'transition-colors duration-fast',
+        linkClasses(variant, size),
         'disabled:cursor-not-allowed disabled:opacity-50',
-        variants[variant] ?? variants.primary,
-        sizes[size] ?? sizes.md,
         className
       )}
       {...props}

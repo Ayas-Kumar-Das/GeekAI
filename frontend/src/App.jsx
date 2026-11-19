@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Layout from './components/Layout'
 import AdminLayout from './components/AdminLayout'
+import PublicLayout from './components/public/PublicLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
 import RouteFallback from './components/RouteFallback'
@@ -11,6 +12,15 @@ import RouteFallback from './components/RouteFallback'
 const Home = lazy(() => import('./pages/Home'))
 const Login = lazy(() => import('./pages/Login'))
 const Register = lazy(() => import('./pages/Register'))
+const Programme = lazy(() => import('./pages/Programme'))
+const Speakers = lazy(() => import('./pages/Speakers'))
+const VenuePage = lazy(() => import('./pages/Venue'))
+const FaqPage = lazy(() => import('./pages/Faq'))
+const Privacy = lazy(() => import('./pages/Privacy'))
+const AccessibilityPage = lazy(() => import('./pages/Accessibility'))
+const CodeOfConduct = lazy(() => import('./pages/CodeOfConduct'))
+const RegistrationStatus = lazy(() => import('./pages/RegistrationStatus'))
+const AssistedRegistration = lazy(() => import('./pages/AssistedRegistration'))
 const Dashboard = lazy(() => import('./pages/admin/Dashboard'))
 const Participants = lazy(() => import('./pages/admin/Participants'))
 const ParticipantDetail = lazy(() => import('./pages/admin/ParticipantDetail'))
@@ -34,9 +44,31 @@ export default function App() {
     <ErrorBoundary resetKeys={[location.pathname]}>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route element={<Layout />}>
+          {/* Public shell (§6.1): top strip, masthead, ink footer */}
+          <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
+            <Route path="/programme" element={<Programme />} />
+            <Route path="/speakers" element={<Speakers />} />
+            <Route path="/venue" element={<VenuePage />} />
+            <Route path="/faq" element={<FaqPage />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/accessibility" element={<AccessibilityPage />} />
+            <Route path="/code-of-conduct" element={<CodeOfConduct />} />
+            <Route path="/registration/status" element={<RegistrationStatus />} />
+            {/* Staff-assisted walk-in form (§6.1) — authenticated staff only */}
+            <Route
+              path="/register/assisted"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN', 'VOLUNTEER']}>
+                  <AssistedRegistration />
+                </ProtectedRoute>
+              }
+            />
+          </Route>
+
+          {/* Staff sign-in (legacy shell until Stage 4) */}
+          <Route element={<Layout />}>
             <Route path="/login" element={<Login />} />
             <Route path="/admin/login" element={<Login />} />
             <Route path="/volunteer/login" element={<Login />} />

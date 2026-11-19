@@ -52,6 +52,9 @@ postgres_data/
 # Logs
 *.log
 
+# Local visual-QA screenshots (frontend/scripts/visual-qa.mjs output)
+.qa/
+
 # OS & IDE
 .DS_Store
 Thumbs.db

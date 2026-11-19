@@ -24,6 +24,7 @@ export function Drawer({
   title,
   children,
   footer,
+  id,
   className,
 }) {
   const panelRef = useRef(null)
@@ -96,6 +97,7 @@ export function Drawer({
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- role=dialog panel owns the focus trap (§9.4) */}
       <div
         ref={panelRef}
+        id={id}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
