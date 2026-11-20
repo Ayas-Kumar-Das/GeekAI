@@ -10,7 +10,6 @@ import Select from '../ui/Select'
 import Skeleton from '../ui/Skeleton'
 import Textarea from '../ui/Textarea'
 import { event } from '../../content/event'
-import flags from '../../content/flags'
 import { cn } from '../../lib/cn'
 import {
   CATEGORIES,
@@ -193,31 +192,12 @@ export default function RegistrationForm({
         </div>
       </div>
 
-      {flags.registrationMock && (
-        <div
-          role="status"
-          className="mb-6 overflow-hidden rounded-lg border border-gold-500/40 bg-gold-100/60 shadow-sm"
-        >
-          <div className="flex flex-wrap items-center gap-2 border-b border-gold-500/30 bg-ink-900 px-4 py-2 text-ivory-50">
-            <ShieldCheck className="h-4 w-4 text-gold-500" aria-hidden="true" />
-            <p className="text-xs font-semibold">Local verification mode</p>
-            <span className="ml-auto font-mono text-[9px] uppercase tracking-[0.1em] text-ivory-100/60">
-              No data is sent
-            </span>
-          </div>
-          <p className="px-4 py-3 text-xs leading-relaxed text-[#5A4D38]">
-            Submission is simulated in this build so you can review the full flow. Nothing is
-            sent to a server and nothing is stored. Use the details below to try validation and
-            the success panel.
-          </p>
-        </div>
-      )}
-
+      <div className="reg-form-notices px-4 pt-4 sm:px-6 sm:pt-5">
       {draftRestored && (
         <Banner
           tone="info"
           title="Draft restored"
-          className="mb-6"
+          className="mb-4"
           action={
             <Button variant="link" size="sm" onClick={dismissDraftBanner}>
               Dismiss
@@ -229,14 +209,14 @@ export default function RegistrationForm({
       )}
 
       {!online && (
-        <Banner tone="offline" title="You're offline" className="mb-6">
+        <Banner tone="offline" title="You're offline" className="mb-4">
           Your details are saved on this device. You can keep filling the form, but submitting
           needs a connection.
         </Banner>
       )}
 
       {assisted && (
-        <Banner tone="info" title="Staff-assisted registration" className="mb-6">
+        <Banner tone="info" title="Staff-assisted registration" className="mb-4">
           This submission is recorded as a walk-in. The participant's pass is issued at the
           arrival desk.
         </Banner>
@@ -246,7 +226,7 @@ export default function RegistrationForm({
         <div
           role="alert"
           aria-live="assertive"
-          className="mb-6 rounded-md border border-red-600/30 bg-red-50 px-4 py-3"
+          className="mb-4 rounded-md border border-red-600/30 bg-red-50 px-4 py-3"
         >
           <p className="text-sm font-semibold text-red-700">
             Please check {errorEntries.length}{' '}
@@ -262,7 +242,7 @@ export default function RegistrationForm({
 
       {submitError && (
         <ErrorState
-          className="mb-6"
+          className="mb-4"
           title="We couldn't submit your registration"
           body={submitError.message}
           requestId={submitError.requestId}
@@ -270,6 +250,7 @@ export default function RegistrationForm({
           retryLabel="Try submitting again"
         />
       )}
+      </div>
 
       <form onSubmit={handleSubmit} noValidate aria-busy={submitting}>
         <section aria-labelledby="reg-details-heading" className="reg-section reg-section--details">
@@ -457,7 +438,7 @@ export default function RegistrationForm({
           </fieldset>
         </section>
 
-        <div className="sticky bottom-0 z-20 mt-10 border-t border-border bg-ivory-100/97 px-1 pb-[env(safe-area-inset-bottom)] pt-4 backdrop-blur-sm sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:pt-6 sm:backdrop-blur-none">
+        <div className="sticky bottom-0 z-20 mt-10 border-t border-ink-900/10 bg-paper/97 px-4 pb-[env(safe-area-inset-bottom)] pt-4 sm:static sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-2">
           {submitting && (
             <div role="status" aria-live="polite" className="mb-4 flex items-center gap-3">
               <Skeleton lines={2} className="w-48" />
@@ -480,26 +461,28 @@ export default function RegistrationForm({
         </div>
       </form>
 
-      <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-        <Link
-          to={event.links.status}
-          className="font-medium text-ink-900 underline underline-offset-4"
-        >
-          Already registered? Check status
-        </Link>
-        <Link to="/register/assisted" className="text-muted underline underline-offset-4">
-          Need help? Use assisted registration
-        </Link>
-      </div>
-
-      <div className="mt-6 flex items-start gap-2 rounded-md border border-sand-200 bg-sand-100 px-3 py-2.5">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-gold-700" aria-hidden="true" />
-        <p className="text-xs leading-relaxed text-slate-700">
-          Your photo is used for identity verification on the day only.{' '}
-          <Link to={event.links.privacy} className="underline underline-offset-2">
-            Privacy notice
+      <div className="reg-form-footer border-t border-border bg-ivory-50/60 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+          <Link
+            to={event.links.status}
+            className="font-medium text-ink-900 underline underline-offset-4"
+          >
+            Already registered? Check status
           </Link>
-        </p>
+          <Link to="/register/assisted" className="text-muted underline underline-offset-4">
+            Need help? Use assisted registration
+          </Link>
+        </div>
+
+        <div className="mt-4 flex items-start gap-2 rounded-md border border-sand-200 bg-paper px-3 py-2.5">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-gold-700" aria-hidden="true" />
+          <p className="text-xs leading-relaxed text-slate-700">
+            Your photo is used for identity verification on the day only.{' '}
+            <Link to={event.links.privacy} className="underline underline-offset-2">
+              Privacy notice
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   )
