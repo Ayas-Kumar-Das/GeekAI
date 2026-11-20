@@ -67,11 +67,11 @@ Local hub (same FastAPI image, local profile)
 | Role | Permissions |
 |---|---|
 | Backend task role | read/write S3 prefixes, SES `SendEmail`, Secrets Manager read, RDS connect |
-| Import worker | write raw-json/photos/embeddings, read Drive service-account secret |
+| Registration worker | write registration snapshots/photos/embeddings; no external credentials |
 | Hub sync principal | sync endpoints only; scoped token, revocable; no direct RDS or SES access |
 | CI deploy role | Cloudflare Pages deploy + ECR push only |
 
-No long-lived AWS keys on volunteer laptops. Store `JWT_SECRET`, `QR_SIGNING_KEY`, `HUB_ID/HUB_TOKEN`, `GOOGLE_SERVICE_ACCOUNT_JSON`, `DATABASE_URL`, SES settings in Secrets Manager/SSM. Rotate after the event.
+No long-lived AWS keys on volunteer laptops. Store `JWT_SECRET`, `QR_SIGNING_KEY`, `HUB_ID/HUB_TOKEN`, `DATABASE_URL`, SES settings and any form bot-protection secret in Secrets Manager/SSM. No external form-provider credential is required. Rotate after the event.
 
 ### 3.5 Backend runtime
 
@@ -85,7 +85,7 @@ No long-lived AWS keys on volunteer laptops. Store `JWT_SECRET`, `QR_SIGNING_KEY
 ## 4. Cloudflare
 
 - Pages project built from `frontend/` with `npm run build`; publish `dist/`.
-- Set production environment variables: `VITE_*` flags OFF by default; `VITE_FLAG_TICKET_PAGE=true` only when the ticket API is live; `VITE_GOOGLE_FORM_URL` from the university's official form.
+- Set production environment variables: `VITE_*` flags OFF by default; `VITE_FLAG_TICKET_PAGE=true` only when the ticket API is live; no external form URL is required.
 - Cloudflare Access policies for `/admin/*` and `/volunteer/*` (email/OTP or SSO) as a second layer behind app auth.
 - WAF managed rules + rate limits on login, ticket lookup, QR verify and imports. No caching of PII or API responses containing participant data; cache only static assets.
 - Custom domain with HTTPS; frontend served over HTTP is not acceptable because camera APIs require a secure context.
@@ -148,3 +148,4 @@ Promotion is config-driven only — the same image is promoted from staging to p
 3. Region: `ap-south-1` assumed — confirm with the university's data policy.
 4. Is a Cloudflare Tunnel required for the venue, or will the hub call a public API endpoint?
 5. Who owns the AWS and Cloudflare accounts and the production credentials?
+6. What bot-protection service (for example Cloudflare Turnstile) protects the public registration endpoint?

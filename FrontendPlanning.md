@@ -35,7 +35,7 @@
 
 The current frontend was built for a conventional “register online, receive a QR by email, scan at the door” event. The actual event model in `WorkFlow.md` is different and stricter:
 
-1. Registration happens through **Google Forms**, not the React form.
+1. Registration happens through the **in-site React form** at `/register`, not an external service.
 2. The participant is **verified in person at an arrival desk**.
 3. A **signed, event-scoped QR pass is issued only after arrival**.
 4. Entry is a **one-time** QR scan; session scans are separate.
@@ -86,9 +86,9 @@ A volunteer may use a mid-range Android phone on 4G, indoors, with the screen at
 
 ### 1.5 Scope and non-goals
 
-**In scope:** public site, registration handoff, registration status, participant ticket, volunteer arrival, QR scanner, manual lookup, admin shell, dashboard, imports, participants, sessions, attendance, reconciliation, audit, login, global states, print styles, design tokens, component inventory, responsive and accessibility rules, performance budgets, file-level roadmap, QA.
+**In scope:** public site, in-site registration form, registration status, participant ticket, volunteer arrival, QR scanner, manual lookup, admin shell, dashboard, imports, participants, sessions, attendance, reconciliation, audit, login, global states, print styles, design tokens, component inventory, responsive and accessibility rules, performance budgets, file-level roadmap, QA.
 
-**Out of scope:** API implementation, database schema, S3/Cloudflare/AWS configuration, Google Form construction, email templates, face-matching model tuning, native apps, payments, multi-event support, certificates (post-event phase), Odia/Hindi translation (strings should be ready for it, but translation is not delivered here).
+**Out of scope:** API implementation, database schema, S3/Cloudflare/AWS configuration, third-party form construction, email templates, face-matching model tuning, native apps, payments, multi-event support, certificates (post-event phase), Odia/Hindi translation (strings should be ready for it, but translation is not delivered here).
 
 **Explicitly not doing:** a full rewrite of the app, a new state-management library, a dark-mode theme for the public site, Framer Motion in v1, Recharts in v1, a CMS, a native mobile app, or a custom design system package. The plan favours a small number of well-made primitives over a large component library.
 
@@ -135,7 +135,7 @@ The table records what works, what is worth adapting, and what to avoid at this 
 - **Programme:** a filterable row list, not three generic cards. Every row says “Session title to be announced” until the programme is real.
 - **Speakers:** placeholder cards are explicitly labelled. No stock faces, no invented names.
 - **Venue:** practical arrival, transport and accessibility information, with a clearly marked “to be announced” state.
-- **Registration:** a handoff page that explains the Google Form, the photo/consent requirement, and what happens after submission.
+- **Registration:** an in-site React form that captures details, photo and consent, validates them, and explains that the pass is issued at arrival.
 - **Admin:** product-grade data density with a clear freshness indicator, not a wall of stat cards.
 - **Motion:** short, purposeful, and never on the QR, camera or biometric result.
 
@@ -176,7 +176,7 @@ All frontend source files were read statically: 32 files under `frontend/src`, p
 | Route | Page | Audience | Status |
 |---|---|---|---|
 | `/` | `Home.jsx` | Public | Exists; generic hero and misleading copy |
-| `/register` | `Register.jsx` | Public | Exists; native form contradicts Google Forms intake |
+| `/register` | `Register.jsx` | Public | Exists; legacy handoff contradicts the in-site form decision |
 | `/login` | `Login.jsx` | Staff | Exists; combined login |
 | `/admin/login` | `Login.jsx` | Admin | Duplicate of `/login` |
 | `/volunteer/login` | `Login.jsx` | Volunteer | Duplicate of `/login` |
@@ -203,9 +203,9 @@ All frontend source files were read statically: 32 files under `frontend/src`, p
 |---|---|---|---|---|
 | P0-1 | The QR scanner trusts client-parsed JSON and sends `participant_id` + `name` to `/attendance/validate-qr` | `frontend/src/pages/volunteer/QRScanner.jsx:70-87` | A forged QR can impersonate a participant; violates the signed-token model in `WorkFlow.md` Appendix B | Verify signature, `jti`, scope, event and expiry on the hub/API; the client only displays the result. Render signed tokens, never plain JSON. |
 | P0-2 | The arrival flow never issues a QR pass; it marks the participant present directly | `frontend/src/pages/volunteer/FaceCheckIn.jsx:144-167` | Skips `ARRIVED → QR_ISSUED → CHECKED_IN`; participants leave the desk without a pass | Make “Verify identity” and “Issue QR pass” two explicit steps; mark arrival, then issue, then allow entry scan |
-| P0-3 | The public native form is still the primary registration path and claims a QR was emailed | `frontend/src/pages/Register.jsx:29-58`, `:60-78` | Contradicts Google Forms intake and the “QR issued at arrival” rule; creates support tickets and no-shows | Demote the native form to staff-assisted walk-in; replace `/register` with a Google Form handoff + status explanation |
+| P0-3 | The public native form is still the primary registration path and claims a QR was emailed | `frontend/src/pages/Register.jsx:29-58`, `:60-78` | Contradicts the in-site form decision and the “QR issued at arrival” rule; creates support tickets and no-shows | Rebuild `/register` as the primary in-site React form; keep assisted walk-in on `/register/assisted`; never claim a QR was emailed |
 | P0-4 | No participant status or ticket page | `frontend/src/App.jsx:20-67` | Participants cannot check whether they are confirmed, what to bring, or where their pass comes from | Add `/registration/status` and `/ticket/:token` with explicit states |
-| P0-5 | No admin imports, live ops or reconciliation screens | `frontend/src/App.jsx:40-47` | Operators cannot import Google Forms responses, watch arrivals, or resolve hub/cloud variance | Add `/admin/imports`, `/admin/imports/:id`, `/admin/live`, `/admin/reconciliation` |
+| P0-5 | No admin imports, live ops or reconciliation screens | `frontend/src/App.jsx:40-47` | Operators cannot review registration submissions, watch arrivals, or resolve hub/cloud variance | Add `/admin/imports`, `/admin/imports/:id`, `/admin/live`, `/admin/reconciliation` |
 | P0-6 | No offline/sync state in the UI | `AdminLayout.jsx`, `Dashboard.jsx`, `FaceCheckIn.jsx` | The core promise — a local hub that survives an outage — is invisible; volunteers cannot tell what is pending | Add global sync status, per-desk offline banner, pending queue, retry and last-synced timestamps |
 | P0-7 | Wildcard route silently redirects to `/` | `frontend/src/App.jsx:66` | Broken links look like the home page; analytics and support lose the failure | Add a real 404 with recovery links |
 
@@ -705,7 +705,7 @@ Copy rules: “Pass issued” not “QR generated”; “Checked in” not “At
 | Situation | Pattern |
 |---|---|
 | Empty programme | “The programme is being confirmed. Sessions will be published here as they are announced.” |
-| Empty table | “No participants yet. Import the Google Forms response file to begin.” + action |
+| Empty table | “No participants yet. Registrations will appear here as they are submitted.” + link to `/register` |
 | Error | “We couldn’t load this. Try again.” + request ID + retry |
 | Offline | “You’re offline. 3 arrivals are saved on this device and will sync automatically.” |
 | Success | “Pass issued. Show it at the entry desk.” + next action |
@@ -738,8 +738,8 @@ Copy rules: “Pass issued” not “QR generated”; “Checked in” not “At
 | `/speakers` | Public | — | Speaker grid; placeholders until announced |
 | `/venue` | Public | — | Arrival, transport, accessibility, map |
 | `/faq` | Public | — | Registration, pass, arrival, accessibility |
-| `/register` | Public | — | Google Form handoff + what to expect |
-| `/register/assisted` | Public (staff-assisted) | Staff sign-in | Walk-in/assisted registration; demoted native form |
+| `/register` | Public | — | In-site registration form + what happens next |
+| `/register/assisted` | Public (staff-assisted) | Staff sign-in | Walk-in/assisted registration using the same form component |
 | `/registration/status` | Public | Signed link or lookup | Status timeline, next steps |
 | `/ticket/:token` | Participant | Signed token | One-time entry pass |
 | `/privacy` | Public | — | Privacy notice, biometrics, retention |
@@ -750,14 +750,14 @@ Copy rules: “Pass issued” not “QR generated”; “Checked in” not “At
 | `/volunteer/login` | Auth | — | Deep link; same form |
 | `/admin` | Admin shell | ADMIN | Redirects to `/admin/overview` |
 | `/admin/overview` | Admin shell | ADMIN | Ops dashboard |
-| `/admin/imports` | Admin shell | ADMIN | Google Forms import jobs |
+| `/admin/imports` | Admin shell | ADMIN | Registration submission/batch import jobs |
 | `/admin/imports/:id` | Admin shell | ADMIN | Import report, rejects, retry |
 | `/admin/live` | Admin shell | ADMIN | Live arrivals, desks, queue, sync |
 | `/admin/participants` | Admin shell | ADMIN | Search, filter, bulk actions |
 | `/admin/participants/:id` | Admin shell | ADMIN | Record, photo, status history, audit |
 | `/admin/sessions` | Admin shell | ADMIN | Sessions, capacity, attendance |
 | `/admin/attendance` | Admin shell | ADMIN | Entry + session records, void with reason |
-| `/admin/reconciliation` | Admin shell | ADMIN | Forms → imported → ready → arrived → issued → checked in |
+| `/admin/reconciliation` | Admin shell | ADMIN | Submissions → imported → ready → arrived → issued → checked in |
 | `/admin/volunteers` | Admin shell | ADMIN | Desk/station assignment |
 | `/admin/audit` | Admin shell | ADMIN | Append-only audit events |
 | `/admin/settings` | Admin shell | ADMIN | Event config, thresholds, retention |
@@ -787,7 +787,7 @@ Copy rules: “Pass issued” not “QR generated”; “Checked in” not “At
 
 - Masthead: mark + wordmark; 44px menu button with `aria-expanded` and `aria-controls`.
 - Menu: full-height sheet with large links, CTA at the bottom, close button, focus trap.
-- Landing only: sticky bottom bar with “Register interest” and a one-line “Via the official Google Form.” Hide when the registration section is in view, or after the user dismisses it. Respect safe-area inset.
+- Landing only: sticky bottom bar with “Register here” and a one-line “Takes about five minutes.” Hide when the registration section is in view, or after the user dismisses it. Respect safe-area inset.
 - No hamburger inside the ticket, arrival or scanner flows.
 
 ### 6.3 Participant navigation
@@ -900,64 +900,66 @@ Each spec follows the same shape: job, layout, content, states, mobile, data, ac
 | Registration closed | Primary button becomes “Registration closed” (disabled) + “Contact the host office”; status link remains |
 | Event live | A 36px ink/gold banner under the masthead: “Event day · Arrival desk open” + “Check in” link for staff only; public CTA becomes “View programme” |
 | Event ended | Hero fact becomes “2026 · Completed”; CTA becomes “View recap” (only if recap content exists) |
-| Offline | Static page still renders; registration handoff shows a warning that the form opens in a new tab and may need a connection |
+| Offline | Static page still renders; registration form shows a clear offline warning and retries when the connection returns |
 
 **Mobile**
 
 - Hero stacks: eyebrow, H1, lead, primary CTA, secondary link, facts (wrap to 2 lines), Konark card (158px tall).
 - The Konark card uses the wheel cropped at the right edge; text at 15px.
-- Sticky bottom bar with “Register interest” and “Via the official Google Form.” 78px + safe area.
+- Sticky bottom bar with “Register here” and “Takes about five minutes.” 78px + safe area.
 - Programme preview shows two rows and a “View all” link.
 - Speakers: 2×2 grid at 390px; 1 column below 360px.
 - Venue map becomes a 220px tall card; details stack.
 - Footer columns stack; host lockups side by side.
 
-**Data:** static content from a config module (`src/content/event.js`) for date, venue, form URL, social links. Programme/speakers from the API when available; otherwise a typed placeholder array. Do not hard-code copy in three places.
+**Data:** static content from a config module (`src/content/event.js`) for date, venue, contact email and social links; registration submits to `/api/register`, with no external form URL. Programme/speakers from the API when available; otherwise a typed placeholder array. Do not hard-code copy in three places.
 
 **Acceptance**
 
 - LCP element is the H1 or hero image, not a carousel.
 - No horizontal scroll at 360px.
-- Primary CTA reaches the Google Form in one click; the form opens in a new tab with `rel="noopener noreferrer"`.
+- Primary CTA opens the in-site form section in one click; validation and submission stay on our domain.
 - The page contains no claim that the pass is emailed.
 - All placeholder content is visibly labelled.
 
-### 7.2 Registration handoff — `/register`
+### 7.2 In-site registration form — `/register`
 
-**Job:** Explain the real process and hand the participant to the official Google Form with confidence. This page is not a form.
+**Job:** collect the participant's details, photo and biometric consent on our own site, validate them visibly, and explain that the pass is issued at the arrival desk. This page is a real form, not a handoff.
 
 **Layout**
 
-- 720px prose column, centered, 48px top padding.
+- 760px form column, centered, 48px top padding; the design-system `Field`, `Input`, `Select`, `Checkbox` and `Button` primitives are reused.
 - Breadcrumb: Home / Register.
-- Eyebrow “Registration · AIS 2026”; H1 “Register for the symposium.”; lead “Registration is handled through the official Google Form. It takes about five minutes.”
-- **Three-step explainer** (numbered, 1px rules): 1) Submit the form (details + photo + consent). 2) The team reviews your response. 3) Your pass is issued at the arrival desk.
-- **What the form asks** (two-column list): name, email, phone, institution, category; photo; consent; accessibility needs.
-- **Before you start** card (sand): “Use the same email you can access on event day”; “Have a recent photo ready”; “Read the privacy notice.”
-- **Primary CTA:** “Open the registration form ↗” (ink). Secondary: “Already registered? Check status.”
-- **Assisted registration** note: “Need help? The host office can complete the form with you.” Link to contact.
-- **Privacy strip:** “Your photo is used for event verification only. It is not published.” Link to `/privacy`.
-- Footer.
+- Eyebrow “Registration · AIS 2026”; H1 “Register for the symposium.”; lead “It takes about five minutes. Your pass is issued at the arrival desk after identity verification.”
+- **Section 1 — Your details:** full name, email, phone, institution, category. Inline validation on blur; errors are announced with `aria-live`.
+- **Section 2 — Your photo:** controlled file input with drag-and-drop alternative, preview, one-face/quality guidance and a visible remove/re-upload action.
+- **Section 3 — Consent and access:** explicit biometric consent checkbox with versioned text linking to `/privacy`; optional accessibility needs and session interests.
+- **Primary CTA:** “Submit registration” (ink), disabled while submitting with a visible progress state.
+- **After submit:** success panel with submission ID, “Check status” link, the three-step explainer (submit → review → pass issued at arrival) and a privacy strip.
+- **Assisted registration** note: “Need help? Use `/register/assisted` with a staff member.” Staff-assisted mode reuses the same form component.
 
 **States**
 
 | State | Behaviour |
 |---|---|
-| Form URL configured | CTA enabled |
-| Form URL missing | CTA disabled + banner “Registration link will be available shortly”; do not ship a dead button |
-| Registration closed | CTA becomes disabled “Registration closed”; show contact and status link |
-| Form opens | New tab; page stays; show a small toast “Form opened in a new tab” (optional) |
-| User returns | No state change; “Check status” is the next action |
+| Form open | All required fields visible; no external navigation |
+| Validation error | Field-level message + summary; focus moves to first error |
+| Photo rejected | Quality reason shown; re-upload without losing other fields |
+| Submitting | Button loading state; double submit prevented |
+| Success | Submission ID, status link, arrival-pass explanation; no QR shown |
+| Duplicate | Clear “already registered” panel with status link |
+| Registration closed | Form disabled with explanation and contact link |
+| Offline | Warning banner; saved draft restored; retry when connection returns |
 
-**Mobile:** single column; sticky bottom CTA “Open the form” with a 44px height; the explainer becomes a vertical stepper.
+**Mobile:** single column, 16px inputs, sticky 44px submit CTA, photo capture uses the device camera where available; safe-area padding respected.
 
-**Data:** `VITE_REGISTRATION_FORM_URL` (or `src/content/event.js`). Never hard-code a Google Form URL in three components.
+**Data:** submits `POST /api/register` with JSON plus the photo upload. No external form URL and no `VITE_REGISTRATION_FORM_URL`.
 
 **Acceptance**
 
-- The page does not post to `/participants/`.
-- The page explains that the pass is issued at arrival.
-- The form opens in a new tab and the original page is not lost.
+- The form never claims a QR/pass was emailed.
+- Required fields, consent and photo quality are validated before submission.
+- Submitting twice with the same data produces one participant (server-side idempotency).
 - A participant who has already registered can reach status in one click.
 
 ### 7.3 Registration status — `/registration/status`
@@ -1413,7 +1415,7 @@ Method:
 | 2.5.7 Dragging Movements | Every drag action has a single-pointer alternative | Import dropzone has “Browse files”; no drag-only reordering |
 | 2.5.8 Target Size (Minimum) | 24×24 CSS px minimum | Product standard is 44×44 with 8px spacing |
 | 3.2.6 Consistent Help | Help is in the same relative place across pages | “Help” in the ticket app bar, “Need help?” in the desk tabs, “Contact support” in admin footer |
-| 3.3.7 Redundant Entry | Do not ask for the same information twice | Status lookup and assisted registration reuse email/reference; the Google Form itself is outside our control and is flagged as a known limitation |
+| 3.3.7 Redundant Entry | Do not ask for the same information twice | Status lookup and assisted registration reuse email/reference; the in-site form reuses saved values and never asks for the same information twice |
 | 3.3.8 Accessible Authentication | No cognitive test for login; paste and password managers work | Password field allows paste, `autocomplete="current-password"`, no CAPTCHA in v1, SSO supported if added |
 
 ### 9.3 Colour and contrast
@@ -1501,7 +1503,7 @@ Rules:
 
 | Limitation | Mitigation |
 |---|---|
-| Google Form accessibility is outside our control | Offer assisted registration by phone/in person; state the alternative on `/register`; test the form with a screen reader before publishing |
+| A participant cannot complete the form independently | Offer assisted registration on `/register/assisted`; test the in-site form with a screen reader before publishing |
 | Biometric matching can exclude people | Manual lookup and volunteer override are always available; no one is denied solely by an algorithm |
 | Venue Wi-Fi may fail | Offline banner, local queue, printed fallback, and staff runbook |
 | Third-party email delivery | Status page is the source of truth; the pass is issued on site regardless of email |
@@ -1628,13 +1630,13 @@ Six phases, ordered by event risk. Phase 3 is the critical path: if time runs sh
 
 ### Phase 1 — Public site (5–7 days)
 
-**Goal:** a truthful landing page, programme, speakers, venue, FAQ and a registration handoff that explains Google Forms.
+**Goal:** a truthful landing page, programme, speakers, venue, FAQ and an in-site registration form that explains the arrival-issued pass.
 
 | Action | File |
 |---|---|
 | Public header, mobile sheet, footer, host lockup | `frontend/src/components/public/PublicHeader.jsx`, `PublicFooter.jsx`, `MobileMenu.jsx`, `KonarkMark.jsx` (new) |
 | Landing rebuild (hero, facts, programme preview, speakers, venue, FAQ) | `frontend/src/pages/Home.jsx` (rewrite); `frontend/src/components/public/ProgrammeRow.jsx`, `SpeakerCard.jsx`, `FaqAccordion.jsx`, `FactStrip.jsx` (new) |
-| Registration handoff | `frontend/src/pages/Register.jsx` (rewrite); `frontend/src/components/public/StepExplainer.jsx` (new) |
+| In-site React registration form | `frontend/src/pages/Register.jsx` (rewrite); `frontend/src/components/registration/RegistrationForm.jsx`, `PhotoUpload.jsx`, `ConsentCheckbox.jsx` (new) |
 | Programme page | `frontend/src/pages/Programme.jsx` (new) |
 | Speakers page | `frontend/src/pages/Speakers.jsx` (new) |
 | Venue page | `frontend/src/pages/Venue.jsx` (new) |
@@ -1762,14 +1764,14 @@ Six phases, ordered by event risk. Phase 3 is the critical path: if time runs sh
 - [ ] “Registration required” is used only if confirmed; “free” is not stated.
 - [ ] All sample data is marked “Sample data” in the UI.
 - [ ] Privacy copy names the purpose, retention and contact, and has owner approval.
-- [ ] The Google Form link is the official URL and opens in a new tab with `rel="noopener noreferrer"`.
+- [ ] The in-site form validates all required fields and never claims a QR was emailed.
 
 ### 12.2 Core flows
 
 **Public → registration**
 
-- [ ] `/` → “Register interest” → `/register` → form opens in a new tab.
-- [ ] `/register` explains the pass is issued at arrival.
+- [ ] `/` → “Register here” → `/register` → the in-site form opens on the same page.
+- [ ] `/register` collects details, photo and consent, and explains the pass is issued at arrival.
 - [ ] “Already registered?” reaches status in one click.
 - [ ] Missing form URL disables the CTA and shows an explanation, not a dead link.
 
@@ -1795,7 +1797,7 @@ Six phases, ordered by event risk. Phase 3 is the critical path: if time runs sh
 
 **Admin**
 
-- [ ] Import a sample Google Forms JSON; see a validation report; retry failures.
+- [ ] Submit a sample registration; see a validation report; retry failures.
 - [ ] Dashboard KPIs add up; freshness timestamp is visible.
 - [ ] Reconciliation shows zero unexplained variance or names the variance.
 - [ ] Void requires a reason; the record shows who/when/why.
@@ -1940,7 +1942,7 @@ What to inspect: the contrast ratios, gold-700 for text on light, ink focus on l
 | # | Question | Why it blocks | Default if unanswered |
 |---|---|---|---|
 | 1 | Exact event date, times and venue wording | Hero, status, ticket, print, metadata | “Date to be announced”; “SOA University, Bhubaneswar” |
-| 2 | Official Google Form URL, fields and closing date | Registration handoff CTA | CTA disabled with “link will be available shortly” |
+| 2 | Registration fields, closing date and capacity | In-site form and status copy | Form shows “registration will open shortly” |
 | 3 | Is there a waitlist or capacity limit? | Status states and copy | No waitlist state shipped |
 | 4 | Status lookup: signed link only, or email + reference? | `/registration/status` access model | Signed link only; fallback marked “coming later” |
 | 5 | Ticket route and token format (`/ticket/:token` vs `?token=`) | Participant flow, caching, noindex | `/ticket/:token` |
@@ -1990,12 +1992,12 @@ What to inspect: the contrast ratios, gold-700 for text on light, ink focus on l
 - [ ] QR scanner model or phone camera used at entry.
 - [ ] Venue Wi-Fi details and failover plan.
 - [ ] Volunteer roster and desk assignments.
-- [ ] Sample Google Forms export (anonymised) for import testing.
+- [ ] Sample anonymised registration payloads and photos for validation testing.
 
 ### 14.3 Known unknowns in this plan
 
 - The dashboard’s live-ops and reconciliation endpoints are specified in `WorkFlow.md` but may not exist yet; the UI is designed against the contract, and missing pieces are feature-flagged.
-- The Google Form is an external dependency with its own accessibility and UX limits; the site explains the handoff and offers an assisted path, but cannot restyle the form.
+- The in-site form is under our control and must meet the same accessibility standard as the rest of the site; an assisted path remains available for participants who need help.
 - Face matching accuracy and threshold are policy decisions, not frontend decisions. The UI is designed to keep a human in the loop regardless of the score.
 - The mockups use sample names and numbers; none of them should be copied into production content.
 
@@ -2004,7 +2006,7 @@ What to inspect: the contrast ratios, gold-700 for text on light, ink focus on l
 | Area | Owner | Status |
 |---|---|---|
 | Event facts and copy | Host office | Pending |
-| Google Form and import contract | Backend/ops | Pending |
+| Registration form and API contract | Backend/ops | Pending |
 | Privacy and biometric consent | Legal/host office | Pending |
 | Visual identity and logo use | SOA/AIC brand | Pending |
 | Frontend implementation | Frontend lead | Ready to start Phase 0 |

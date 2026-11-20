@@ -56,8 +56,9 @@ Long-term, matching moves to the local hub (§4); the cloud endpoint remains for
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/imports/google-form` | Upload JSON/ZIP export; `dry_run` by default; returns `import_job_id`, report URL |
-| `GET` | `/api/imports/{id}` | Status, counts, error sample, report link |
+| `POST` | `/api/register` | Public in-site form submission (JSON + photo); returns `submission_id`, status |
+| `GET` | `/api/registrations/{id}` | Submission status, validation report |
+| `POST` | `/api/imports/batch` | Optional admin CSV/JSON bulk import; `dry_run` supported |
 | `GET` | `/api/sync/manifest` | Versioned manifest (WorkFlow Appendix C) |
 | `GET` | `/api/sync/bundle/{manifest_id}` | Versioned participant/embedding/photo-hash bundle |
 | `POST` | `/api/sync/batches` | Hub batch with per-item `accepted|duplicate|rejected` + reason codes |
@@ -68,7 +69,7 @@ Long-term, matching moves to the local hub (§4); the cloud endpoint remains for
 
 | Flag | Endpoint needed | Data source |
 |---|---|---|
-| `IMPORTS_V2` | imports above + import list | `import_jobs` |
+| registrationForm (planned) | in-site form + submission list | `registration_jobs` |
 | `LIVE_OPS` | `GET /api/admin/live-ops` | arrivals, queue depth, station status, sync lag |
 | `RECONCILIATION` | `GET /api/admin/reconciliation` | forms → imported → embedding-ready → arrived → QR issued → checked in → emails sent |
 | `AUDIT_V2` | `GET /api/admin/audit` | `audit_log` with cursor pagination and filters |
@@ -104,10 +105,10 @@ The existing `/api/admin/dashboard` and `/api/admin/export/*` stay as-is in shap
 - Bucket private, SSE-KMS, versioning; presigned TTL 5–15 minutes; no public URLs.
 - Migrate `uploads/photos` and `uploads/qrcodes` to S3 with checksum verification; keep `photo_s3_key` on the participant.
 
-### 3.4 Import service — `services/import_service.py`
+### 3.4 Registration service — `services/registration_service.py`
 
-- Reusable by both CLI and API: normalize → validate → dedupe → photo quality → S3 → embedding status → import job report.
-- Dry-run must not write; re-running the same export is a no-op.
+- Backs the public form: normalize → validate → dedupe → photo quality → S3 → embedding status → submission report.
+- Re-submitting the same `submission_id`/email is a no-op; optional bulk import supports dry-run.
 - Detailed error codes (`DUPLICATE_EMAIL`, `MISSING_PHOTO`, `NO_FACE`, `LOW_QUALITY`, `NO_CONSENT`, `BAD_JSON`) so the admin import screen can show actionable rows.
 
 ### 3.5 Sync ingestion — `services/sync_service.py`
@@ -153,7 +154,7 @@ Publish a table in code review showing, for each route: principal, event scope, 
 - Security tests: unauthenticated PII read → 401; volunteer hitting admin route → 403; forged QR → `INVALID` with no attendance write; replayed `client_event_id` → `duplicate` with no second row.
 - Idempotency tests: same client_event_id twice, concurrent requests, outbox retry.
 - Email tests: outbox write, retry/backoff, resend, bounce handling (provider mocked).
-- Import tests: dry-run, dedupe, malformed JSON, bad photo, re-run no-op.
+- Registration tests: validation, dedupe, malformed payload, bad photo, replay no-op, rate limit, oversized upload.
 
 CI gate: `pytest`, lint/type check, migration check, and a build of the frontend — all green before merge.
 
@@ -166,7 +167,7 @@ CI gate: `pytest`, lint/type check, migration check, and a build of the frontend
 | B1 | Auth refactor + remove default creds + audit foundation | `core/deps.py`, `core/db_init.py`, `api/auth.py`, `models/audit.py` | All PII routes protected; no seeded credentials; G1 passed |
 | B2 | QR signing + arrivals + verify + void | `api/arrivals.py`, `api/qr.py`, `services/qr_signing.py`, `api/attendance.py` | Frontend stage-3 flow green against real endpoints |
 | B3 | S3 adapter + email outbox + SES worker | `services/s3.py`, `services/email_outbox.py`, `workers/email_worker.py` | Welcome email <5 min; photos served by presigned URL |
-| B4 | Imports + sync + tickets | `api/imports.py`, `api/sync.py`, `api/tickets.py`, services | G3 and G4 passed; manifest/batch contract verified |
+| B4 | Registration + sync + tickets | `api/registration.py`, `api/sync.py`, `api/tickets.py`, services | G3 and G4 passed; manifest/batch contract verified |
 | B5 | Admin ops endpoints + flag enablement | `api/admin_ops.py`, dashboard/queries | No "Waiting for backend" on event-day build; G5 passed |
 | B6 | Hardening, tests, CI, rehearsal support | tests, CI config, monitoring | G6 passed |
 
@@ -194,3 +195,4 @@ Estimates: B1 3–4 days, B2 4–5 days, B3 3–4 days, B4 5–7 days, B5 3–4 
 4. Who owns SES production access and the verified domain?
 5. Do admin analytics need real-time or end-of-day data? (Affects caching and query design.)
 6. Is event-scoping enforced by the token or by a request header? (Recommendation: both, with mismatch → 403.)
+7. What bot-protection and rate-limit policy applies to the public registration endpoint?

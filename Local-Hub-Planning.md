@@ -1,6 +1,6 @@
 # GeekAI — Local Hub & Offline Planning
 
-**Odisha AI Symposium 2026** · Companion to [WorkFlow.md](WorkFlow.md), [Backend-Planning.md](Backend-Planning.md) and [Google-Forms-Import-Planning.md](Google-Forms-Import-Planning.md)
+**Odisha AI Symposium 2026** · Companion to [WorkFlow.md](WorkFlow.md), [Backend-Planning.md](Backend-Planning.md) and [React Registration Planning](React-Registration-Planning.md)
 **Status:** Plan only · 20 November 2026
 
 ---
@@ -39,11 +39,11 @@ Reuse the existing FastAPI image with a local profile rather than creating a sec
 
 ## 3. Pre-event sync bundle
 
-Generate at T-3 from the cloud after the import and embedding build (WorkFlow Appendix C):
+Generate at T-3 from the cloud after registration and embedding build (WorkFlow Appendix C):
 
 ```
 manifest.json          -- manifest id, event id, schema version, counts, cursor, file hashes
-participants.ndjson    -- id, external_id, name, email, status, photo hash
+participants.ndjson    -- id, submission_id, name, email, status, photo hash
 embeddings.f32         -- 512-d vectors in participant order
 photos.index.json      -- s3 keys → local cache file names
 deletions.json         -- tombstones with reason
@@ -141,3 +141,4 @@ Revocation: `qr_tokens.revoked_at` plus a hub deny list refreshed on sync. Expir
 4. Where does the signing key live on event day — TPM/secure enclave, encrypted file, or HSM?
 5. Who operates the hub and who is the escalation contact if it fails?
 6. How long are photos cached locally, and how is that cache wiped after the event?
+7. Does the in-site registration form collect a compliant face photo + biometric consent? If not, arrival scanning is enrollment, not verification.

@@ -8,9 +8,9 @@
 
 ## 1. Objective and threat model
 
-Close the critical security and data-integrity gaps in the current backend before the import pipeline puts real PII into S3 and RDS, and keep the event-day flow safe under adversarial input.
+Close the critical security and data-integrity gaps in the current backend before the registration pipeline puts real PII into S3 and RDS, and keep the event-day flow safe under adversarial input.
 
-**Threats in scope:** forged or replayed QR codes, unauthenticated biometric export, leaked participant lists, stolen volunteer device, S3 object enumeration, malicious import files, email spoofing, insider data export, and DoS on public ticket lookup.
+**Threats in scope:** forged or replayed QR codes, unauthenticated biometric export, leaked participant lists, stolen volunteer device, S3 object enumeration, malicious registration payloads and photo uploads, email spoofing, insider data export, and DoS on public forms and ticket lookup.
 
 ---
 
@@ -41,7 +41,7 @@ The delivered frontend already refuses unsigned QR JSON, never constructs a payl
 | P0-2 | Introduce signed QR with `jti`, scope, expiry, revocation | Backend-Planning.md §3.1 | Forged token → `INVALID`, no DB write |
 | P0-3 | Remove seeded default credentials; one-time admin setup | Database-Planning.md M9 | Fresh DB has no default login |
 | P0-4 | Private S3, Block Public Access, KMS, presigned TTL, bucket policy | Infrastructure-Planning.md §3.1 | No public object; no unencrypted upload |
-| P0-5 | Consent + retention policy in writing and in the form/database | Google-Forms-Import-Planning.md | Versioned consent on every participant |
+| P0-5 | Consent + retention policy in writing and in the in-site form/database | React-Registration-Planning.md | Versioned consent on every participant |
 | P0-6 | Audit log for PII reads/writes, QR issue/verify, void, imports | Database-Planning.md §2.1 | Every state transition has an audit row |
 | P0-7 | Cloudflare Access/WAF, HTTPS everywhere, rate limits | Infrastructure-Planning.md §4 | Camera page works over HTTPS; limits verified |
 | P0-8 | Attendance undo with reason + soft-delete guards | Backend-Planning.md §2.1 | Void requires reason; delete preserves history |
@@ -104,7 +104,7 @@ Enforce `event_id` scope on every authenticated route; a token for the wrong eve
 ## 8. Pre-collection sign-off checklist
 
 - [ ] G1 criteria met and recorded.
-- [ ] Consent text, version and retention period published on the Google Form and `/privacy`.
+- [ ] Consent text, version and retention period published on `/register` and `/privacy`.
 - [ ] S3 bucket private, encrypted, versioned, logged; no public objects.
 - [ ] Signed QR service live; legacy QR path disabled.
 - [ ] Default credentials removed; real admin/volunteer accounts issued.
@@ -122,3 +122,4 @@ Enforce `event_id` scope on every authenticated route; a token for the wrong eve
 3. Retention period in days for photos/embeddings and for attendance/audit.
 4. Are police/insurance or sponsor data-sharing requirements in scope?
 5. Who may authorise a manual override or a post-event data purge?
+6. What bot-protection, rate limits and upload scanning apply to the public registration endpoint?

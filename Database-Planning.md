@@ -7,7 +7,7 @@
 
 ## 1. Objective and current state
 
-Extend the existing PostgreSQL/pgvector schema so it can support Google Forms provenance, arrival-first QR issuance, signed token state, offline/idempotent writes, reliable email and auditable operations — without breaking the six tables the delivered frontend already reads.
+Extend the existing PostgreSQL/pgvector schema so it can support in-site registration provenance, arrival-first QR issuance, signed token state, offline/idempotent writes, reliable email and auditable operations — without breaking the six tables the delivered frontend already reads.
 
 **Current schema** (`backend/app/models/models.py`): `users`, `participants`, `face_embeddings`, `sessions`, `attendance` (plus Alembic history). Migrations live under `backend/migrations/`.
 
@@ -22,7 +22,7 @@ Extend the existing PostgreSQL/pgvector schema so it can support Google Forms pr
 | Table | Purpose | Key fields |
 |---|---|---|
 | `events` | Event scoping | `id`, `code`, `name`, `starts_at`, `ends_at`, `timezone`, `venue`, `status` |
-| `import_jobs` | Import traceability | `id`, `source`, `file_name`, `rows_total`, `rows_imported`, `rows_rejected`, `report_s3_key`, `started_at`, `finished_at`, `actor_id` |
+| `registration_jobs` | Submission/batch traceability | `id`, `source`, `submission_id`, `rows_total`, `rows_accepted`, `rows_rejected`, `report_s3_key`, `started_at`, `finished_at`, `actor_id` |
 | `qr_tokens` | Signed QR state | `jti` (PK), `participant_id`, `event_id`, `scope`, `issued_at`, `expires_at`, `issued_by`, `station_id`, `similarity`, `signature_alg`, `revoked_at`, `used_at` |
 | `email_outbox` | Reliable welcome mail | `id`, `participant_id`, `template`, `payload_json`, `status`, `attempts`, `next_attempt_at`, `provider_message_id`, `sent_at`, `last_error` |
 | `audit_log` | Accountability | `id`, `actor_id`, `actor_role`, `action`, `entity`, `entity_id`, `before_json`, `after_json`, `ip`, `user_agent`, `request_id`, `created_at` |
@@ -33,8 +33,8 @@ Extend the existing PostgreSQL/pgvector schema so it can support Google Forms pr
 **`participants`** — add:
 
 - `event_id` (FK → events, required after backfill)
-- `source` enum `GOOGLE_FORM | WALK_IN | ADMIN`
-- `external_id` (Google Forms response ID)
+- `source` enum `SITE_FORM | WALK_IN | ADMIN`
+- `submission_id` (UUID from the React form)
 - `consent_version`, `consented_at`
 - `photo_s3_key`, `photo_hash`, `photo_quality_score`
 - `status` (current materialized state)
@@ -66,7 +66,7 @@ Exceptions: `PHOTO_REJECTED`, `DUPLICATE`, `CANCELLED`, `NO_SHOW`, `BLOCKED`.
 
 ## 3. Indexes and constraints
 
-- `participants`: `UNIQUE (event_id, lower(email))`; `UNIQUE (event_id, external_id)` where not null; index `(event_id, status)`.
+- `participants`: `UNIQUE (event_id, lower(email))`; `UNIQUE (event_id, submission_id)` where not null; index `(event_id, status)`.
 - `face_embeddings`: index `(participant_id, is_active)`; add pgvector HNSW index on `embedding` when matching moves into the database (`vector_cosine_ops`).
 - `qr_tokens`: PK `jti`; index `(participant_id, event_id, scope)`; partial unique index on one active `ENTRY` token per participant per event.
 - `attendance`: `UNIQUE (client_event_id)`; keep `uq_participant_session` and the partial unique index for event-level attendance; index `(event_id, marked_at)` for live ops.
@@ -86,7 +86,7 @@ All migrations are additive and reversible. Create them under `backend/migration
 | M1 | `events` table + `event_id` columns (nullable initially) | Backfill one default event from existing event name/date |
 | M2 | Participant provenance fields + status defaults | Set existing rows to `IMPORTED` / `SYNCED` as appropriate |
 | M3 | Extend `face_embeddings` with version/quality fields | Default `model_name='insightface'`, `model_version` from current install |
-| M4 | `import_jobs`, `audit_log` | No data migration |
+| M4 | `registration_jobs`, `audit_log` | No data migration |
 | M5 | `qr_tokens` | Legacy unsigned QR codes are **not** migrated; they must be reissued |
 | M6 | `attendance` offline/idempotency fields | `client_event_id` nullable for legacy rows; backfill with deterministic UUIDs |
 | M7 | `email_outbox`, `sync_batches` | No data migration |
@@ -100,7 +100,7 @@ All migrations are additive and reversible. Create them under `backend/migration
 ## 5. Data migration
 
 1. **Event backfill** — create the single event `oas-2026` from the existing hardcoded name/date; set `event_id` on all existing rows.
-2. **Participant source** — existing registrations become `source=ADMIN` or `WALK_IN`; none are marked `GOOGLE_FORM` unless their response ID is known.
+2. **Participant source** — existing registrations become `source=ADMIN` or `WALK_IN`; none are marked `SITE_FORM` unless their submission ID is known.
 3. **Embeddings** — record actual model name/version and dimension; recompute if the installed model differs from the one used to create existing vectors. A wrong model version makes face matching unreliable.
 4. **Photos** — copy `backend/uploads/photos/*` to S3 under `photos/{event_code}/{participant_id}/`, verify SHA-256, set `photo_s3_key`, then keep local copies only for the hub bundle.
 5. **QR codes** — delete legacy unsigned PNGs from the flow; they carry `{"participant_id", "name"}` and are forgeable. Issue new signed tokens at arrival.
@@ -121,7 +121,7 @@ All migrations are additive and reversible. Create them under `backend/migration
 
 ## 7. Validation queries (run after each gate)
 
-- Count participants by `event_id, status, source` and compare with the import report.
+- Count participants by `event_id, status, source` and compare with the registration report.
 - Count embeddings by `model_version, is_active`; every `EMBEDDING_READY` participant has exactly one active embedding.
 - Count `qr_tokens` by `scope, revoked_at`; no active `ENTRY` token for a participant who already has event-level attendance unless intentionally reissued.
 - `attendance`: zero rows with duplicate `client_event_id`; zero duplicate event-level rows; void rows retain a reason.
@@ -136,7 +136,7 @@ All migrations are additive and reversible. Create them under `backend/migration
 - All migrations apply cleanly on a fresh database and upgrade the existing database without data loss.
 - `WorkFlow.md` §8 fields exist with the documented types and constraints.
 - Existing endpoints continue to return the same response shapes the frontend consumes.
-- Re-running an import produces no duplicate participants or embeddings.
+- Re-submitting the same payload produces no duplicate participants or embeddings.
 - Replaying a sync batch produces no duplicate attendance or QR records.
 - Legacy unsigned QR data is absent from the active flow.
 - Backup/restore drill succeeds on a staging copy of the production schema.
@@ -150,3 +150,4 @@ All migrations are additive and reversible. Create them under `backend/migration
 3. Should `events` be a single row now with full multi-event UI deferred? (Recommendation: yes.)
 4. Are hub databases SQLite or local Postgres? (Recommendation: SQLite for stations, Postgres or durable SQLite for the hub, both loaded from the same manifest.)
 5. Who approves destructive migrations and purge runs?
+6. What abuse-prevention data (IP hash, user agent) must be retained for registrations?

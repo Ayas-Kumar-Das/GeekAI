@@ -4,6 +4,8 @@
 **Status:** Frontend complete, integration pending · Branch `debdatta/development` · 20 November 2026
 **Supersedes for planning purposes:** the frontend portion of [WorkFlow.md](WorkFlow.md); the rest of `WorkFlow.md` remains the authoritative target architecture.
 
+> **Plan change (20 November 2026):** pre-registration now uses the **in-site React form** on `/register` instead of Google Forms. The delivered frontend still shows the Google Form handoff; that screen will be replaced in the next frontend change, after which `Frontend-Redesign-Completion.md` will be updated. All other decisions are unchanged.
+
 ---
 
 ## 1. Purpose
@@ -21,7 +23,7 @@ This document records the verified state of the project after the frontend redes
 | [Backend-Planning.md](Backend-Planning.md) | Remaining API and service work |
 | [Database-Planning.md](Database-Planning.md) | Remaining schema, migration and data work |
 | [Infrastructure-Planning.md](Infrastructure-Planning.md) | AWS, S3, RDS, SES, Cloudflare and deployment work |
-| [Google-Forms-Import-Planning.md](Google-Forms-Import-Planning.md) | Intake → JSON → S3 → embeddings pipeline |
+| [React-Registration-Planning.md](React-Registration-Planning.md) | In-site React form submission → validation → S3 → embeddings pipeline |
 | [Local-Hub-Planning.md](Local-Hub-Planning.md) | On-site hub, stations, offline outbox, cloud sync |
 | [Security-Privacy-Planning.md](Security-Privacy-Planning.md) | P0 hardening before any real PII is collected |
 
@@ -72,7 +74,7 @@ What remains is **integration and backend/database/infrastructure delivery**, pl
 
 ### 3.1 What is done
 
-- Public site: landing, programme, speakers, venue, FAQ, privacy, accessibility, code of conduct, registration handoff to Google Forms.
+- Public site: landing, programme, speakers, venue, FAQ, privacy, accessibility, code of conduct, and the currently delivered Google Form handoff (to be replaced by the in-site React form).
 - Participant: nine-state registration status, ticket page with signed-token-only QR rendering, print styles, signed-link lookup.
 - Volunteer: arrival desk with face capture, candidate confirmation, manual fallback with reason, badge printing; QR scanner with entry/session modes and ten result states; manual lookup, pending-sync queue, desk runbook.
 - Admin: shell, live dashboard from real stats, participants, sessions, attendance with void dialog, volunteers, exports, plus flag-gated imports, import detail, live ops, reconciliation, audit and settings.
@@ -81,7 +83,7 @@ What remains is **integration and backend/database/infrastructure delivery**, pl
 ### 3.2 What is not done
 
 - AWS S3, RDS, SES, IAM, Cloudflare Pages/Access/WAF — none exist in the codebase.
-- Google Forms import pipeline, JSON normalization, photo quality gate, embedding build.
+- React registration pipeline, submission normalization, photo quality gate, embedding build.
 - Signed QR service, token table, arrival/issue/verify endpoints.
 - Local hub, station sync, versioned manifest, offline outbox drain to cloud.
 - Email outbox and SES welcome email.
@@ -96,7 +98,7 @@ From `frontend/src/content/flags.js`. Production defaults are OFF unless set exp
 |---|---|---|
 | `ARRIVAL_V2` | Arrival write, Issue QR pass | `POST /api/arrivals`, `POST /api/qr/issue` |
 | `SCAN_V2` | Signed pass verification | `POST /api/qr/verify` |
-| `IMPORTS_V2` | Imports, import detail | `POST /api/imports/google-form`, `GET /api/imports/{id}` |
+| registrationForm (planned) | In-site form + submission status | `POST /api/register`, `GET /api/registrations/{id}` |
 | `LIVE_OPS` | Live operations | live-ops feed endpoint |
 | `RECONCILIATION` | Variance detail | reconciliation endpoint |
 | `AUDIT_V2` | Audit log | audit log read endpoint |
@@ -121,7 +123,7 @@ From `frontend/src/content/flags.js`. Production defaults are OFF unless set exp
 |---|---|---|---|
 | P0 hardening (cross-cutting) | Auth on PII/biometrics, signed QR, default-credential removal, consent/retention, audit, CI | Security-Privacy-Planning.md | **G1** |
 | Phase 1 — foundation | S3, RDS/pgvector, SES, IAM, secrets, Cloudflare Pages/Access/WAF, deployment | Infrastructure-Planning.md | **G2** |
-| Phase 2 — intake | Google Forms JSON import, validation, dedupe, photo quality, S3 upload, embeddings | Google-Forms-Import-Planning.md, Database-Planning.md | **G3** |
+| Phase 2 — intake | In-site React submission, validation, dedupe, photo quality, S3 upload, embeddings | React-Registration-Planning.md, Database-Planning.md | **G3** |
 | Phase 3 — arrival | DB migration for QR/arrival/outbox, backend endpoints, local hub, signing, SES email | Database-Planning.md, Backend-Planning.md, Local-Hub-Planning.md | **G4** |
 | Phase 4 — operations | Sync ingestion, live ops, reconciliation, audit, admin endpoints, flag enablement | Backend-Planning.md, Local-Hub-Planning.md | **G5** |
 | Phase 5 — rehearsal | 1,000-row import, 4–6 stations, offline drill, deliverability, QR failure cases | This document §7 | **G6** |
@@ -181,7 +183,7 @@ Do not start step 4 before step 1: adding endpoints to currently public PII rout
 | "What exactly must the API expose?" | Backend-Planning.md |
 | "What columns, indexes and migrations?" | Database-Planning.md |
 | "Where does it run and how is it secured at the edge?" | Infrastructure-Planning.md |
-| "How does a Google Form become a participant?" | Google-Forms-Import-Planning.md |
+| "How does a React form submission become a participant?" | React-Registration-Planning.md |
 | "How does the desk work without internet?" | Local-Hub-Planning.md |
 | "What must be true before we collect photos?" | Security-Privacy-Planning.md |
 | "Where are we now and what is the order?" | This document |
@@ -233,14 +235,14 @@ Each document ends with exit criteria. A document's work is done only when its e
 
 ## 10. Decisions to confirm before implementation
 
-1. Does the Google Form collect a compliant face photo + biometric consent? Without it, arrival scanning is enrollment, not verification.
+1. Does the in-site React form collect a compliant face photo + biometric consent? Without it, arrival scanning is enrollment, not verification.
 2. Cloudflare scope: Pages/Access/WAF in front of an AWS-hosted FastAPI backend (recommended) — not Workers.
 3. S3 scope: blobs and JSON archive; RDS Postgres/pgvector remains the operational store.
 4. QR scope: one signed participant QR; event entry once; session scans reusable with photo verification.
 5. Hub model: hub-and-spoke, hub is the single writer, stations use LAN.
 6. Email provider: SES with verified domain and production access.
 7. Data retention window for photos/embeddings and for attendance/audit.
-8. Whether the native `/register` form is retired or kept strictly for staff walk-ins.
+8. Whether the in-site `/register` form also serves staff-assisted walk-ins (recommended: yes, with the same component).
 9. Source of official brand assets, speaker list, dates, venue address and sponsor kit.
 10. Who owns AWS/Cloudflare credentials and who signs the go/no-go.
 

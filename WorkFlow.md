@@ -2,8 +2,8 @@
 
 **Event:** Odisha AI Symposium · 500–1,000 participants  
 **Document status:** Planning baseline for review  
-**Last updated:** 19 November 2026  
-**Scope:** Architecture, workflow, phased delivery plan, and feature backlog for the new AWS + Cloudflare + Google Forms event model.
+**Last updated:** 20 November 2026  
+**Scope:** Architecture, workflow, phased delivery plan, and feature backlog for the new AWS + Cloudflare + in-site React registration event model.
 
 > This document consolidates the research and planning output produced for the GeekAI repo. It is a **planning artifact only** — it does not describe code that has already been written. No application code was modified.
 
@@ -13,7 +13,7 @@
 
 Proceed with a **hybrid, local-first event architecture**:
 
-- **Google Forms** is the pre-registration source of truth for submissions.
+- **The in-site React registration form** is the pre-registration source of truth for submissions.
 - **AWS S3** stores photos, JSON snapshots, exports, and certificates.
 - **PostgreSQL/pgvector on AWS RDS/Aurora** remains the operational database for participants, embeddings, QR state, attendance, imports, and audit.
 - **Cloudflare Pages + Access/WAF** hosts and protects the frontend.
@@ -25,7 +25,7 @@ Proceed with a **hybrid, local-first event architecture**:
 
 This keeps the strongest parts of the existing repo — the data model, FastAPI APIs, React UI, and local InsightFace app — while changing the boundaries the meeting decided.
 
-**Bottom line:** Use Google Forms + an import pipeline, S3 + RDS for data, Cloudflare for the frontend/edge/security, AWS for backend/storage/email, and a local hub for face matching and QR issuance. Do **not** try to run the current FastAPI/pgvector/InsightFace stack on Cloudflare Workers. The first two weeks should deliver the import pipeline, S3 integration, local hub/QR/welcome-email prototype, and a rehearsal — those are the pieces that de-risk the event.
+**Bottom line:** Use the in-site React form + a registration validation pipeline, S3 + RDS for data, Cloudflare for the frontend/edge/security, AWS for backend/storage/email, and a local hub for face matching and QR issuance. Do **not** try to run the current FastAPI/pgvector/InsightFace stack on Cloudflare Workers. The first two weeks should deliver the registration pipeline, S3 integration, local hub/QR/welcome-email prototype, and a rehearsal — those are the pieces that de-risk the event.
 
 ---
 
@@ -37,8 +37,8 @@ These are treated as constraints, not options:
 |---|----------|-------------|
 | D1 | AWS is the data storage platform | S3 for blobs/archives; RDS Postgres/pgvector for operational data |
 | D2 | Cloudflare hosts the registration platform | Pages for the UI; Access/WAF in front; AWS serves the API |
-| D3 | Pre-registration happens through Google Forms | Replace the public React form as the primary intake |
-| D4 | Submissions are converted to JSON for processing | Import pipeline with validation, dedupe, and reporting |
+| D3 | Pre-registration happens through the in-site React form | Make `/register` the single primary intake; no external form |
+| D4 | Submissions are sent as JSON to our API | Validation, dedupe, photo upload and reporting in the registration pipeline |
 | D5 | Face scan happens on arrival, then a unique QR is generated | QR is an arrival artifact, not a registration artifact |
 | D6 | QR is used for fast event-day check-in | Signature verification, duplicate prevention, session reuse rules |
 | D7 | Welcome email with QR instructions goes out within minutes of entry | SES + outbox + retry + delivery logs |
@@ -91,7 +91,7 @@ These are treated as constraints, not options:
 
 | Area | Today | Meeting decision | Change needed |
 |---|---|---|---|
-| Public registration | React `/register` + Postgres | Google Forms → JSON | Idempotent import pipeline; keep native form only for walk-ins/assisted registration |
+| Public registration | Legacy React form with misleading copy | In-site React form on `/register` | Rebuild as the primary intake with validation, photo upload, consent and status; assisted walk-ins use the same form |
 | Photo storage | Local `backend/uploads/` | AWS S3 | S3 service, presigned uploads/downloads, lifecycle, KMS, migration script |
 | Face computation | Backend `/face-match` + local app | Local only | Local hub/stations primary; backend inference removed or downgraded |
 | QR | Generated at registration, unsigned | Generated at arrival, unique | Signed QR service, QR token table, arrival endpoint, print/email delivery |
@@ -115,13 +115,13 @@ Cloudflare Pages/Workers is not a drop-in runtime for Python FastAPI + SQLAlchem
 S3 is right for photos and JSON archives, but attendance, duplicate prevention, joins, analytics, and QR state need a transactional store. Recommend **S3 for blobs/archives + RDS Postgres/pgvector for operational data**. If the team insists on S3-only, we need DynamoDB or another operational store plus Athena for analytics — more work, not less.
 
 **3. A face scan needs a reference face.**
-Does the Google Form collect a clear participant photo? If yes, precompute embeddings and use the arrival scan to **verify** identity. If no, the arrival scan is just **enrollment**; it does not verify against pre-registered data, so manual ID verification is still needed. Recommend collecting a photo + consent in the Google Form (or a companion upload page).
+Does the in-site React form collect a clear participant photo? If yes, precompute embeddings and use the arrival scan to **verify** identity. If no, the arrival scan is just **enrollment**; it does not verify against pre-registered data, so manual ID verification is still needed. Recommend collecting a photo + consent in the React form.
 
 ### 5.2 Open decisions and recommendations
 
 | Decision | Recommendation | Why |
 |---|---|---|
-| Does Google Forms collect a face photo? | Yes, with consent; validate quality; precompute embeddings | Otherwise the arrival scan is enrollment, not verification |
+| Does the in-site React form collect a face photo? | Yes, with consent; validate quality; precompute embeddings | Otherwise the arrival scan is enrollment, not verification |
 | Cloudflare scope | Pages/Access/WAF frontend; AWS backend | Current FastAPI/pgvector/InsightFace stack cannot run on Workers as-is |
 | S3 scope | Blobs + JSON archive; Postgres operational | S3 cannot enforce attendance uniqueness/joins/analytics |
 | QR scope | One signed participant QR; event entry once; sessions reusable with photo check | Balances speed and fraud control |
@@ -131,19 +131,19 @@ Does the Google Form collect a clear participant photo? If yes, precompute embed
 | Badge printing | At least one print station + email/SMS fallback | Not everyone has a smartphone/email at the venue |
 | Data retention | Delete photos/embeddings N days after event; keep attendance per policy | Biometric data is sensitive; define before collection |
 | Event model | Add minimal `Event` table now | Avoid hardcoding and painful migration later |
-| Native `/register` page | Keep only as staff/walk-in form feeding the same import pipeline, or retire | Two sources of truth guarantee reconciliation pain |
+| Native `/register` page | Make it the single primary intake; staff-assisted walk-ins use the same form | One source of truth; no external handoff |
 
 ---
 
 ## 6. Target architecture
 
 ```
-Google Forms
-    │  Apps Script / Sheets / batch export
+In-site React registration form (/register)
+    │  HTTPS POST /api/register (JSON + photo)
     ▼
-JSON import pipeline ──► validation + dedupe + photo quality gate
+Registration pipeline ──► validation + dedupe + photo quality gate
     │
-    ├──► S3: raw JSON, photos, embeddings, exports, certificates
+    ├──► S3: photos, registration snapshots, exports, certificates
     └──► Postgres: participants, embeddings, QR state, attendance, audit
 
 Cloudflare Pages (landing, status/ticket, admin, volunteer UI)
@@ -165,8 +165,8 @@ Local hub (FastAPI + Postgres/SQLite, InsightFace, QR signer, outbox)
 
 | Component | Owns | Does not own |
 |---|---|---|
-| Google Forms | Intake UX, response capture, file uploads | Validation, dedupe, embeddings |
-| Import pipeline | Schema validation, dedupe, photo quality, S3 upload, embedding build | Live arrival flow |
+| In-site React form | Intake UX, client validation, photo capture | Server-side validation, dedupe, embeddings |
+| Registration pipeline | Server validation, dedupe, photo quality, S3 upload, embedding build | Live arrival flow |
 | FastAPI backend (AWS) | Admin APIs, status/ticket API, sync ingestion, reporting | Face inference during the event |
 | Cloudflare | Static UI, Access auth for staff, WAF, rate limits, caching of public assets | PII storage, biometrics |
 | Local hub | Participant cache, face matching, QR signing, attendance, outbox, reconciliation | Long-term storage |
@@ -179,8 +179,8 @@ Local hub (FastAPI + Postgres/SQLite, InsightFace, QR signer, outbox)
 
 ### 7.1 Phase A — Pre-event (T-14 to T-3 days)
 
-1. **Participant submits Google Form:** name, email, phone, institution, category, photo, consent, accessibility needs.
-2. **Import pipeline** validates the JSON, deduplicates by email/response ID, checks photo quality, normalizes and uploads the photo to S3, and creates the participant with status `IMPORTED` or `PHOTO_REJECTED`.
+1. **Participant submits the in-site React form:** name, email, phone, institution, category, photo, consent, accessibility needs.
+2. **Registration pipeline** validates the submission, deduplicates by email/submission ID, checks photo quality, uploads the photo to S3, and creates the participant with status `IMPORTED` or `PHOTO_REJECTED`.
 3. **Embedding build** runs locally (office workstation or import machine) with the same InsightFace model/version; embeddings go to Postgres and into the sync bundle.
 4. **Pre-event sync** builds a versioned manifest of participants, embeddings, photo hashes, and deletions; the local hub and stations download and verify it before event day.
 
@@ -245,9 +245,9 @@ Rules:
 | Table | Purpose | Key fields |
 |---|---|---|
 | `events` | Event scoping | `id`, `code`, `name`, `starts_at`, `ends_at`, `timezone`, `venue`, `status` |
-| `participants` (extend) | Identity + provenance | `event_id`, `source` (`GOOGLE_FORM`/`WALK_IN`/`ADMIN`), `external_id`, `consent_version`, `consented_at`, `photo_s3_key`, `photo_hash`, `status`, `embedding_status` |
+| `participants` (extend) | Identity + provenance | `event_id`, `source` (`SITE_FORM`/`WALK_IN`/`ADMIN`), `submission_id`, `consent_version`, `consented_at`, `photo_s3_key`, `photo_hash`, `status`, `embedding_status` |
 | `face_embeddings` (extend) | Biometric quality + versioning | `model_name`, `model_version`, `dimension`, `quality_score`, `is_active`, `source_photo_hash` |
-| `import_jobs` | Import traceability | `id`, `source`, `file_name`, `rows_total`, `rows_imported`, `rows_rejected`, `report_s3_key`, `started_at`, `finished_at`, `actor` |
+| `registration_jobs` | Submission/batch traceability | `id`, `source`, `submission_id`, `rows_total`, `rows_accepted`, `rows_rejected`, `report_s3_key`, `started_at`, `finished_at`, `actor` |
 | `qr_tokens` | Signed QR issuance | `jti`, `participant_id`, `event_id`, `scope` (`ENTRY`/`SESSION`/`GENERAL`), `issued_at`, `expires_at`, `issued_by`, `station_id`, `signature_alg`, `revoked_at` |
 | `attendance` (extend) | Offline/idempotent writes | `client_event_id` (unique), `client_marked_at`, `station_id`, `method`, `verified_by`, `note`, `is_void`, `void_reason` |
 | `email_outbox` | Reliable welcome mail | `id`, `participant_id`, `template`, `payload_json`, `status`, `attempts`, `next_attempt_at`, `provider_message_id`, `sent_at`, `last_error` |
@@ -256,7 +256,7 @@ Rules:
 
 ### 8.3 Indexes and constraints
 
-- `participants`: unique `(event_id, lower(email))`; unique `(event_id, external_id)` where `external_id` is not null.
+- `participants`: unique `(event_id, lower(email))`; unique `(event_id, submission_id)` where `submission_id` is not null.
 - `attendance`: keep the existing one-entry-per-participant guard; add `UNIQUE (client_event_id)`.
 - `qr_tokens`: unique `jti`; index `(participant_id, event_id, scope)`; expiry check in application layer.
 - `face_embeddings`: index `(participant_id, is_active)`; add pgvector HNSW index when moving matching to the database.
@@ -270,8 +270,9 @@ Rules:
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/imports/google-form` | Upload JSON/ZIP export (admin, dry-run supported) |
-| `GET` | `/api/imports/{id}` | Import status + validation report |
+| `POST` | `/api/register` | Public in-site form submission with photo upload, validation and dedupe |
+| `GET` | `/api/registrations/{id}` | Submission status + validation report |
+| `POST` | `/api/imports/batch` | Optional admin CSV/JSON bulk import (dry-run supported) |
 | `POST` | `/api/participants/{id}/embedding` | Build/rebuild embedding (admin) |
 | `GET` | `/api/sync/manifest` | Versioned manifest for hub pre-sync |
 | `GET` | `/api/sync/bundle/{manifest_id}` | Download bundle (participants + embeddings + photo hashes) |
@@ -334,7 +335,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 ### Phase 0 — Lock decisions and contracts (3–5 days)
 
 - Confirm the three blocking decisions in §5.1.
-- Define Google Form field names and the JSON schema (Appendix A).
+- Define React form field names and the submission JSON schema (Appendix A).
 - Freeze the participant status machine (§8.1).
 - Define QR scope and token format (Appendix B).
 - Define the sync protocol, manifest, and idempotency keys (Appendix C).
@@ -348,7 +349,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 - Create S3 bucket: private, Block Public Access, SSE-KMS, versioning, access logging, lifecycle rules.
 - Create RDS/Aurora Postgres with pgvector in `ap-south-1` (Mumbai).
 - Configure SES: verify domain, DKIM/SPF/DMARC, request production access early.
-- Configure IAM roles: backend, import worker, hub sync; no AWS keys on volunteer laptops.
+- Configure IAM roles: backend, registration worker, hub sync; no AWS keys on volunteer laptops.
 - Create Cloudflare Pages project, custom domain, Access policies for `/admin/*` and `/volunteer/*`, WAF/rate limits, cache rules.
 - Add secrets management, `.dockerignore`, and deployment configs.
 - Add health checks, structured logging, and error tracking.
@@ -356,17 +357,18 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 **Deliverable:** staging environment where Cloudflare Pages calls an AWS FastAPI backend and writes to S3/RDS.
 **Exit criteria:** end-to-end smoke test from a browser through Cloudflare to S3/RDS.
 
-### Phase 2 — Google Forms import pipeline and S3 (1–1.5 weeks)
+### Phase 2 — React registration pipeline and S3 (1–1.5 weeks)
 
-- Build `scripts/import_google_form.py` or an admin import endpoint with **dry-run**, duplicate detection, and a validation report.
-- Support batch JSON/ZIP upload and optional Apps Script/webhook sync for late registrations.
-- Download Google Forms file-upload photos from Drive (service account) or accept a photo URL; validate one face, resolution, brightness/blur; resize; strip EXIF; upload to S3.
+- Build the public `POST /api/register` endpoint plus the React form; validate, deduplicate and return a submission ID with a clear status.
+- Accept photo upload directly from the browser (multipart or presigned POST); validate one face, resolution, brightness/blur; resize; strip EXIF; upload to S3.
+- Add rate limiting, bot protection and upload-size limits to the public endpoint.
 - Generate embeddings locally; store `model_version`, `quality_score`, `is_active`.
-- Add `ImportJob`, `source`, `external_id`, `consent_version`, `consented_at`, `photo_s3_key`, `embedding_status`, `audit_log`.
+- Add `RegistrationJob`, `source`, `submission_id`, `consent_version`, `consented_at`, `photo_s3_key`, `embedding_status`, `audit_log`.
 - Migrate existing local uploads to S3 with checksum verification.
+- Retain an optional admin batch CSV/JSON import for legacy data and assisted walk-ins.
 
-**Deliverable:** 1,000 test rows imported with a clear report of valid/duplicate/missing-photo/invalid-photo records.
-**Exit criteria:** re-running the same import is a no-op; spot-check photos match participants.
+**Deliverable:** 1,000 test submissions with a clear report of valid/duplicate/missing-photo/invalid-photo records.
+**Exit criteria:** re-submitting the same data is a no-op; spot-check photos match participants.
 
 ### Phase 3 — Local hub, arrival, QR, welcome email (1 week)
 
@@ -416,7 +418,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 ### P0 — must-have for this event
 
 1. **Security and privacy hardening** — authenticate all PII/biometric reads, private S3, signed QR, Cloudflare Access/WAF, default-credential removal, consent/retention, audit log.
-2. **Google Forms import pipeline** — JSON schema, validation, dedupe, photo quality gate, S3 upload, embedding build, import job/report.
+2. **React registration pipeline** — form schema, server validation, dedupe, photo quality gate, S3 upload, embedding build, submission report.
 3. **Local-first arrival and QR issuance** — local hub, local face match, signed QR, QR verification, print/email fallback.
 4. **Welcome email pipeline** — SES, outbox, template, retry, delivery log, resend.
 5. **Offline check-in and idempotent sync** — local operation plus reliable cloud reconciliation.
@@ -429,7 +431,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 2. **Live arrival/check-in analytics** — registered → imported → arrived → QR issued → checked in → sessions; throughput, no-shows, category/institution breakdown, volunteer performance.
 3. **Admin import and reconciliation console** — upload JSON, review errors, fix photos, re-run import, compare hub/cloud counts.
 4. **Certificates with public verification** — participation/speaker/volunteer certificates, PDF generation, verification page.
-5. **Accessibility and inclusion** — accessible landing/status/email instructions, assisted registration, QR print fallback, English/Odia/Hindi where controllable. Google Forms limits how much accessibility/i18n you can control; focus on the landing page, email, and staff-assisted flow.
+5. **Accessibility and inclusion** — accessible landing/form/status/email instructions, assisted registration, QR print fallback, English/Odia/Hindi where controllable. The in-site form is fully under our control, so it must meet the same accessibility standard as the rest of the site.
 6. **Minimal Event model** — add `events` and `event_id` now, even for one event.
 
 ### P2 — strategic / after this event
@@ -438,7 +440,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 2. **Notifications platform** — campaigns, reminders, SMS/WhatsApp, delivery webhooks, opt-out.
 3. **Kiosk/self-service check-in and badge printing** — tablet kiosk, QR/face capture, staff override, badge printer.
 4. **Face pipeline scale and anti-spoofing** — at 1,000 participants the current Python cosine loop is fine; for larger/multi-event scale add pgvector HNSW + `<=>` queries, async inference, configurable threshold, match-attempt audit, liveness/anti-spoof.
-5. **Registration workflow extensions** — capacity/waitlist, ticket types/approval, email verification. Google Forms cannot enforce these well; decide whether to add a native form later.
+5. **Registration workflow extensions** — capacity/waitlist, ticket types/approval, email verification. These can now be enforced in the React form and its API; add them after the core flow.
 
 ---
 
@@ -447,12 +449,12 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 | Item | Previous priority | New priority | Reason |
 |---|---|---|---|
 | Offline check-in | P1 | **P0** | Meeting requires local operation with cloud storage |
-| Participant self-service | P1 (second portal) | P1 (status/ticket page) | Google Forms is the intake; portal becomes a ticket view |
+| Participant self-service | P1 (second portal) | P1 (status/ticket page) | The React form is the intake; portal becomes a status/ticket view |
 | Email | Later notification feature | **P0** | Welcome email is a meeting requirement |
 | Multi-event | P2 | Minimal `Event` model now, full later | Avoid hardcoding; cheap now, costly later |
 | Certificates | P1/post-event | P1/post-event | Unchanged |
-| Accessibility | Broad app-wide | Landing page, email, assisted flow | Google Forms controls less of the UX |
-| Native `/register` | Primary intake | Staff/walk-in only or retired | Avoid two sources of truth |
+| Accessibility | Broad app-wide | Form, landing page, email, assisted flow | The in-site form must meet the same standard as the rest of the site |
+| Native `/register` | Primary intake | Primary in-site intake | One source of truth; no external handoff |
 
 ---
 
@@ -477,7 +479,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Google Forms photo upload/Drive permissions are awkward | Medium | High | Test early with a non-Google account; fallback to a Cloudflare Pages photo-upload page with S3 presigned POST |
+| Public form abuse or fake registrations | Medium | High | Rate limit, bot protection, duplicate detection and upload-size limits; manual review of suspect submissions |
 | Cloudflare/AWS boundary confusion | Medium | Medium | Write one ADR; deploy a thin staging spike before feature work |
 | Welcome emails go to spam or fail | Medium | High | SES production access, DKIM/SPF/DMARC, warm-up, delivery logs, print fallback |
 | Venue network fails | High | High | Local hub + offline queue + airplane-mode rehearsal; 4G backup |
@@ -524,9 +526,9 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 ## 17. Immediate next 10 steps
 
 1. Confirm the open decisions in §5 — especially face photo, Cloudflare scope, S3 vs DB, QR scope, and hub vs direct cloud sync.
-2. Freeze the Google Form field names and JSON schema; collect 5 real sample responses.
+2. Freeze the React form field names and submission JSON schema; collect 5 real sample submissions.
 3. Provision S3 (private/KMS/lifecycle), RDS Postgres/pgvector, SES, IAM, and Cloudflare Pages/Access/WAF in staging.
-4. Build the import CLI/endpoint with dry-run, dedupe, photo quality report, S3 upload, and embedding status.
+4. Build the registration endpoint with dedupe, photo quality report, S3 upload, and embedding status.
 5. Build the versioned sync manifest and pre-sync bundle for the local hub.
 6. Build the local hub prototype: participant cache, local face match, QR signing, attendance, outbox.
 7. Build the arrival endpoint + signed QR + SES welcome-email template/outbox.
@@ -536,7 +538,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 
 ---
 
-## Appendix A — Google Form fields and import JSON
+## Appendix A — Registration form fields and submission JSON
 
 ### A.1 Required form fields
 
@@ -557,8 +559,9 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 
 ```json
 {
-  "source": "GOOGLE_FORM",
-  "external_id": "1FAIpQLSd..._response_123",
+  "source": "SITE_FORM",
+  "submission_id": "c1f0e6d2-...-uuid",
+  "client_event_id": "c1f0e6d2-...-uuid",
   "submitted_at": "2026-11-10T09:14:22Z",
   "full_name": "Asha Mohanty",
   "email": "asha@example.com",
@@ -566,7 +569,8 @@ Estimates assume 2–3 engineers with part-time design/ops support.
   "institution": "IIT Bhubaneswar",
   "category": "STUDENT",
   "photo": {
-    "drive_file_id": "1AbC...",
+    "upload_token": "presigned-post-id",
+    "s3_key": "photos/oas-2026/{submission_id}.jpg",
     "content_type": "image/jpeg",
     "sha256": "..."
   },
@@ -585,7 +589,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 - Phone normalized; optional but recommended.
 - Photo: exactly one detectable face; min 640×640; blur/brightness thresholds; no EXIF GPS after processing.
 - Consent must be true; otherwise status `BLOCKED` with reason `NO_CONSENT`.
-- Duplicate `external_id` or email → `DUPLICATE`, linked to the original record.
+- Duplicate `submission_id` or email → `DUPLICATE`, linked to the original record.
 
 ---
 
@@ -657,7 +661,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
       "type": "ATTENDANCE",
       "client_event_id": "c1f0e6d2-...",
       "client_marked_at": "2026-11-20T10:14:51Z",
-      "participant_external_id": "1FAIpQLSd..._response_123",
+      "participant_submission_id": "c1f0e6d2-...-uuid",
       "session_external_id": null,
       "method": "QR",
       "station_id": "desk-3"
@@ -666,7 +670,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
       "type": "QR_ISSUANCE",
       "client_event_id": "a7b3...",
       "jti": "9f1c2b7e-...",
-      "participant_external_id": "1FAIpQLSd..._response_123",
+      "participant_submission_id": "c1f0e6d2-...-uuid",
       "scope": "ENTRY",
       "issued_at": "2026-11-20T10:14:40Z",
       "station_id": "desk-3"
@@ -697,7 +701,6 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 | `JWT_SECRET` / `QR_SIGNING_KEY` | Secrets Manager | Rotate pre-event; Ed25519 private key never leaves hub |
 | `CLOUDFLARE_API_TOKEN` | CI secret | Pages deploy only |
 | `HUB_ID`, `HUB_TOKEN` | Provisioned per device | Scoped, revocable |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | Secrets Manager | Drive read-only for form uploads |
 | `SENTRY_DSN` (or equivalent) | SSM | Error tracking, PII scrubbing on |
 
 **Rules:** no secrets in git, no secrets in the frontend bundle, no long-lived AWS keys on volunteer laptops, rotate everything after the event.
