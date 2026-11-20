@@ -62,3 +62,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Local completion-report PDF (not shared in GitHub)
+Frontend-Redesign-Completion.pdf
+Frontend-Redesign-Completation.pdf
