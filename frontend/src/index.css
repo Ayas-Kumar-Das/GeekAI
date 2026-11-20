@@ -271,6 +271,7 @@
   .no-print,
   header,
   nav,
+  aside,
   footer,
   .toast,
   .sticky-cta {
@@ -297,6 +298,11 @@
 .badge-print {
   width: 85.6mm;
   height: 54mm;
+}
+
+/* The A4 sheet is print-only; kept in the DOM so the browser can compose it. */
+.badge-sheet {
+  display: none;
 }
 
 /* html5-qrcode injects its own video/canvas; keep the frame full-bleed. */
@@ -336,5 +342,88 @@
   @page {
     size: 85.6mm 54mm;
     margin: 0;
+  }
+}
+
+/* ------------------------------------------------------------------
+   A6 participant pass — 105 × 148 mm, 40 mm QR (§12.7)
+------------------------------------------------------------------- */
+@media print {
+  body.ticket-printing * {
+    visibility: hidden !important;
+  }
+  body.ticket-printing .ticket-print-sheet,
+  body.ticket-printing .ticket-print-sheet * {
+    visibility: visible !important;
+  }
+  body.ticket-printing .ticket-print-sheet {
+    position: fixed;
+    inset: 0;
+    display: block !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  body.ticket-printing .ticket-print-sheet [data-testid='pass-qr'] {
+    width: 40mm !important;
+    height: 40mm !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+  body.ticket-printing .ticket-print-sheet [data-testid='pass-qr'] svg {
+    width: 40mm !important;
+    height: 40mm !important;
+  }
+  body.ticket-printing .ticket-print-sheet * {
+    color: #000 !important;
+  }
+  @page {
+    size: A6 portrait;
+    margin: 0;
+  }
+}
+
+/* ------------------------------------------------------------------
+   A4 badge sheet — 8 CR80 badges (2 × 4) with crop marks (§12.7)
+------------------------------------------------------------------- */
+@media print {
+  body.badge-sheet-printing main * {
+    visibility: hidden !important;
+  }
+  body.badge-sheet-printing main .badge-sheet,
+  body.badge-sheet-printing main .badge-sheet * {
+    visibility: visible !important;
+  }
+  .badge-sheet {
+    display: grid;
+    grid-template-columns: repeat(2, 85.6mm);
+    grid-template-rows: repeat(4, 54mm);
+    gap: 0;
+  }
+  .badge-sheet .badge-print {
+    position: relative;
+  }
+  .badge-sheet .badge-print::before,
+  .badge-sheet .badge-print::after {
+    content: '';
+    position: absolute;
+    background: #000;
+    opacity: 0.35;
+  }
+  .badge-sheet .badge-print::before {
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 0.2mm;
+  }
+  .badge-sheet .badge-print::after {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0.2mm;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 4mm;
   }
 }

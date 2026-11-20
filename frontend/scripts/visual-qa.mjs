@@ -68,7 +68,26 @@ const routes = [
   '/admin/settings',
   '/admin/export',
 ]
-const widths = [360, 1440]
+// Stage 5 device matrix (§12.4): full route set at the two reference widths,
+// a representative set at every required width, plus landscape desk checks.
+const widths = [320, 360, 390, 768, 1024, 1366, 1440, 1920, 2560]
+const fullWidths = new Set([360, 1440])
+const matrixRoutes = [
+  '/',
+  '/registration/status?token=demo',
+  '/ticket/demo-pass',
+  '/volunteer/arrival',
+  '/volunteer/scan',
+  '/admin/dashboard',
+  '/admin/participants',
+  '/login',
+]
+const landscape = [
+  { width: 667, height: 375, route: '/volunteer/arrival' },
+  { width: 667, height: 375, route: '/volunteer/scan' },
+  { width: 844, height: 390, route: '/volunteer/arrival' },
+  { width: 844, height: 390, route: '/volunteer/scan' },
+]
 
 const isVolunteerRoute = (route) => route.startsWith('/volunteer')
 const isAdminRoute = (route) => route.startsWith('/admin')
@@ -145,7 +164,8 @@ for (const width of widths) {
 
   await page.goto(base + '/', { waitUntil: 'domcontentloaded', timeout: 30000 })
 
-  for (const route of routes) {
+  const routesForWidth = fullWidths.has(width) ? routes : matrixRoutes
+  for (const route of routesForWidth) {
     consoleErrors.length = 0
     await setSession(page, isAdminRoute(route) ? 'ADMIN' : isVolunteerRoute(route) ? 'VOLUNTEER' : null)
     await page.goto(base + route, { waitUntil: 'networkidle0', timeout: 30000 })
@@ -215,6 +235,50 @@ for (const width of widths) {
     }
   }
 
+  await page.close()
+}
+
+// Landscape checks for the camera-first screens (§12.4).
+for (const check of landscape) {
+  const page = await browser.newPage()
+  await page.setViewport({ width: check.width, height: check.height, deviceScaleFactor: 1 })
+  const consoleErrors = []
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') consoleErrors.push(msg.text())
+  })
+  page.on('pageerror', (err) => consoleErrors.push(String(err)))
+
+  await page.setRequestInterception(true)
+  page.on('request', (request) => {
+    const { pathname } = new URL(request.url())
+    if (!pathname.startsWith('/api/')) {
+      request.continue()
+      return
+    }
+    request.respond({ status: 200, contentType: 'application/json', body: '[]' })
+  })
+
+  await page.goto(base + '/', { waitUntil: 'domcontentloaded', timeout: 30000 })
+  await setSession(page, 'VOLUNTEER')
+  await page.goto(base + check.route, { waitUntil: 'networkidle0', timeout: 30000 })
+
+  const result = await page.evaluate(() => ({
+    scrollWidth: document.scrollingElement.scrollWidth,
+    vw: window.innerWidth,
+    scrollHeight: document.scrollingElement.scrollHeight,
+    vh: window.innerHeight,
+  }))
+  const overflow = result.scrollWidth > result.vw + 1
+  const errs = consoleErrors.filter((e) => !e.includes('favicon'))
+  const ok = !overflow && errs.length === 0
+  if (!ok) {
+    failures++
+    console.log(`FAIL ${check.width}x${check.height} ${check.route}`)
+    if (overflow) console.log(`  horizontal scroll: ${result.scrollWidth} > ${result.vw}`)
+    for (const e of errs) console.log(`  console: ${e}`)
+  } else {
+    console.log(`ok   ${check.width}x${check.height} ${check.route}`)
+  }
   await page.close()
 }
 

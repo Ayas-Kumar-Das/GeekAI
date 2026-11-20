@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Html5Qrcode } from 'html5-qrcode'
 import {
   ArrowLeft,
   Camera,
@@ -232,6 +231,8 @@ export default function QRScanner() {
     setCameraError(null)
     setScanState('starting')
     try {
+      // Load the camera library only when the volunteer starts scanning (§11.1).
+      const { Html5Qrcode } = await import('html5-qrcode/esm/html5-qrcode.js')
       const scanner = new Html5Qrcode('qr-reader')
       scannerRef.current = scanner
       await scanner.start(

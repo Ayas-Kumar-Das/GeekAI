@@ -123,6 +123,31 @@ export default function Help() {
         never issues a pass without the gold action.
       </Banner>
 
+      {/* 90-second briefing — the five things a volunteer must know (Phase 5). */}
+      <section className="overflow-hidden rounded-md border border-gold-500/40 bg-paper shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-gold-100 px-4 py-2.5">
+          <h2 className="text-[14px] font-semibold text-ink-900">90-second briefing</h2>
+          <Badge tone="gold" className="text-[9.5px]">Read before your first participant</Badge>
+        </div>
+        <ol className="space-y-2 px-4 py-3">
+          {[
+            'Open Arrival. The camera stays off until you press Start camera.',
+            'Capture a face, then compare the candidate photo with a second ID. Face match is a suggestion.',
+            'Press “This is the person”, choose how you checked ID, then the gold “Issue QR pass”.',
+            'Show the pass or print a badge. “Next participant” resets the desk.',
+            'If the hub drops: the capture is saved locally, no QR exists yet, and Queue shows the count. Never say “checked in”.',
+          ].map((line, index) => (
+            <Step key={line} index={index + 1}>
+              {line}
+            </Step>
+          ))}
+        </ol>
+        <p className="border-t border-border px-4 py-2 text-[10px] text-muted">
+          This briefing is printed at the desk with the runbook. Questions? Ask the desk lead before
+          issuing a pass.
+        </p>
+      </section>
+
       <div className="space-y-2">
         {RUNBOOK.map((section) => {
           const Icon = section.icon

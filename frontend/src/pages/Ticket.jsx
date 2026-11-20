@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, AlertTriangle, Eye, Lock, MapPin, Calendar, Clock } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Eye, Lock, MapPin, Calendar, Clock, Printer } from 'lucide-react'
 import flags from '../content/flags'
 import { useTicket } from '../hooks/useTicket'
 import { TicketCard } from '../components/ticket/TicketCard'
@@ -167,17 +167,39 @@ export default function Ticket() {
   )
   const ticketRef = useRef(null)
 
-  // Signed-ticket routes must not be indexed (§14.1 #5).
+  // Signed-ticket routes must not be indexed or leak the token via referrer (§12.8).
   useEffect(() => {
-    const meta = document.createElement('meta')
-    meta.name = 'robots'
-    meta.content = 'noindex'
-    document.head.appendChild(meta)
-    return () => document.head.removeChild(meta)
+    const robots = document.createElement('meta')
+    robots.name = 'robots'
+    robots.content = 'noindex'
+    const referrer = document.createElement('meta')
+    referrer.name = 'referrer'
+    referrer.content = 'no-referrer'
+    document.head.appendChild(robots)
+    document.head.appendChild(referrer)
+    return () => {
+      robots.remove()
+      referrer.remove()
+    }
   }, [])
 
   const showPass = () => {
     ticketRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
+  /** Print the pass as A6 with a 40mm QR, black on white (§12.7). */
+  const printTicket = () => {
+    document.body.classList.add('ticket-printing')
+    const cleanup = () => {
+      document.body.classList.remove('ticket-printing')
+      window.removeEventListener('afterprint', cleanup)
+    }
+    window.addEventListener('afterprint', cleanup)
+    try {
+      window.print?.()
+    } finally {
+      window.setTimeout(cleanup, 1200)
+    }
   }
 
   let body
@@ -288,7 +310,7 @@ export default function Ticket() {
             </Banner>
           )}
 
-          <div ref={ticketRef}>
+          <div ref={ticketRef} className="ticket-print-sheet">
             <TicketCard
               state={state}
               name={data.name}
@@ -336,6 +358,14 @@ export default function Ticket() {
                 <Lock className="h-3 w-3 text-gold-600" aria-hidden="true" />
                 This pass is personal. Do not share it.
               </p>
+              <button
+                type="button"
+                onClick={printTicket}
+                className="no-print mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border-control bg-paper px-4 text-[12px] font-semibold text-ink-900 hover:bg-sand-100"
+              >
+                <Printer className="h-4 w-4" aria-hidden="true" />
+                Print pass (A6)
+              </button>
             </>
           )}
 

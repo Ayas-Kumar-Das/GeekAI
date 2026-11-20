@@ -39,7 +39,7 @@ const html5 = vi.hoisted(() => {
   return { state, FakeScanner }
 })
 
-vi.mock('html5-qrcode', () => ({ Html5Qrcode: html5.FakeScanner }))
+vi.mock('html5-qrcode/esm/html5-qrcode.js', () => ({ Html5Qrcode: html5.FakeScanner }))
 
 vi.mock('./api/client', async (importOriginal) => {
   const actual = await importOriginal()
@@ -451,16 +451,16 @@ describe('Offline queue, sync status and badge', () => {
         station="ST-01"
       />
     )
-    expect(screen.getByText('Asha Nayak')).toBeTruthy()
-    expect(screen.getByText('AIS26-0007')).toBeTruthy()
-    expect(document.querySelector('[data-testid="badge-print"]')).toBeTruthy()
+    expect(screen.getAllByText('Asha Nayak').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('AIS26-0007').length).toBeGreaterThan(0)
+    expect(document.querySelector('.badge-print-sheet > [data-testid="badge-print"]')).toBeTruthy()
 
     view.rerender(
       <BadgePrint
         participant={{ name: 'Asha Nayak', institution: 'SOA University', category: 'Student' }}
       />
     )
-    expect(screen.getByText(/No QR until the pass is issued/i)).toBeTruthy()
+    expect(screen.getAllByText(/No QR until the pass is issued/i).length).toBeGreaterThan(0)
   })
 
   it('renders the desk runbook without inventing a contact address', async () => {
