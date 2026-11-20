@@ -57,10 +57,15 @@ const routes = [
   '/volunteer/help',
   // Stage 4 admin shell (§Phase 4, mockup 07) — ADMIN only, seeded session.
   '/admin/dashboard',
+  '/admin/imports',
+  '/admin/live-ops',
   '/admin/participants',
   '/admin/sessions',
   '/admin/attendance',
   '/admin/volunteers',
+  '/admin/reconciliation',
+  '/admin/audit',
+  '/admin/settings',
   '/admin/export',
 ]
 const widths = [360, 1440]
@@ -91,6 +96,9 @@ const shotRoutes = new Set([
   '/registration/status?token=demo-pass',
   '/ticket/demo-pass',
   '/admin/dashboard',
+  '/admin/participants',
+  '/admin/attendance',
+  '/admin/volunteers',
   '/volunteer/dashboard',
   '/volunteer/arrival',
   '/volunteer/scan',

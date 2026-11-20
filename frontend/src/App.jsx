@@ -3,10 +3,8 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Layout from './components/Layout'
 import AdminLayout from './components/AdminLayout'
 import VolunteerLayout from './components/volunteer/VolunteerLayout'
-import WaitingForBackend from './components/volunteer/WaitingForBackend'
 import PublicLayout from './components/public/PublicLayout'
 import ProtectedRoute from './components/ProtectedRoute'
-import flags from './content/flags'
 import ErrorBoundary from './components/ErrorBoundary'
 import RouteFallback from './components/RouteFallback'
 
@@ -32,6 +30,12 @@ const Sessions = lazy(() => import('./pages/admin/Sessions'))
 const Attendance = lazy(() => import('./pages/admin/Attendance'))
 const Export = lazy(() => import('./pages/admin/Export'))
 const Volunteers = lazy(() => import('./pages/admin/Volunteers'))
+const Imports = lazy(() => import('./pages/admin/Imports'))
+const ImportDetail = lazy(() => import('./pages/admin/ImportDetail'))
+const LiveOps = lazy(() => import('./pages/admin/LiveOps'))
+const Reconciliation = lazy(() => import('./pages/admin/Reconciliation'))
+const Audit = lazy(() => import('./pages/admin/Audit'))
+const Settings = lazy(() => import('./pages/admin/Settings'))
 const VolunteerDashboard = lazy(() => import('./pages/volunteer/VolunteerDashboard'))
 const Arrival = lazy(() => import('./pages/volunteer/Arrival'))
 const QRScanner = lazy(() => import('./pages/volunteer/QRScanner'))
@@ -101,44 +105,12 @@ export default function App() {
             <Route path="attendance" element={<Attendance />} />
             <Route path="volunteers" element={<Volunteers />} />
             <Route path="export" element={<Export />} />
-            {/* Future admin screens — flag-gated; missing backend endpoints
-                show "Waiting for backend" instead of invented screens. */}
-            {flags.importsV2 && (
-              <Route
-                path="imports"
-                element={<WaitingForBackend title="Imports" endpoints={['POST /api/admin/imports']} />}
-              />
-            )}
-            {flags.liveOps && (
-              <Route
-                path="live-ops"
-                element={<WaitingForBackend title="Live ops" endpoints={['GET /api/admin/live-ops']} />}
-              />
-            )}
-            {flags.analyticsV2 && (
-              <Route
-                path="analytics"
-                element={<WaitingForBackend title="Analytics" endpoints={['GET /api/admin/analytics']} />}
-              />
-            )}
-            {flags.settingsV2 && (
-              <Route
-                path="settings"
-                element={<WaitingForBackend title="Settings" endpoints={['GET /api/admin/settings']} />}
-              />
-            )}
-            {flags.auditV2 && (
-              <Route
-                path="audit"
-                element={<WaitingForBackend title="Audit log" endpoints={['GET /api/admin/audit']} />}
-              />
-            )}
-            {flags.reconciliation && (
-              <Route
-                path="reconciliation"
-                element={<WaitingForBackend title="Reconciliation" endpoints={['GET /api/admin/reconciliation']} />}
-              />
-            )}
+            <Route path="imports" element={<Imports />} />
+            <Route path="imports/:id" element={<ImportDetail />} />
+            <Route path="live-ops" element={<LiveOps />} />
+            <Route path="reconciliation" element={<Reconciliation />} />
+            <Route path="audit" element={<Audit />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
 
           {/* Volunteer routes — event-day shell (§7.5): ink app bar, desk

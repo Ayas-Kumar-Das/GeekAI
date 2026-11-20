@@ -8,6 +8,10 @@ import {
   CalendarDays,
   ClipboardCheck,
   Download,
+  Upload,
+  Activity,
+  ShieldAlert,
+  Sliders,
   Menu,
   X,
   Bell,
@@ -17,11 +21,19 @@ import { cn } from '../lib/cn'
 
 const NAV = [
   { to: '/admin/dashboard', label: 'Overview', icon: Users },
+  { to: '/admin/imports', label: 'Imports', icon: Upload },
+  { to: '/admin/live-ops', label: 'Live ops', icon: Activity },
   { to: '/admin/participants', label: 'Participants', icon: Users },
   { to: '/admin/sessions', label: 'Sessions', icon: CalendarDays },
   { to: '/admin/attendance', label: 'Attendance', icon: ClipboardCheck },
   { to: '/admin/volunteers', label: 'Volunteers', icon: UserCheck },
+  { to: '/admin/reconciliation', label: 'Reconciliation', icon: ClipboardCheck },
   { to: '/admin/export', label: 'Export', icon: Download },
+]
+
+const SYSTEM = [
+  { to: '/admin/settings', label: 'Settings', icon: Sliders },
+  { to: '/admin/audit', label: 'Audit log', icon: ShieldAlert },
 ]
 
 function shortName(name) {
@@ -128,6 +140,13 @@ export default function AdminLayout() {
             Operations
           </div>
           <nav className="space-y-1">{NAV.map((item) => <NavItem key={item.to} item={item} />)}</nav>
+        </div>
+
+        <div className="mt-2 border-t border-ink-800/40 py-2">
+          <div className="px-2 mb-1 text-[8px] font-bold uppercase tracking-[0.16em] text-ivory-50/60">
+            System
+          </div>
+          <nav className="space-y-1">{SYSTEM.map((item) => <NavItem key={item.to} item={item} />)}</nav>
         </div>
 
         <div className="mt-auto border-t border-ink-800/40 pt-3 px-2 pb-1">
@@ -252,6 +271,11 @@ export default function AdminLayout() {
               Operations
             </div>
             <div className="space-y-1">{NAV.map((item) => <NavItem key={item.to} item={item} />)}</div>
+            <div className="my-2 border-t border-border" />
+            <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-muted px-2 mb-1">
+              System
+            </div>
+            <div className="space-y-1">{SYSTEM.map((item) => <NavItem key={item.to} item={item} />)}</div>
             <div className="mt-4 border-t border-border pt-3">
               <div className="flex items-center gap-2 px-2">
                 <div

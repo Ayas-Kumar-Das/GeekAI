@@ -49,6 +49,13 @@ export const flags = {
   settingsV2: flag('SETTINGS_V2', false),
   /** Admin audit log screen (requires backend endpoint). */
   auditV2: flag('AUDIT_V2', false),
+  /**
+   * Void an attendance record. ON only when the hub serves
+   * POST /api/attendance/{id}/void with a reason. The dialog is always shown
+   * so the consequence is explicit; without the endpoint it says
+   * "Waiting for backend" and performs no write.
+   */
+  voidAttendance: flag('VOID_ATTENDANCE', false),
 }
 
 export default flags
