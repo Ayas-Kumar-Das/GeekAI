@@ -64,7 +64,7 @@ export function Button({
       {loading && (
         <Loader2 className="absolute h-4 w-4 animate-spin" aria-hidden="true" />
       )}
-      <span className={cn('inline-flex items-center', loading && 'invisible')}>
+      <span className={cn('inline-flex items-center gap-1.5', loading && 'invisible')}>
         {children}
       </span>
     </button>

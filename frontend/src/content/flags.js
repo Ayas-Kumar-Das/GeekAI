@@ -25,9 +25,17 @@ export const flags = {
   registrationHandoff: env.VITE_FLAG_REGISTRATION_HANDOFF !== 'false',
   /** `/registration/status` and `/ticket/:token` participant screens. */
   ticketPage: flag('TICKET_PAGE', true),
-  /** Volunteer arrival desk v2 (verify → issue pass → print). */
+  /**
+   * Volunteer arrival desk writes. ON only when the hub actually serves
+   * `POST /api/arrivals` and `POST /api/qr/issue` (WorkFlow.md §9.1). The
+   * screen stays available either way and shows "Waiting for backend" in
+   * development instead of calling a missing endpoint.
+   */
   arrivalV2: flag('ARRIVAL_V2', false),
-  /** QR scanner v2 (signed-token verification, entry/session modes). */
+  /**
+   * Signed-pass verification. ON only when `POST /api/qr/verify` is live.
+   * The scanner never falls back to the legacy unsigned validate-qr call.
+   */
   scanV2: flag('SCAN_V2', false),
   /** Admin live-ops screen (requires backend endpoint). */
   liveOps: flag('LIVE_OPS', false),

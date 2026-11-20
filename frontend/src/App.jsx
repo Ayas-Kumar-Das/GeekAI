@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Layout from './components/Layout'
 import AdminLayout from './components/AdminLayout'
+import VolunteerLayout from './components/volunteer/VolunteerLayout'
 import PublicLayout from './components/public/PublicLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -30,9 +31,11 @@ const Attendance = lazy(() => import('./pages/admin/Attendance'))
 const Export = lazy(() => import('./pages/admin/Export'))
 const Volunteers = lazy(() => import('./pages/admin/Volunteers'))
 const VolunteerDashboard = lazy(() => import('./pages/volunteer/VolunteerDashboard'))
-const FaceCheckIn = lazy(() => import('./pages/volunteer/FaceCheckIn'))
+const Arrival = lazy(() => import('./pages/volunteer/Arrival'))
 const QRScanner = lazy(() => import('./pages/volunteer/QRScanner'))
 const ManualLookup = lazy(() => import('./pages/volunteer/ManualLookup'))
+const Queue = lazy(() => import('./pages/volunteer/Queue'))
+const Help = lazy(() => import('./pages/volunteer/Help'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Forbidden = lazy(() => import('./pages/Forbidden'))
 const ServerError = lazy(() => import('./pages/ServerError'))
@@ -98,20 +101,24 @@ export default function App() {
             <Route path="export" element={<Export />} />
           </Route>
 
-          {/* Volunteer routes */}
+          {/* Volunteer routes — event-day shell (§7.5): ink app bar, desk
+              selector, offline pill, five sections. */}
           <Route
             path="/volunteer"
             element={
               <ProtectedRoute allowedRoles={['ADMIN', 'VOLUNTEER']}>
-                <Layout />
+                <VolunteerLayout />
               </ProtectedRoute>
             }
           >
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<VolunteerDashboard />} />
-            <Route path="face-checkin" element={<FaceCheckIn />} />
+            <Route path="arrival" element={<Arrival />} />
+            <Route path="face-checkin" element={<Navigate to="/volunteer/arrival" replace />} />
             <Route path="scan" element={<QRScanner />} />
             <Route path="manual" element={<ManualLookup />} />
+            <Route path="queue" element={<Queue />} />
+            <Route path="help" element={<Help />} />
           </Route>
 
           {/* Global states (§7.9) */}

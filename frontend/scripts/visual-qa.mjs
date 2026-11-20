@@ -48,8 +48,33 @@ const routes = [
   '/privacy',
   '/accessibility',
   '/code-of-conduct',
+  // Stage 3 volunteer desk (§7.5/§7.6) — needs a seeded session, no API.
+  '/volunteer/dashboard',
+  '/volunteer/arrival',
+  '/volunteer/scan',
+  '/volunteer/manual?mode=entry',
+  '/volunteer/queue',
+  '/volunteer/help',
 ]
 const widths = [360, 1440]
+
+const isVolunteerRoute = (route) => route.startsWith('/volunteer')
+
+/** Volunteer pages are behind ProtectedRoute; seed/clear the stored session. */
+async function setSession(page, enabled) {
+  await page.evaluate((on) => {
+    if (on) {
+      localStorage.setItem('token', 'visual-qa')
+      localStorage.setItem(
+        'user',
+        JSON.stringify({ id: 1, name: 'QA Volunteer', role: 'VOLUNTEER' })
+      )
+    } else {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+    }
+  }, enabled)
+}
 
 /** Routes that also get a full-page screenshot for the review record. */
 const shotRoutes = new Set([
@@ -57,6 +82,12 @@ const shotRoutes = new Set([
   '/registration/status?token=demo',
   '/registration/status?token=demo-pass',
   '/ticket/demo-pass',
+  '/volunteer/dashboard',
+  '/volunteer/arrival',
+  '/volunteer/scan',
+  '/volunteer/manual?mode=entry',
+  '/volunteer/queue',
+  '/volunteer/help',
 ])
 
 const shotDir = path.join(root, '..', '.qa')
@@ -75,8 +106,27 @@ for (const width of widths) {
   })
   page.on('pageerror', (err) => consoleErrors.push(String(err)))
 
+  // The desk is designed to work without a hub; answer API calls with empty
+  // shapes so the layout check measures the screens, not the network.
+  await page.setRequestInterception(true)
+  page.on('request', (request) => {
+    const { pathname } = new URL(request.url())
+    if (!pathname.startsWith('/api/')) {
+      request.continue()
+      return
+    }
+    const body =
+      pathname === '/api/attendance/event' || pathname === '/api/sessions/'
+        ? '[]'
+        : '{"items":[],"total":0}'
+    request.respond({ status: 200, contentType: 'application/json', body })
+  })
+
+  await page.goto(base + '/', { waitUntil: 'domcontentloaded', timeout: 30000 })
+
   for (const route of routes) {
     consoleErrors.length = 0
+    await setSession(page, isVolunteerRoute(route))
     await page.goto(base + route, { waitUntil: 'networkidle0', timeout: 30000 })
     // let lazy routes + fonts settle
     await page.evaluate(() => document.fonts?.ready)

@@ -290,3 +290,51 @@
     margin: 12mm;
   }
 }
+
+/* ------------------------------------------------------------------
+   CR80 desk badge — 85.6 × 54 mm (§7.5 print badge)
+------------------------------------------------------------------- */
+.badge-print {
+  width: 85.6mm;
+  height: 54mm;
+}
+
+/* html5-qrcode injects its own video/canvas; keep the frame full-bleed. */
+#qr-reader video,
+#qr-reader canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+#qr-reader {
+  min-height: 280px;
+}
+#qr-reader__scan_region img {
+  display: none !important;
+}
+
+@media print {
+  body.badge-printing * {
+    visibility: hidden !important;
+  }
+  body.badge-printing .badge-print-sheet,
+  body.badge-printing .badge-print-sheet * {
+    visibility: visible !important;
+  }
+  body.badge-printing .badge-print-sheet {
+    position: fixed;
+    inset: 0;
+    display: block !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  body.badge-printing .badge-print {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  @page {
+    size: 85.6mm 54mm;
+    margin: 0;
+  }
+}
