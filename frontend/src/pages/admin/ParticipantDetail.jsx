@@ -59,6 +59,12 @@ export default function ParticipantDetail() {
     ? (participant.photo_url.startsWith('/') || participant.photo_url.startsWith('http')
         ? participant.photo_url : `/${participant.photo_url}`)
     : null
+  // Backend returns `uploads/qrcodes/1.png` (no leading slash); on a nested
+  // route a relative src would resolve under /admin/participants/ and break.
+  const qrSource = participant.qr_code_url
+    ? (participant.qr_code_url.startsWith('/') || participant.qr_code_url.startsWith('http')
+        ? participant.qr_code_url : `/${participant.qr_code_url}`)
+    : null
 
   return (
     <div className="space-y-4">
@@ -99,7 +105,7 @@ export default function ParticipantDetail() {
           </dl>
           {participant.qr_code_url && (
             <div className="mt-4 border-t border-border pt-3 text-center">
-              <img src={participant.qr_code_url} alt="Participant pass QR" className="mx-auto h-28 w-28 rounded-sm border border-border bg-paper" />
+              <img src={qrSource} alt="Participant pass QR" className="mx-auto h-28 w-28 rounded-sm border border-border bg-paper" />
               <p className="mt-1 text-[9.5px] text-muted">Pass QR code</p>
             </div>
           )}
