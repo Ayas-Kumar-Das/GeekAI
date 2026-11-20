@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import client, { normalizeError } from '../api/client'
+import flags from '../content/flags'
 import {
   getInitialFormData,
   validateField,
@@ -152,6 +153,24 @@ export function useRegistrationForm({ assisted = false } = {}) {
 
       try {
         const { payload, submissionId } = buildSubmissionPayload(formData, { assisted })
+
+        // Local verification mode: simulate a successful hub response so the
+        // whole frontend flow can be reviewed before /api/register is live.
+        // Clearly labelled in the UI; no data leaves the browser.
+        if (flags.registrationMock) {
+          await new Promise((resolve) => setTimeout(resolve, 900))
+          const result = {
+            submissionId,
+            status: 'RECEIVED',
+            statusToken: null,
+            photoStatus: 'PHOTO_PENDING_REVIEW',
+            email: formData.email.trim().toLowerCase(),
+          }
+          setSubmissionResult(result)
+          setSubmitted(true)
+          clearDraft()
+          return
+        }
 
         const response = await client.post('/register', payload, {
           headers: { 'Content-Type': 'multipart/form-data' },

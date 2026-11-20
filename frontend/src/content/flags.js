@@ -49,6 +49,14 @@ export const flags = {
    * "Waiting for backend" and performs no write.
    */
   voidAttendance: flag('VOID_ATTENDANCE', false),
+  /**
+   * Local verification mode for the registration form. When ON (only via
+   * VITE_FLAG_REGISTRATION_MOCK=true at build time), the form simulates the
+   * POST /api/register response in the browser so the success state can be
+   * reviewed before the backend endpoint exists. Never enabled in production
+   * defaults; the UI is clearly labelled while active. No data is sent.
+   */
+  registrationMock: flag('REGISTRATION_MOCK', false),
 }
 
 export default flags

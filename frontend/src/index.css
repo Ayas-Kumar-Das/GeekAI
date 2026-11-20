@@ -384,6 +384,117 @@
 }
 
 /* ------------------------------------------------------------------
+   Registration form — distinctive sectioned layout using theme tokens
+------------------------------------------------------------------- */
+.reg-form {
+  border-radius: 12px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-sand-200);
+  box-shadow: 0 10px 30px -18px rgba(11, 31, 58, 0.35), 0 2px 6px -3px rgba(11, 31, 58, 0.12);
+  overflow: hidden;
+}
+
+.reg-form form {
+  padding: 0.25rem 0 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .reg-form form {
+    padding: 0.5rem 1.75rem 2rem;
+  }
+}
+
+.reg-section {
+  position: relative;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  padding: 1.1rem 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .reg-section {
+    padding: 1.5rem 1.5rem 1.6rem;
+  }
+}
+
+.reg-section::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 8px 0 0 8px;
+  background: var(--color-ink-900);
+}
+
+.reg-section--details {
+  background: linear-gradient(180deg, var(--color-ivory-50) 0%, var(--color-paper) 100%);
+  border-color: var(--color-sand-200);
+}
+.reg-section--details::before {
+  background: var(--color-ink-900);
+}
+
+.reg-section--photo {
+  background: linear-gradient(180deg, var(--color-teal-100) 0%, var(--color-paper) 85%);
+  border-color: rgba(14, 124, 123, 0.22);
+}
+.reg-section--photo::before {
+  background: var(--color-teal-500);
+}
+
+.reg-section--consent {
+  background: linear-gradient(180deg, var(--color-gold-100) 0%, var(--color-paper) 90%);
+  border-color: rgba(201, 162, 39, 0.28);
+}
+.reg-section--consent::before {
+  background: var(--color-gold-500);
+}
+
+.reg-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.reg-section-num {
+  display: grid;
+  place-items: center;
+  height: 26px;
+  width: 26px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-ink-900);
+  color: var(--color-ivory-50);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.reg-section--photo .reg-section-num {
+  background: var(--color-teal-500);
+  color: #fff;
+}
+.reg-section--consent .reg-section-num {
+  background: var(--color-gold-500);
+  color: var(--color-ink-900);
+}
+
+.reg-section-rule {
+  height: 2px;
+  width: 28px;
+  border-radius: 2px;
+  background: var(--color-gold-500);
+  margin-left: auto;
+}
+
+.reg-form .no-print.sm\\:static {
+  margin: 0 1rem;
+}
+
+/* ------------------------------------------------------------------
    A4 badge sheet — 8 CR80 badges (2 × 4) with crop marks (§12.7)
 ------------------------------------------------------------------- */
 @media print {

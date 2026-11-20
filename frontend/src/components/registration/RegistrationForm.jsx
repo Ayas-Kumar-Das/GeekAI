@@ -10,6 +10,7 @@ import Select from '../ui/Select'
 import Skeleton from '../ui/Skeleton'
 import Textarea from '../ui/Textarea'
 import { event } from '../../content/event'
+import flags from '../../content/flags'
 import { cn } from '../../lib/cn'
 import {
   CATEGORIES,
@@ -179,7 +180,39 @@ export default function RegistrationForm({
 
   // ─── Form states ───────────────────────────────────Child───────────────
   return (
-    <div className={cn('w-full max-w-[760px]', className)}>
+    <div className={cn('reg-form w-full max-w-[820px]', className)}>
+      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-ink-900 px-5 py-3 text-ivory-50">
+        <ShieldCheck className="h-4 w-4 text-gold-500" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-[0.01em]">Delegate registration</p>
+          <p className="text-[10px] text-ivory-100/60">{event.shortName} · AIS 2026</p>
+        </div>
+        <div className="ml-auto flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.1em] text-ivory-100/60">
+          <span className="h-1.5 w-1.5 rounded-full bg-teal-500" aria-hidden="true" />
+          In-site form
+        </div>
+      </div>
+
+      {flags.registrationMock && (
+        <div
+          role="status"
+          className="mb-6 overflow-hidden rounded-lg border border-gold-500/40 bg-gold-100/60 shadow-sm"
+        >
+          <div className="flex flex-wrap items-center gap-2 border-b border-gold-500/30 bg-ink-900 px-4 py-2 text-ivory-50">
+            <ShieldCheck className="h-4 w-4 text-gold-500" aria-hidden="true" />
+            <p className="text-xs font-semibold">Local verification mode</p>
+            <span className="ml-auto font-mono text-[9px] uppercase tracking-[0.1em] text-ivory-100/60">
+              No data is sent
+            </span>
+          </div>
+          <p className="px-4 py-3 text-xs leading-relaxed text-[#5A4D38]">
+            Submission is simulated in this build so you can review the full flow. Nothing is
+            sent to a server and nothing is stored. Use the details below to try validation and
+            the success panel.
+          </p>
+        </div>
+      )}
+
       {draftRestored && (
         <Banner
           tone="info"
@@ -239,10 +272,14 @@ export default function RegistrationForm({
       )}
 
       <form onSubmit={handleSubmit} noValidate aria-busy={submitting}>
-        <section aria-labelledby="reg-details-heading">
-          <h2 id="reg-details-heading" className="text-h4 font-semibold text-ink-900">
-            Your details
-          </h2>
+        <section aria-labelledby="reg-details-heading" className="reg-section reg-section--details">
+          <div className="reg-section-title">
+            <span className="reg-section-num" aria-hidden="true">01</span>
+            <h2 id="reg-details-heading" className="text-h4 font-semibold text-ink-900">
+              Your details
+            </h2>
+            <span className="reg-section-rule" aria-hidden="true" />
+          </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="Full name" required error={errors.full_name} helper="As on your ID">
               <Input
@@ -253,7 +290,7 @@ export default function RegistrationForm({
                 onChange={handleChange}
                 onBlur={handleBlur}
                 autoComplete="name"
-                placeholder="Asha Mohanty"
+                placeholder="Debdatta Panda"
                 disabled={submitting}
               />
             </Field>
@@ -268,7 +305,7 @@ export default function RegistrationForm({
                 onChange={handleChange}
                 onBlur={handleBlur}
                 autoComplete="email"
-                placeholder="asha@example.com"
+                placeholder="deb11@gmail.com"
                 disabled={submitting}
               />
             </Field>
@@ -283,7 +320,7 @@ export default function RegistrationForm({
                 onChange={handleChange}
                 onBlur={handleBlur}
                 autoComplete="tel"
-                placeholder="+91 98765 43210"
+                placeholder="+91 XXXXX XXXXX"
                 disabled={submitting}
               />
             </Field>
@@ -297,7 +334,7 @@ export default function RegistrationForm({
                 onChange={handleChange}
                 onBlur={handleBlur}
                 autoComplete="organization"
-                placeholder="IIT Bhubaneswar"
+                placeholder="ITER, SOA University"
                 disabled={submitting}
               />
             </Field>
@@ -318,10 +355,14 @@ export default function RegistrationForm({
           </div>
         </section>
 
-        <section aria-labelledby="reg-photo-heading" className="mt-10 border-t border-border pt-8">
-          <h2 id="reg-photo-heading" className="text-h4 font-semibold text-ink-900">
-            Your photo
-          </h2>
+        <section aria-labelledby="reg-photo-heading" className="reg-section reg-section--photo">
+          <div className="reg-section-title">
+            <span className="reg-section-num" aria-hidden="true">02</span>
+            <h2 id="reg-photo-heading" className="text-h4 font-semibold text-ink-900">
+              Your photo
+            </h2>
+            <span className="reg-section-rule" aria-hidden="true" />
+          </div>
           <p className="mt-1 text-sm text-slate-700">
             A recent photo helps the arrival desk verify your identity.
           </p>
@@ -336,10 +377,14 @@ export default function RegistrationForm({
           </div>
         </section>
 
-        <section aria-labelledby="reg-consent-heading" className="mt-10 border-t border-border pt-8">
-          <h2 id="reg-consent-heading" className="text-h4 font-semibold text-ink-900">
-            Consent and access
-          </h2>
+        <section aria-labelledby="reg-consent-heading" className="reg-section reg-section--consent">
+          <div className="reg-section-title">
+            <span className="reg-section-num" aria-hidden="true">03</span>
+            <h2 id="reg-consent-heading" className="text-h4 font-semibold text-ink-900">
+              Consent and access
+            </h2>
+            <span className="reg-section-rule" aria-hidden="true" />
+          </div>
 
           <div className="mt-4">
             <Checkbox
