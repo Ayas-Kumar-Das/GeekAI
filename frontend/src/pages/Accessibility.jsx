@@ -31,7 +31,7 @@ export default function Accessibility() {
             <ul className="mt-3 space-y-2.5">
               {[
                 'A staffed arrival desk with a documented check-in path that does not rely on a QR code.',
-                'Assisted registration for anyone who cannot complete the Google Form unaided.',
+                'Assisted registration for anyone who cannot complete the form unaided.',
                 'This website targets WCAG 2.2 AA: 44px touch targets, visible focus, keyboard access and reduced-motion support.',
                 'An accessibility contact for questions and requests before the event.',
               ].map((item) => (

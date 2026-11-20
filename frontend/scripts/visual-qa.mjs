@@ -111,6 +111,7 @@ async function setSession(page, role) {
 /** Routes that also get a full-page screenshot for the review record. */
 const shotRoutes = new Set([
   '/',
+  '/register',
   '/registration/status?token=demo',
   '/registration/status?token=demo-pass',
   '/ticket/demo-pass',

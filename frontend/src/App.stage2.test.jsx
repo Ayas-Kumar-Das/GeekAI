@@ -87,24 +87,28 @@ describe('Stage 2 public routes', () => {
   })
 })
 
-describe('Stage 2 registration handoff', () => {
-  it('is a handoff page, not a native form', async () => {
+describe('Stage 2 in-site registration form', () => {
+  it('renders the real form with all required fields and no external handoff', async () => {
     renderAt('/register')
     await screen.findByRole('heading', { level: 1, name: /Register for the symposium/i })
-    // no photo capture / native fields
-    expect(screen.queryByLabelText(/Profile Photo/i)).toBeNull()
-    expect(screen.queryByText(/Complete Registration/i)).toBeNull()
+    expect(screen.getByRole('textbox', { name: /Full name/i })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: /Email/i })).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: /Category/i })).toBeTruthy()
+    expect(screen.getByRole('checkbox', { name: /consent to the collection/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Submit registration/i })).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/google forms?/i)
     expectNoQrEmailedClaim()
-    // explains that the pass is issued on arrival
-    expect(screen.getByText(/pass is issued at the arrival desk/i)).toBeTruthy()
+    expect(screen.getAllByText(/pass is issued at the arrival desk/i).length).toBeGreaterThan(0)
   })
 
-  it('disables the CTA instead of shipping a dead button when the form URL is missing', async () => {
+  it('validates required fields and shows a summary on submit', async () => {
+    const user = userEvent.setup()
     renderAt('/register')
-    await screen.findByRole('heading', { level: 1, name: /Register for the symposium/i })
-    expect(screen.getByText(/Registration link will be available shortly/i)).toBeTruthy()
-    const button = screen.getByRole('button', { name: /Open the registration form/i })
-    expect(button).toHaveProperty('disabled', true)
+    await screen.findByRole('heading', { level: 2, name: /Your details/i })
+    await user.click(screen.getByRole('button', { name: /Submit registration/i }))
+    expect(await screen.findByText(/Please check 7 fields before submitting/i)).toBeTruthy()
+    expect(screen.getAllByText(/Full name is required/i).length).toBeGreaterThan(0)
+    expectNoQrEmailedClaim()
   })
 
   it('links already-registered participants to status in one click', async () => {

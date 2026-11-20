@@ -9,7 +9,7 @@ export const faqs = [
     id: 'register',
     question: 'How do I register?',
     answer:
-      'Registration is handled through the official Google Form. Open the registration page, complete the form with your details, a recent photo and your consent, and the team reviews your response.',
+      'Registration is completed on this site. Enter your details, a recent photo and your consent, and the team reviews your submission.',
   },
   {
     id: 'pass',

@@ -4,4 +4,10 @@
  */
 if (typeof window !== 'undefined') {
   window.scrollTo = () => {}
+
+  // jsdom does not implement object URLs, which the photo preview uses.
+  if (typeof URL.createObjectURL !== 'function') {
+    URL.createObjectURL = () => 'blob:mock-photo-preview'
+    URL.revokeObjectURL = () => {}
+  }
 }

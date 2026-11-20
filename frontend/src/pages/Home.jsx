@@ -39,7 +39,7 @@ function MobileStickyCta() {
           <p className="truncate text-[10.5px] font-semibold leading-tight text-ink-900">
             Registration details
           </p>
-          <p className="mt-0.5 truncate text-[9px] text-muted">Via the official Google Form</p>
+          <p className="mt-0.5 truncate text-[9px] text-muted">On this site</p>
         </div>
         <ActionLink to="/register" variant="primary" className="h-10 shrink-0 px-[15px] text-xs">
           Register interest
@@ -176,7 +176,7 @@ export default function Home() {
             From the form to the arrival desk.
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-700">
-            Registration happens through the official Google Form. Your pass is issued in
+            Registration takes a few minutes on this site. Your pass is issued in
             person when you arrive — nothing is emailed to you before the event.
           </p>
           <div className="mt-9">
@@ -311,7 +311,7 @@ export default function Home() {
             <SectionLabel onDark>Registration</SectionLabel>
             <h2 className="mt-3 text-h3 font-semibold tracking-[-0.02em]">Registration required.</h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ivory-100/76">
-              Entry is in person only, through the official Google Form. {event.dateLabel} —
+              Entry is in person only. Register on this site; your pass is issued at the arrival desk. {event.dateLabel} —
               expressions of interest are open.
             </p>
           </div>

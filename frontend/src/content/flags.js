@@ -16,13 +16,6 @@ function flag(name, devDefault = true) {
 }
 
 export const flags = {
-  /**
-   * `/register` renders the Google Form handoff (FrontendPlanning.md §7.2,
-   * WorkFlow.md D3: Google Forms is the intake). Set
-   * VITE_FLAG_REGISTRATION_HANDOFF=false only as an emergency deploy escape
-   * hatch back to the native form — the end state is handoff-only.
-   */
-  registrationHandoff: env.VITE_FLAG_REGISTRATION_HANDOFF !== 'false',
   /** `/registration/status` and `/ticket/:token` participant screens. */
   ticketPage: flag('TICKET_PAGE', true),
   /**

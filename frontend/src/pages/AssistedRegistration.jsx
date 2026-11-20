@@ -1,11 +1,11 @@
 import { PageHero, PlaceholderBadge } from '../components/public/PageHero'
-import NativeRegisterForm from '../components/registration/NativeRegisterForm'
+import RegistrationForm from '../components/registration/RegistrationForm'
 import Banner from '../components/ui/Banner'
 
 /**
- * AssistedRegistration — `/register/assisted` (§6.1): the demoted native
- * form for walk-ins, completed by staff. The route sits behind staff auth in
- * App.jsx; this page adds the walk-in framing and the honest pass copy.
+ * AssistedRegistration — `/register/assisted` (§6.1): the same in-site form
+ * component in staff mode, behind staff auth in App.jsx. No second intake
+ * path, no second table — only the source is marked as a walk-in.
  */
 export default function AssistedRegistration() {
   return (
@@ -13,7 +13,7 @@ export default function AssistedRegistration() {
       <PageHero
         eyebrow="Staff · walk-in registration"
         title="Assisted registration"
-        lead="Complete this form with a participant who is registering at the desk. Their pass is issued after check-in, not by email."
+        lead="Complete this form with a participant who is registering at the desk. Their pass is issued after arrival verification, not by email."
         crumbs={[
           { to: '/', label: 'Home' },
           { to: '/register', label: 'Register' },
@@ -28,7 +28,7 @@ export default function AssistedRegistration() {
           details you submit here are checked at the arrival desk.
         </Banner>
 
-        <NativeRegisterForm assisted />
+        <RegistrationForm assisted />
 
         <div className="mt-6">
           <PlaceholderBadge>Walk-in flow — confirm copy with the host office</PlaceholderBadge>

@@ -58,7 +58,7 @@ export function MobileMenu({ open, onClose }) {
           Register interest
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
-        <p className="mt-3 text-center text-xs text-muted">Via the official Google Form</p>
+        <p className="mt-3 text-center text-xs text-muted">On this site</p>
       </div>
     </Drawer>
   )

@@ -10,7 +10,7 @@ const steps = [
   {
     step: 'Step 1',
     title: 'Register',
-    body: 'Complete the official Google Form with your details, a recent photo and your consent.',
+    body: 'Complete the registration form on this site with your details, a recent photo and your consent.',
     icon: ClipboardCheck,
   },
   {

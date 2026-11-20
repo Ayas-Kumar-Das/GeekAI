@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
@@ -90,6 +90,18 @@ describe('Content truth / copy freeze (§12.1)', () => {
       }
     })
   }
+
+  it('permits truthful in-site registration copy while blocking false claims', async () => {
+    renderAt('/register')
+    await screen.findByRole('heading', { name: /Your details/i })
+    const text = document.body.textContent ?? ''
+    // Truthful copy is explicitly allowed; unsupported claims remain blocked.
+    expect(text).toMatch(/pass is issued at the arrival desk/i)
+    expect(text).toMatch(/no qr code is sent by email/i)
+    for (const pattern of FORBIDDEN) {
+      expect(text).not.toMatch(pattern)
+    }
+  })
 
   it('labels unconfirmed event facts explicitly', async () => {
     renderAt('/')

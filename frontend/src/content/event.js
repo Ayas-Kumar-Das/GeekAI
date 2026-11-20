@@ -34,9 +34,7 @@ export const event = {
   locationLine: 'Bhubaneswar, Odisha · 2026',
 
   registration: {
-    // Official Google Form URL. Set VITE_REGISTRATION_FORM_URL at build time.
-    // Empty string is a valid state: UI must disable the CTA and explain why.
-    formUrl: env.VITE_REGISTRATION_FORM_URL || '',
+    // The in-site React form is the only intake. No external form URL.
     required: true,
     closed: env.VITE_REGISTRATION_CLOSED === 'true',
     passIssuedAt: 'the arrival desk',

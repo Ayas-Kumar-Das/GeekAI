@@ -17,7 +17,8 @@ export function Field({
   className,
 }) {
   const autoId = useId()
-  const id = idProp ?? autoId
+  // An explicit id on the control wins so the label and aria wiring follow it.
+  const id = idProp ?? children?.props?.id ?? autoId
   const helpId = `${id}-help`
   const errorId = `${id}-error`
   const describedBy = [helper ? helpId : null, error ? errorId : null]

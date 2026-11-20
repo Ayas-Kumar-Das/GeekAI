@@ -46,9 +46,8 @@ export default function Privacy() {
           <section>
             <h2 className="text-h4 font-semibold text-ink-900">Where it is stored</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-700">
-              Registration data is held in the event platform's database and the official
-              Google Form response sheet. Retention periods and deletion requests are to be
-              announced.
+              Registration data is held in the event platform's database. Retention periods and
+              deletion requests are to be announced.
             </p>
           </section>
 
