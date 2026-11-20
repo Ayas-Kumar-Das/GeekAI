@@ -6,7 +6,7 @@ Frontend-only final verification against **FrontendPlanning.md §12** and the St
 
 ```bash
 cd frontend
-npm test                       # 12 files, 135 tests
+npm test                       # 13 files, 143 tests (142 baseline + registration + error-code map)
 npm run lint                   # 0 errors
 npm run build                  # production build (use VITE_FLAG_TICKET_PAGE=true for demo tokens)
 node scripts/bundle-budget.mjs # §12.5 budget gate
@@ -23,20 +23,25 @@ Status key: **PASS** = automated or inspected; **BY DESIGN** = intentionally not
 |---|---|---|
 | No page says QR/pass is emailed before arrival | PASS | `App.copyfreeze.test.jsx` scans 32 routes for forbidden claims |
 | Unconfirmed facts labelled (date/speaker/session/TBA) | PASS | `src/content/{event,speakers,programme}.js` use explicit placeholder labels; copyfreeze test |
-| No invented speaker/sponsor/number/email/phone | PASS | Content files carry placeholders; contact email only from `VITE_CONTACT_EMAIL` |
+| No invented speaker/sponsor/number/email/phone | PASS | Content files carry placeholders; contact email only from `VITE_CONTACT_EMAIL`; registration form uses user-supplied data only |
 | "Registration required" only if confirmed; no "free" | PASS | copyfreeze forbidden patterns |
 | Sample data marked "Sample data" | PASS | Demo ticket banner + admin "Sample data" pill |
 | Privacy copy names purpose/retention/contact | PASS | `/privacy` prose; contact gated on published address |
-| Official Google Form URL, new tab, `noopener noreferrer` | PASS | `registrationHandoff` link config |
+| Registration is a first-party in-site form; no external handoff | PASS | `RegistrationForm.jsx` on `/register`; handoff flag and form URL config removed |
+| Versioned biometric consent linked to `/privacy` | PASS | `CONSENT_VERSION` + consent checkbox in `RegistrationForm.jsx` |
 
 ## §12.2 Core flows
 
 | Item | Status | Evidence |
 |---|---|---|
-| `/` → Register → `/register` → form in new tab | PASS | Stage 1/2 tests + visual QA |
-| `/register` explains pass issued at arrival | PASS | copy check |
+| `/` → Register → `/register` → in-site form on this site | PASS | Stage 1/2 tests + visual QA; no external navigation |
+| `/register` explains pass issued at arrival | PASS | copy check + truthful-copy test in `App.copyfreeze.test.jsx` |
 | "Already registered?" one click to status | PASS | public nav tests |
-| Missing form URL disables CTA with explanation | PASS | flag/URL guard in Register |
+| 10-field form, on-blur/submit validation, error summary, focus-first-error | PASS | `RegistrationForm.test.jsx` + `App.stage2.test.jsx` |
+| Photo picker + drag/drop + camera, preview, remove/re-upload, quality guidance | PASS | `PhotoUpload.jsx` |
+| Seven states: open, validation, photo rejected, submitting, success, duplicate, closed; plus offline banner + draft restore | PASS | `RegistrationForm.test.jsx`, `useRegistrationForm.js` |
+| Success shows submission ID + status link + arrival-pass explainer, no QR claim | PASS | `RegistrationForm` success panel + `SUCCESS_COPY` |
+| Assisted registration reuses same form with `source=WALK_IN` behind staff auth | PASS | `AssistedRegistration.jsx` + `ProtectedRoute` in `App.jsx` |
 | Signed status link shows correct state | PASS | 9-state matrix in `App.stage3.test.jsx` |
 | Ticket shows QR only for issued/cached | PASS | `TicketCard` + 19 stage-2 tests |
 | Used ticket replaces QR with "Entry recorded" | PASS | state test |
@@ -152,14 +157,15 @@ These require the backend signed-token contract and venue hardware; the **fronte
 | Empty/error/offline states reviewed | PASS — visual QA + component tests |
 | Print rehearsal CSS (badge + A6 ticket) | PASS (CSS) / HARDWARE for physical print |
 | Device matrix 320–2560 + landscape | PASS |
-| Copy freeze: placeholders reviewed, no unsupported claims | PASS |
+| Copy freeze: placeholders reviewed, no unsupported claims | PASS — truthful in-site registration copy allowed; QR-by-email claims still blocked |
 | Staff runbook + 90-second training screens | PASS — `/volunteer/help` |
 | Dev-only `/design` token page (Phase 0 exit) | PASS — dev route |
 | `og-image.png` brand asset (Phase 0 file) | PASS |
 | Scanner duplicate "View record" action (§7.6) | PASS |
 | Admin filters survive refresh via query params (§12.2) | PASS — Participants + Attendance |
 | Final QA against §12 | This document |
+| In-site registration redesign (post-Stage 5 change) | PASS — real React form, 10 fields, seven states, consent, photo, multipart `/api/register`; 143 tests |
 
 ## Summary
 
-All frontend work in FrontendPlanning.md Stages 1–5 is implemented and verified. Items marked BY DESIGN are waiting on backend endpoints that are outside this frontend-only engagement; the screens are built, flag-gated, and tested in their safe states. Items marked HARDWARE require physical devices or assistive technology for sign-off.
+All frontend work in FrontendPlanning.md Stages 1–5 is implemented and verified. The post-Stage 5 registration redesign replaced the Google Form handoff with a first-party React form on `/register`; it is included in the 143 passing tests and the verification commands above. Items marked BY DESIGN are waiting on backend endpoints that are outside this frontend-only engagement — including `POST /api/register`, which the new form targets — the screens are built, flag-gated where agreed, and tested in their safe states. Items marked HARDWARE require physical devices or assistive technology for sign-off.

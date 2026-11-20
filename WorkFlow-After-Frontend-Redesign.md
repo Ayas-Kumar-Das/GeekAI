@@ -4,7 +4,7 @@
 **Status:** Frontend complete, integration pending · Branch `debdatta/development` · 20 November 2026
 **Supersedes for planning purposes:** the frontend portion of [WorkFlow.md](WorkFlow.md); the rest of `WorkFlow.md` remains the authoritative target architecture.
 
-> **Plan change (20 November 2026):** pre-registration is now the **in-site React form** on `/register` instead of Google Forms. The delivered handoff is being replaced by the registration redesign; all other decisions are unchanged.
+> **Plan change (20 November 2026):** pre-registration is now the **in-site React form** on `/register` instead of Google Forms. The handoff was removed in commit `7ded722`; the in-site form is the single intake path, with the same component serving staff-assisted walk-ins. All other decisions are unchanged.
 
 ---
 
@@ -42,10 +42,10 @@ The completion report and QA report were reviewed, then the claims were re-check
 
 | Check | Command | Result |
 |---|---|---|
-| Unit / integration tests | `npm test` (in `frontend/`) | **135 / 135 pass**, 12 files |
+| Unit / integration tests | `npm test` (in `frontend/`) | **143 / 143 pass**, 13 files |
 | Lint | `npm run lint` | **0 errors**, 7 warnings (unused imports/vars and stale eslint-disable directives) |
 | Production build | `npm run build` | **Successful**, 1882 modules |
-| Bundle budgets | `node scripts/bundle-budget.mjs` | **All pass** — public 147.8 KB, admin 146.8 KB, scanner route 5.8 KB gzip; camera library 97.5 KB loaded on demand |
+| Bundle budgets | `node scripts/bundle-budget.mjs` | **All pass** — public 147.7 KB, admin 146.7 KB, scanner route 5.8 KB gzip; camera library 97.5 KB loaded on demand. Register 4.52 KB, RegistrationForm 28.83 KB (9.37 KB gzip) |
 | Git state | `git status --short` | **Clean**; branch `debdatta/development` |
 | Git history | `git log --oneline -12` | Five frontend stages plus fixes and documentation commits present |
 
@@ -64,9 +64,9 @@ These do not break the flows or the build, but they are real quality debt. Fix t
 
 ### 2.3 Verdict
 
-**The required frontend part is complete.** All five stages in `FrontendPlanning.md` are implemented, tested and pushed. The screens that depend on not-yet-existing APIs are deliberately flag-gated and show "Waiting for backend" — this is the agreed safe state, not an incomplete UI. No frontend code constructs or trusts a QR payload.
+**The required frontend part is complete.** All five stages in `FrontendPlanning.md` are implemented, tested and pushed. The post-Stage 5 registration redesign replaced the handoff with the first-party React form, including the shared assisted path, and is covered by the 143 passing tests. The screens that depend on not-yet-existing APIs are deliberately flag-gated and show "Waiting for backend" — this is the agreed safe state, not an incomplete UI. No frontend code constructs or trusts a QR payload.
 
-What remains is **integration and backend/database/infrastructure delivery**, plus hardware sign-off.
+What remains is **integration and backend/database/infrastructure delivery** — including `POST /api/register`, which the in-site form targets — plus hardware sign-off.
 
 ---
 
@@ -83,7 +83,7 @@ What remains is **integration and backend/database/infrastructure delivery**, pl
 ### 3.2 What is not done
 
 - AWS S3, RDS, SES, IAM, Cloudflare Pages/Access/WAF — none exist in the codebase.
-- React registration pipeline, submission normalization, photo quality gate, embedding build.
+- Backend registration pipeline, submission normalization, photo quality gate and embedding build (the frontend form on `/register` is delivered and posts multipart to `POST /api/register`; the endpoint itself does not exist yet).
 - Signed QR service, token table, arrival/issue/verify endpoints.
 - Local hub, station sync, versioned manifest, offline outbox drain to cloud.
 - Email outbox and SES welcome email.
@@ -98,7 +98,7 @@ From `frontend/src/content/flags.js`. Production defaults are OFF unless set exp
 |---|---|---|
 | `ARRIVAL_V2` | Arrival write, Issue QR pass | `POST /api/arrivals`, `POST /api/qr/issue` |
 | `SCAN_V2` | Signed pass verification | `POST /api/qr/verify` |
-| registrationForm (planned) | In-site form + submission status | `POST /api/register`, `GET /api/registrations/{id}` |
+| in-site form (delivered, no flag) | `/register` React form + submission status | `POST /api/register`, `GET /api/registrations/{id}` |
 | `LIVE_OPS` | Live operations | live-ops feed endpoint |
 | `RECONCILIATION` | Variance detail | reconciliation endpoint |
 | `AUDIT_V2` | Audit log | audit log read endpoint |
@@ -107,7 +107,7 @@ From `frontend/src/content/flags.js`. Production defaults are OFF unless set exp
 | `VOID_ATTENDANCE` | void with reason | `POST /api/attendance/{id}/void` |
 | `TICKET_PAGE` | status/ticket pages | signed ticket token endpoint |
 
-`REGISTRATION_HANDOFF` is ON by default and is the intended end state. The emergency fallback to the native form must not become a second source of truth.
+`REGISTRATION_HANDOFF` and `VITE_REGISTRATION_FORM_URL` were removed with the registration redesign. The in-site React form is the single source of truth; the legacy `NativeRegisterForm` was deleted and `/register/assisted` reuses the same component with `source=WALK_IN`.
 
 ### 3.4 Endpoint inventory
 
@@ -123,7 +123,7 @@ From `frontend/src/content/flags.js`. Production defaults are OFF unless set exp
 |---|---|---|---|
 | P0 hardening (cross-cutting) | Auth on PII/biometrics, signed QR, default-credential removal, consent/retention, audit, CI | Security-Privacy-Planning.md | **G1** |
 | Phase 1 — foundation | S3, RDS/pgvector, SES, IAM, secrets, Cloudflare Pages/Access/WAF, deployment | Infrastructure-Planning.md | **G2** |
-| Phase 2 — intake | In-site React submission, validation, dedupe, photo quality, S3 upload, embeddings | React-Registration-Planning.md, Database-Planning.md | **G3** |
+| Phase 2 — intake | Backend for in-site React submission: validation, dedupe, photo quality, S3 upload, embeddings (frontend form delivered) | React-Registration-Planning.md, Database-Planning.md | **G3** |
 | Phase 3 — arrival | DB migration for QR/arrival/outbox, backend endpoints, local hub, signing, SES email | Database-Planning.md, Backend-Planning.md, Local-Hub-Planning.md | **G4** |
 | Phase 4 — operations | Sync ingestion, live ops, reconciliation, audit, admin endpoints, flag enablement | Backend-Planning.md, Local-Hub-Planning.md | **G5** |
 | Phase 5 — rehearsal | 1,000-row import, 4–6 stations, offline drill, deliverability, QR failure cases | This document §7 | **G6** |
@@ -235,14 +235,14 @@ Each document ends with exit criteria. A document's work is done only when its e
 
 ## 10. Decisions to confirm before implementation
 
-1. Does the in-site React form collect a compliant face photo + biometric consent? Without it, arrival scanning is enrollment, not verification.
+1. Does the in-site React form collect a compliant face photo + biometric consent? The frontend now captures both (photo picker/camera and versioned consent linked to `/privacy`); the backend photo quality gate and embedding build are still outstanding. Without them, arrival scanning is enrollment, not verification.
 2. Cloudflare scope: Pages/Access/WAF in front of an AWS-hosted FastAPI backend (recommended) — not Workers.
 3. S3 scope: blobs and JSON archive; RDS Postgres/pgvector remains the operational store.
 4. QR scope: one signed participant QR; event entry once; session scans reusable with photo verification.
 5. Hub model: hub-and-spoke, hub is the single writer, stations use LAN.
 6. Email provider: SES with verified domain and production access.
 7. Data retention window for photos/embeddings and for attendance/audit.
-8. Whether the in-site `/register` form also serves staff-assisted walk-ins (recommended: yes, with the same component).
+8. Resolved: the in-site `/register` form also serves staff-assisted walk-ins via `/register/assisted`, reusing the same component with `source=WALK_IN` behind staff auth.
 9. Source of official brand assets, speaker list, dates, venue address and sponsor kit.
 10. Who owns AWS/Cloudflare credentials and who signs the go/no-go.
 
@@ -257,4 +257,4 @@ Each document ends with exit criteria. A document's work is done only when its e
 - Hardware sign-off (printer, scanner, assistive technology, Lighthouse) recorded.
 - Post-event exports, certificates, reconciliation and retention purge completed.
 
-**Current position:** frontend done and verified; gates G1–G6 open; next action is the G1 security foundation in parallel with G2 infrastructure provisioning.
+**Current position:** frontend done and verified, including the in-site registration redesign (`7ded722`); gates G1–G6 open; next action is the G1 security foundation in parallel with G2 infrastructure provisioning and the G3 backend for `POST /api/register`.

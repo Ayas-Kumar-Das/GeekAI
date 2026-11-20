@@ -18,7 +18,7 @@ This report also serves as a review handbook. Section 5 gives the exact URL for 
 
 | Check | Result |
 |---|---|
-| Automated tests | 135 / 135 passing (12 files) |
+| Automated tests | 143 / 143 passing (13 files) |
 | Lint | 0 errors |
 | Production build | Successful |
 | Bundle budgets | All within limits |
@@ -37,7 +37,7 @@ All frontend code under `frontend/`: routes, pages, layouts, components, hooks, 
 
 ### 2.2 Out of scope
 
-Backend APIs, database schema and migrations, Docker/deployment configuration, ML/face-matching models, email delivery infrastructure, Google Form construction, and translation delivery.
+Backend APIs, database schema and migrations, Docker/deployment configuration, ML/face-matching models, email delivery infrastructure, external form construction, and translation delivery.
 
 ### 2.3 Governing rules
 
@@ -56,8 +56,10 @@ Backend APIs, database schema and migrations, Docker/deployment configuration, M
 |---|---|---|
 | Planning document | `FrontendPlanning.md` | Design system, page specs, responsive and accessibility rules, five-phase roadmap, section 12 acceptance criteria |
 | Workflow document | `WorkFlow.md` | Event architecture, state machines, endpoint contracts, offline and idempotency rules |
-| Design mockups | `frontend/design/mockups/` | Eight high-fidelity design renders, numbered 01 through 08 |
-| Mockup sources | `frontend/design/mockup-src/` | Editable HTML and CSS sources for the eight renders |
+| Design mockups | `frontend/design/mockups/` | Eleven high-fidelity design renders, numbered 01 through 11 |
+| Mockup sources | `frontend/design/mockup-src/` | Editable HTML and CSS sources for the eleven renders |
+| Registration plan | `Registration-Redesign-Plan.md` | File-level plan for the in-site form that replaced the handoff |
+| Registration source plan | `React-Registration-Planning.md` | Fields, validation, submission contract and error codes for the in-site form |
 | QA mapping | `frontend/STAGE5-QA.md` | Section 12 acceptance mapping, status of every frontend criterion |
 | This report | `Frontend-Redesign-Completion.md` | Completion record, stage-wise review guide and sign-off |
 
@@ -81,7 +83,7 @@ Accessible primitives were rebuilt with hover, focus, active, disabled, loading,
 
 ### 4.2 Stage 2 — Public site
 
-The public shell provides the top strip, masthead, mobile sheet and footer with the SOA University and AIC for Innovation Center lockups. The landing page carries the hero, fact row, programme preview, speaker placeholders, venue, arrival section, FAQ and a sticky registration CTA on phones. Registration hands off to the official Google Form and explains that passes are issued at the arrival desk; the CTA is disabled with an explanation when no form URL is configured.
+The public shell provides the top strip, masthead, mobile sheet and footer with the SOA University and AIC for Innovation Center lockups. The landing page carries the hero, fact row, programme preview, speaker placeholders, venue, arrival section, FAQ and a sticky registration CTA on phones. As delivered in Stage 2, registration was a Google Form handoff; the post-Stage 5 registration redesign (section 4.6) replaced it with the first-party React form on `/register` and removed the handoff flag, the form URL config and the legacy second intake path.
 
 The programme, speakers, venue, FAQ, privacy, accessibility and code-of-conduct pages were added with shared content files. Every unconfirmed fact is labelled "to be announced" or "TBA". No speaker names, dates, sponsors or attendance numbers were invented.
 
@@ -104,6 +106,12 @@ Participants list and detail, sessions CRUD, attendance with event and session v
 Accessibility was audited with axe-core across ten key routes, with zero critical or serious WCAG 2.2 A and AA violations. Performance work loads `html5-qrcode` only when the volunteer starts the scanner, pauses polling when the tab is hidden, and enforces bundle budgets in an automated gate. The responsive matrix covers 320, 360, 390, 768, 1024, 1366, 1440, 1920 and 2560 px plus landscape checks on arrival and scan.
 
 Print formats cover the CR80 badge, an A4 badge sheet with crop marks and the A6 ticket with a 40 mm QR, while navigation, footers and toasts are hidden in print. A copy-freeze test scans 32 routes for forbidden claims. The desk runbook now includes a 90-second briefing, and the final section 12 acceptance mapping lives in `frontend/STAGE5-QA.md`.
+
+### 4.6 Post-Stage 5 change — in-site registration redesign
+
+Following the five stages, `/register` was rebuilt from a Google Form handoff into a real first-party React form, per `Registration-Redesign-Plan.md`. The shared `RegistrationForm` captures all ten fields from `React-Registration-Planning.md` §2.1 with on-blur and on-submit validation, a field-level error summary, focus-first-error and `aria-live` regions. `PhotoUpload` supports file picker, drag-and-drop and device camera with preview, remove/re-upload and one-face quality guidance; an API photo rejection maps to a field error and keeps the other field values. Explicit versioned biometric consent links to `/privacy` and blocks submission until accepted. All seven states are implemented — open, validation error, photo rejected, submitting with a double-submit guard, success with submission ID and signed status link, duplicate with a one-click status path, and registration closed — plus an offline banner and debounced draft restore that deliberately does not persist the photo `File`.
+
+Submissions post multipart to `POST /api/register` with `source=SITE_FORM`, `submission_id`, `client_event_id`, `submitted_at`, photo, a JSON consent block and optional fields; every documented §5 error code is mapped to an actionable message. `/register/assisted` reuses the same component with `source=WALK_IN` behind staff auth, and the legacy `NativeRegisterForm` was removed so only one intake path remains. No invented endpoint is called. This change is included in the 143 passing tests and pushed in `7ded722`.
 
 ---
 
@@ -152,7 +160,7 @@ No login is required for any of these pages.
 | Speakers | `http://localhost:4173/speakers` | Eight "Speaker to be announced" placeholders |
 | Venue | `http://localhost:4173/venue` | Location wording, directions, no invented address |
 | FAQ | `http://localhost:4173/faq` | Accordion disclosure behaviour |
-| Register | `http://localhost:4173/register` | Google Form handoff in a new tab, passes issued at arrival explanation |
+| Register | `http://localhost:4173/register` | First-party 10-field form, photo picker/camera, versioned consent, pass issued at arrival explanation |
 | Privacy | `http://localhost:4173/privacy` | Purpose, retention and contact wording |
 | Accessibility | `http://localhost:4173/accessibility` | Accessibility statement |
 | Code of conduct | `http://localhost:4173/code-of-conduct` | Community expectations |
@@ -170,7 +178,7 @@ No login is required. The demo tokens work only in a build made with `VITE_FLAG_
 | Status, confirmed | `http://localhost:4173/registration/status?token=demo-pass` | CONFIRMED state, next steps |
 | Ticket, review | `http://localhost:4173/ticket/demo` | Not-issued panel, no QR shown |
 | Ticket, issued | `http://localhost:4173/ticket/demo-pass` | Pass card, QR on white, print action, noindex |
-| Assisted registration | `http://localhost:4173/register/assisted` | Staff walk-in form; requires admin or volunteer login |
+| Assisted registration | `http://localhost:4173/register/assisted` | Same in-site form with `source=WALK_IN`; requires admin or volunteer login |
 
 Confirm that no page claims a QR was emailed and that the demo banner labels the data as a sample.
 
@@ -233,7 +241,7 @@ For print review open the issued demo ticket and use Print pass, then open the b
 
 - The production preview has arrival, scan, imports, live ops, reconciliation, audit, settings and void flags OFF. Their screens show "Waiting for backend" by design.
 - The demo status and ticket tokens are labelled as sample data and never call the network.
-- The backend currently generates an unsigned QR PNG at registration. It is not a signed pass and must not be used for entry verification. The frontend never trusts it.
+- The in-site form posts to `POST /api/register`, which is not yet present in this backend, so a real submission will show the submission error panel until the endpoint lands. The legacy participant-creation path still generates an unsigned QR PNG; it is not a signed pass and must not be used for entry verification. The frontend never trusts it.
 - Physical printer and scanner sign-off, assistive-technology testing and on-device Lighthouse remain hardware tasks outside this frontend engagement.
 
 ---
@@ -242,10 +250,10 @@ For print review open the issued demo ticket and use Print pass, then open the b
 
 | Area | Result | Evidence |
 |---|---|---|
-| Unit and integration tests | 135 / 135 pass | `npm test`, 12 files |
+| Unit and integration tests | 143 / 143 pass | `npm test`, 13 files |
 | Static analysis | 0 errors | `npm run lint` |
 | Production build | Successful | `npm run build` |
-| Bundle budgets | Pass | `scripts/bundle-budget.mjs`: public 147.7 KB, admin 146.7 KB, scanner route 5.7 KB gzip |
+| Bundle budgets | Pass | `scripts/bundle-budget.mjs`: public 147.7 KB, admin 146.7 KB, scanner route 5.8 KB gzip |
 | Camera library isolation | Pass | `html5-qrcode` absent from landing and ticket chunks, loaded on demand only |
 | Responsive layout | Pass | `scripts/visual-qa.mjs`, all widths plus landscape |
 | Accessibility | Pass | `src/App.a11y.test.jsx`, 10 routes |
@@ -264,13 +272,18 @@ A final audit against the research thread, `FrontendPlanning.md` and `WorkFlow.m
 3. "View record" action for duplicate scans required by section 7.6 — added and wired to the participant record.
 4. Filters surviving refresh via query params required by section 12.2 — implemented for Participants and Attendance.
 
+A follow-up audit during the registration redesign found two more gaps, fixed and pushed in `7ded722`:
+
+5. All documented §5 API error codes must be mapped — `EMBEDDING_FAILED` and `MODEL_MISMATCH` were added to `getErrorMessage`.
+6. Photo-error focus must land on the real file input — the non-focusable wrapper ref was removed so `focusFirstError('photo')` resolves the input by id.
+
 ---
 
 ## 8. Deliberate non-deliverables
 
 These items are outside the frontend-only engagement and are documented honestly in `frontend/STAGE5-QA.md`:
 
-- **Backend-dependent screens, by design.** Arrival writes, QR issue and verify, and the imports, live ops, reconciliation, audit and settings endpoints do not exist in the current backend. Their screens are complete, flag-gated and tested in the safe "Waiting for backend" state. No frontend code calls an invented endpoint.
+- **Backend-dependent screens, by design.** Arrival writes, QR issue and verify, the registration submission endpoint, and the imports, live ops, reconciliation, audit and settings endpoints do not exist in the current backend. Their screens are complete, and either flag-gated with "Waiting for backend" or, for the registration form, mapped to a clear submission-error panel. No frontend code calls an invented endpoint.
 - **Physical sign-off, hardware.** Venue printer and scanner tests, NVDA and VoiceOver, Windows High Contrast and on-device Lighthouse must be performed with the actual hardware and assistive technology.
 - **Process items.** Content freeze 48 hours before the event and import and rehearsal drills depend on the host office and the local hub.
 
@@ -279,6 +292,12 @@ These items are outside the frontend-only engagement and are documented honestly
 ## 9. Git history
 
 ```
+7ded722 feat(frontend): in-site registration redesign (React form replaces Google Form handoff)
+a85906e docs: finalize registration plan updates
+ac5e57b docs: switch registration plan to in-site React form
+03232ac docs: add post-frontend redesign planning suite
+04f004a docs: correct completion report name, expand review guide, remove PDF from tracking
+08f47e4 docs: add frontend redesign completion report (MD + PDF)
 9508227 fix(frontend): close remaining FrontendPlanning spec gaps
 9b1151b feat(frontend): Stage 5 - hardening and rehearsal (final stage)
 0d7302b fix(frontend): normalize participant QR/photo URLs from the backend
@@ -291,13 +310,13 @@ fec578a feat(frontend): Phase 3 - volunteer arrival desk and QR scanner (Stage 3
 0d9b8d0 feat(frontend): Stage 1 — design tokens, UI primitives, a11y foundations
 ```
 
-This report and its PDF are added in a later documentation commit on the same branch.
+This report is tracked in the repository; its locally generated PDF is gitignored and not shared in GitHub.
 
 ---
 
 ## 10. Sign-off
 
-All five stages of the frontend redesign defined in the research thread and in `FrontendPlanning.md` are complete. The frontend is responsive from 360 px through 4K, meets WCAG 2.2 AA in automated audit, respects the plan's performance budgets, and preserves the event workflow defined in `WorkFlow.md`. No backend, database, Docker, ML or deployment files were modified.
+All five stages of the frontend redesign defined in the research thread and in `FrontendPlanning.md` are complete, and the post-Stage 5 in-site registration redesign is complete. The frontend is responsive from 360 px through 4K, meets WCAG 2.2 AA in automated audit, respects the plan's performance budgets, and preserves the event workflow defined in `WorkFlow.md`. No backend, database, Docker, ML or deployment files were modified.
 
 **Frontend redesign work is DONE.**
 
