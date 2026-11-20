@@ -36,6 +36,9 @@ const SYSTEM = [
   { to: '/admin/audit', label: 'Audit log', icon: ShieldAlert },
 ]
 
+/** Four primary destinations on the mobile bottom bar; the rest live in More. */
+const MOBILE_NAV = NAV.slice(0, 4)
+
 function shortName(name) {
   if (!name) return 'OP'
   return name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
@@ -242,10 +245,48 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        <main className="flex-1 min-w-0 p-4 lg:px-6 lg:py-5">
+        <main className="flex-1 min-w-0 p-4 pb-24 lg:px-6 lg:py-5 lg:pb-5">
           <Outlet />
         </main>
       </div>
+
+      {/* ================= mobile bottom nav: four items + More ================= */}
+      <nav
+        aria-label="Admin sections"
+        className="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t border-border bg-paper pb-[env(safe-area-inset-bottom)]"
+      >
+        <div className="grid grid-cols-5">
+          {MOBILE_NAV.map((item) => {
+            const Icon = item.icon
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === '/admin/dashboard'}
+                className={({ isActive }) =>
+                  cn(
+                    'flex min-h-14 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold',
+                    isActive ? 'text-ink-900' : 'text-muted'
+                  )
+                }
+              >
+                <Icon className="h-5 w-5" aria-hidden="true" />
+                {item.label}
+              </NavLink>
+            )
+          })}
+          <button
+            type="button"
+            onClick={() => setMobileMenu(true)}
+            aria-label="More admin sections"
+            aria-expanded={mobileMenu}
+            className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-muted"
+          >
+            <Menu className="h-5 w-5" aria-hidden="true" />
+            More
+          </button>
+        </div>
+      </nav>
 
       {mobileMenu && (
         <div
