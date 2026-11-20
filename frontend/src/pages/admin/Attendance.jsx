@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import client from '../../api/client'
 import flags from '../../content/flags'
 import { Table } from '../../components/ui/Table'
@@ -29,8 +30,18 @@ function fmt(value) {
  * the dialog shows "Waiting for backend" and performs no write (§5.3).
  */
 export default function Attendance() {
-  const [tab, setTab] = useState('event')
-  const [sessionId, setSessionId] = useState('')
+  // View + session filters persist in query params (§12.2).
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') === 'session' ? 'session' : 'event'
+  const sessionId = params.get('session') ?? ''
+  const setFilter = (patch) => {
+    const next = new URLSearchParams(params)
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) next.set(key, String(value))
+      else next.delete(key)
+    }
+    setParams(next, { replace: true })
+  }
   const [voiding, setVoiding] = useState(null)
   const [reason, setReason] = useState('')
 
@@ -127,7 +138,7 @@ export default function Attendance() {
             key={item.id}
             type="button"
             aria-pressed={tab === item.id}
-            onClick={() => setTab(item.id)}
+            onClick={() => setFilter({ tab: item.id })}
             className={`min-h-10 rounded-sm px-4 text-[12px] font-medium ${tab === item.id ? 'bg-paper text-ink-900 shadow-sm' : 'text-muted hover:text-ink-900'}`}
           >
             {item.label}
@@ -140,7 +151,7 @@ export default function Attendance() {
           label="Session"
           placeholder="Choose a session…"
           value={sessionId}
-          onChange={(e) => setSessionId(e.target.value)}
+          onChange={(e) => setFilter({ session: e.target.value })}
           options={sessions.map((s) => ({ value: String(s.id), label: s.name }))}
           helper="Attendance is once per participant per session."
         />

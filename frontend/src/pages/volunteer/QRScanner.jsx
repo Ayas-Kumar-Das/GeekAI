@@ -375,6 +375,13 @@ export default function QRScanner() {
           pendingCount={result.pendingCount ?? pending}
           onScanNext={scanNext}
           onManualLookup={() => navigate(manualHref)}
+          onViewRecord={() =>
+            navigate(
+              result.participant?.id
+                ? `/volunteer/manual?mode=entry&participant=${result.participant.id}`
+                : manualHref
+            )
+          }
           onRetry={startScanning}
           onIssueNew={() => navigate('/volunteer/arrival')}
         />

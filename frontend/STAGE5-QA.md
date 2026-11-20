@@ -154,6 +154,10 @@ These require the backend signed-token contract and venue hardware; the **fronte
 | Device matrix 320–2560 + landscape | PASS |
 | Copy freeze: placeholders reviewed, no unsupported claims | PASS |
 | Staff runbook + 90-second training screens | PASS — `/volunteer/help` |
+| Dev-only `/design` token page (Phase 0 exit) | PASS — dev route |
+| `og-image.png` brand asset (Phase 0 file) | PASS |
+| Scanner duplicate "View record" action (§7.6) | PASS |
+| Admin filters survive refresh via query params (§12.2) | PASS — Participants + Attendance |
 | Final QA against §12 | This document |
 
 ## Summary

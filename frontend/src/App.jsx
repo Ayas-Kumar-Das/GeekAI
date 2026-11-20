@@ -46,6 +46,7 @@ const NotFound = lazy(() => import('./pages/NotFound'))
 const Forbidden = lazy(() => import('./pages/Forbidden'))
 const ServerError = lazy(() => import('./pages/ServerError'))
 const Offline = lazy(() => import('./pages/Offline'))
+const DesignSystem = lazy(() => import('./pages/DesignSystem'))
 
 export default function App() {
   const location = useLocation()
@@ -80,6 +81,9 @@ export default function App() {
           {/* Participant pass (§7.4) — its own app-bar shell, no public masthead;
               the signed token in the path is the credential (noindex). */}
           <Route path="/ticket/:token" element={<Ticket />} />
+
+          {/* Dev-only token/primitive reference (Phase 0 exit criterion). */}
+          {import.meta.env.DEV && <Route path="/design" element={<DesignSystem />} />}
 
           {/* Staff sign-in (legacy shell until Stage 4) */}
           <Route element={<Layout />}>

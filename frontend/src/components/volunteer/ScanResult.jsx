@@ -121,6 +121,7 @@ export function ScanResult({
   pendingCount = 0,
   onScanNext,
   onManualLookup,
+  onViewRecord,
   onRetry,
   onIssueNew,
 }) {
@@ -175,6 +176,12 @@ export function ScanResult({
           <Button variant="secondary" size="md" onClick={onRetry} className="sm:flex-1">
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
             Retry camera
+          </Button>
+        )}
+        {state === 'duplicate' && onViewRecord && (
+          <Button variant="secondary" size="md" onClick={onViewRecord} className="sm:flex-1">
+            <UserRound className="h-4 w-4" aria-hidden="true" />
+            View record
           </Button>
         )}
         {state === 'expired' && onIssueNew && (

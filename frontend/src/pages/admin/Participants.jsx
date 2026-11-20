@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import client from '../../api/client'
 import { Table } from '../../components/ui/Table'
 import Input from '../../components/ui/Input'
@@ -34,9 +33,20 @@ function fmtDate(value) {
  */
 export default function Participants() {
   const navigate = useNavigate()
-  const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('')
-  const [page, setPage] = useState(0)
+  // Filters live in query params so they survive refresh and are shareable (§12.2).
+  const [params, setParams] = useSearchParams()
+  const search = params.get('search') ?? ''
+  const category = params.get('category') ?? ''
+  const page = Math.max(0, Number(params.get('page') ?? 0) || 0)
+
+  const setFilter = (patch) => {
+    const next = new URLSearchParams(params)
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) next.set(key, String(value))
+      else next.delete(key)
+    }
+    setParams(next, { replace: true })
+  }
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['admin', 'participants', search, category, page],
@@ -90,13 +100,13 @@ export default function Participants() {
           icon={Search}
           placeholder="Name, email or participant ID (min 2 characters)"
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(0) }}
+          onChange={(e) => setFilter({ search: e.target.value, page: 0 })}
         />
         <Select
           label="Category"
           placeholder="All categories"
           value={category}
-          onChange={(e) => { setCategory(e.target.value); setPage(0) }}
+          onChange={(e) => setFilter({ category: e.target.value, page: 0 })}
           options={CATEGORIES.map((c) => ({ value: c, label: c }))}
         />
       </div>
@@ -129,10 +139,10 @@ export default function Participants() {
             Showing {page * LIMIT + 1}–{Math.min((page + 1) * LIMIT, total)} of {total}
           </p>
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+            <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setFilter({ page: page - 1 })}>
               <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" /> Prev
             </Button>
-            <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>
+            <Button variant="secondary" size="sm" disabled={page >= totalPages - 1} onClick={() => setFilter({ page: page + 1 })}>
               Next <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           </div>
