@@ -4,7 +4,7 @@
 **Status:** Frontend complete, integration pending · Branch `debdatta/development` · 20 November 2026
 **Supersedes for planning purposes:** the frontend portion of [WorkFlow.md](WorkFlow.md); the rest of `WorkFlow.md` remains the authoritative target architecture.
 
-> **Plan change (20 November 2026):** pre-registration now uses the **in-site React form** on `/register` instead of Google Forms. The delivered frontend still shows the Google Form handoff; that screen will be replaced in the next frontend change, after which `Frontend-Redesign-Completion.md` will be updated. All other decisions are unchanged.
+> **Plan change (20 November 2026):** pre-registration is now the **in-site React form** on `/register` instead of Google Forms. The delivered handoff is being replaced by the registration redesign; all other decisions are unchanged.
 
 ---
 
@@ -74,7 +74,7 @@ What remains is **integration and backend/database/infrastructure delivery**, pl
 
 ### 3.1 What is done
 
-- Public site: landing, programme, speakers, venue, FAQ, privacy, accessibility, code of conduct, and the currently delivered Google Form handoff (to be replaced by the in-site React form).
+- Public site: landing, programme, speakers, venue, FAQ, privacy, accessibility, code of conduct, and the in-site React registration form on `/register`.
 - Participant: nine-state registration status, ticket page with signed-token-only QR rendering, print styles, signed-link lookup.
 - Volunteer: arrival desk with face capture, candidate confirmation, manual fallback with reason, badge printing; QR scanner with entry/session modes and ten result states; manual lookup, pending-sync queue, desk runbook.
 - Admin: shell, live dashboard from real stats, participants, sessions, attendance with void dialog, volunteers, exports, plus flag-gated imports, import detail, live ops, reconciliation, audit and settings.

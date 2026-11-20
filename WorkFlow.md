@@ -360,7 +360,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
 ### Phase 2 — React registration pipeline and S3 (1–1.5 weeks)
 
 - Build the public `POST /api/register` endpoint plus the React form; validate, deduplicate and return a submission ID with a clear status.
-- Accept photo upload directly from the browser (multipart or presigned POST); validate one face, resolution, brightness/blur; resize; strip EXIF; upload to S3.
+- Accept photo upload directly from the browser as multipart form data; validate one face, resolution, brightness/blur; resize; strip EXIF; upload to S3.
 - Add rate limiting, bot protection and upload-size limits to the public endpoint.
 - Generate embeddings locally; store `model_version`, `quality_score`, `is_active`.
 - Add `RegistrationJob`, `source`, `submission_id`, `consent_version`, `consented_at`, `photo_s3_key`, `embedding_status`, `audit_log`.
@@ -569,8 +569,7 @@ Estimates assume 2–3 engineers with part-time design/ops support.
   "institution": "IIT Bhubaneswar",
   "category": "STUDENT",
   "photo": {
-    "upload_token": "presigned-post-id",
-    "s3_key": "photos/oas-2026/{submission_id}.jpg",
+    "filename": "capture.jpg",
     "content_type": "image/jpeg",
     "sha256": "..."
   },

@@ -40,7 +40,7 @@ Replace the external form handoff with a first-party React form that submits dir
 
 ### 2.3 Submission contract
 
-`POST /api/register` accepts JSON plus the photo upload (multipart or a presigned POST token). Normalized payload:
+`POST /api/register` accepts multipart form data: the registration fields below plus a `photo` file part. The server writes the photo to S3; no presigned-upload endpoint is defined. Normalized payload:
 
 ```json
 {
@@ -54,8 +54,7 @@ Replace the external form handoff with a first-party React form that submits dir
   "institution": "IIT Bhubaneswar",
   "category": "STUDENT",
   "photo": {
-    "upload_token": "presigned-post-id",
-    "s3_key": "photos/oas-2026/{submission_id}.jpg",
+    "filename": "capture.jpg",
     "content_type": "image/jpeg",
     "sha256": "..."
   },
