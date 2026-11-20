@@ -953,7 +953,7 @@ Each spec follows the same shape: job, layout, content, states, mobile, data, ac
 
 **Mobile:** single column, 16px inputs, sticky 44px submit CTA, photo capture uses the device camera where available; safe-area padding respected.
 
-**Data:** submits `POST /api/register` with JSON plus the photo upload. No external form URL and no `VITE_REGISTRATION_FORM_URL`.
+**Data:** submits multipart form data to `POST /api/register` (registration fields plus a `photo` file part). No external form URL and no `VITE_REGISTRATION_FORM_URL`.
 
 **Acceptance**
 
@@ -1747,8 +1747,8 @@ Six phases, ordered by event risk. Phase 3 is the critical path: if time runs sh
 
 ### 11.2 Rollback and flags
 
-- Each phase ships behind a route, not a global rewrite. The old `/register` and `/volunteer/face-checkin` remain until their replacements pass rehearsal; then they redirect.
-- Feature flags in `src/content/flags.js`: `registrationHandoff`, `ticketPage`, `arrivalV2`, `scanV2`, `liveOps`, `reconciliation`.
+- Each phase ships behind a route, not a global rewrite. The legacy `/volunteer/face-checkin` redirects to `/volunteer/arrival`; `/register` is now the delivered first-party form with no handoff flag.
+- Feature flags in `src/content/flags.js`: `ticketPage`, `arrivalV2`, `scanV2`, `liveOps`, `reconciliation`, `importsV2`, `analyticsV2`, `settingsV2`, `auditV2`, `voidAttendance`. `registrationHandoff` was removed with the registration redesign.
 - A flag must default to the safe state in production: `arrivalV2` is on only after the desk rehearsal passes.
 - Keep the old components until the event ends; delete them in the post-event cleanup, not during the event week.
 

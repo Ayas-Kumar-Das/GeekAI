@@ -292,6 +292,9 @@ These items are outside the frontend-only engagement and are documented honestly
 ## 9. Git history
 
 ```
+a9be768 fix(frontend): align registration form footer boxes and remove local verification mode
+aa2e741 feat(frontend): distinctive registration form styling and local verification mode
+75cc9f9 docs: sync QA, completion and workflow docs with in-site registration redesign
 7ded722 feat(frontend): in-site registration redesign (React form replaces Google Form handoff)
 a85906e docs: finalize registration plan updates
 ac5e57b docs: switch registration plan to in-site React form

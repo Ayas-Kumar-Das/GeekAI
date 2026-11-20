@@ -1,7 +1,7 @@
 # GeekAI — Registration Redesign Plan
 
 **Odisha AI Symposium 2026** · Frontend-only companion to [FrontendPlanning.md](FrontendPlanning.md), [React-Registration-Planning.md](React-Registration-Planning.md) and [WorkFlow.md](WorkFlow.md)
-**Status:** Implementation plan · 20 November 2026 · branch `debdatta/development`
+**Status:** Implemented and verified · 20 November 2026 · branch `debdatta/development` · commits `7ded722`, `aa2e741`, `a9be768`, `75cc9f9`
 
 > **Scope:** This document plans one focused change — replacing the `/register` Google Form handoff with a first-party React form. It does not rewrite the nine existing planning files, and it touches no backend, database, infrastructure, Docker, ML or deployment code. Where a planning file appears inaccurate, the discrepancy is listed in §9 instead of being silently corrected.
 
@@ -144,9 +144,11 @@ New tests cover: on-blur validation, submit summary + focus, success with submis
 
 ---
 
-## 9. Inaccuracies / notes on existing planning files (reported, not edited)
+## 9. Status of earlier reported inaccuracies (all resolved)
 
-- `Frontend-Redesign-Completion.md` and `frontend/STAGE5-QA.md` still describe the delivered handoff as a Google Form handoff; per the brief they were left untouched and will be updated separately.
-- `WorkFlow-After-Frontend-Redesign.md` §7 still says the public site includes "the currently delivered Google Form handoff (to be replaced…)" — now stale, left as a historical record.
-- React-Registration-Planning.md §2.3 mentions "multipart **or** a presigned POST token"; this implementation uses multipart only, because no presigned endpoint is defined in the API contract.
-- FrontendPlanning.md §7.2's "Data" line already describes the in-site form correctly; no edit needed there.
+- `Frontend-Redesign-Completion.md` and `frontend/STAGE5-QA.md` were updated in `75cc9f9` to describe the first-party form, the 143/143 test result and mockups 09–11.
+- `WorkFlow-After-Frontend-Redesign.md` was updated in `a85906e` and `75cc9f9`; its plan-change note now records that the handoff was removed in `7ded722`.
+- `React-Registration-Planning.md` §2.3 was corrected to multipart only; no presigned-POST endpoint is assumed.
+- `FrontendPlanning.md` §7.2 already described the in-site form; the stale flag list in §11.2 and the "JSON plus photo upload" wording are corrected in this documentation pass.
+
+The implementation is complete, following this plan, and no planning-document inaccuracy remains open.

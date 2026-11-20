@@ -44,8 +44,8 @@ The completion report and QA report were reviewed, then the claims were re-check
 |---|---|---|
 | Unit / integration tests | `npm test` (in `frontend/`) | **143 / 143 pass**, 13 files |
 | Lint | `npm run lint` | **0 errors**, 7 warnings (unused imports/vars and stale eslint-disable directives) |
-| Production build | `npm run build` | **Successful**, 1882 modules |
-| Bundle budgets | `node scripts/bundle-budget.mjs` | **All pass** — public 147.7 KB, admin 146.7 KB, scanner route 5.8 KB gzip; camera library 97.5 KB loaded on demand. Register 4.52 KB, RegistrationForm 28.83 KB (9.37 KB gzip) |
+| Production build | `npm run build` | **Successful**, 1886 modules |
+| Bundle budgets | `node scripts/bundle-budget.mjs` | **All pass** — public 147.7 KB, admin 146.7 KB, scanner route 5.8 KB gzip; camera library 97.5 KB loaded on demand. Register 4.52 KB, RegistrationForm 30.33 KB (9.62 KB gzip) |
 | Git state | `git status --short` | **Clean**; branch `debdatta/development` |
 | Git history | `git log --oneline -12` | Five frontend stages plus fixes and documentation commits present |
 

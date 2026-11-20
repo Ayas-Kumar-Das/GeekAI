@@ -9,7 +9,7 @@
 
 ## 1. Objective
 
-Replace the external form handoff with a first-party React form that submits directly to our API. The form is the single primary intake: it captures details, photo and biometric consent, validates them visibly, and creates a participant record through the same pipeline previously fed by file imports. The delivered frontend still shows the Google Form handoff; that screen will be rebuilt in the next frontend change, after which `Frontend-Redesign-Completion.md` will be updated.
+Replace the external form handoff with a first-party React form that submits directly to our API. The form is the single primary intake: it captures details, photo and biometric consent, validates them visibly, and creates a participant record through the same pipeline previously fed by file imports. **Implemented:** the in-site form on `/register` was delivered in commit `7ded722`, verified in `75cc9f9`, and `Frontend-Redesign-Completion.md` together with `frontend/STAGE5-QA.md` were updated to record it.
 
 ---
 
