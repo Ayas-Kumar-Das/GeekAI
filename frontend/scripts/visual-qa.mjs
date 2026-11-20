@@ -55,25 +55,33 @@ const routes = [
   '/volunteer/manual?mode=entry',
   '/volunteer/queue',
   '/volunteer/help',
+  // Stage 4 admin shell (§Phase 4, mockup 07) — ADMIN only, seeded session.
+  '/admin/dashboard',
+  '/admin/participants',
+  '/admin/sessions',
+  '/admin/attendance',
+  '/admin/volunteers',
+  '/admin/export',
 ]
 const widths = [360, 1440]
 
 const isVolunteerRoute = (route) => route.startsWith('/volunteer')
+const isAdminRoute = (route) => route.startsWith('/admin')
 
-/** Volunteer pages are behind ProtectedRoute; seed/clear the stored session. */
-async function setSession(page, enabled) {
-  await page.evaluate((on) => {
-    if (on) {
+/** Staff pages are behind ProtectedRoute; seed/clear the stored session. */
+async function setSession(page, role) {
+  await page.evaluate((r) => {
+    if (r) {
       localStorage.setItem('token', 'visual-qa')
       localStorage.setItem(
         'user',
-        JSON.stringify({ id: 1, name: 'QA Volunteer', role: 'VOLUNTEER' })
+        JSON.stringify({ id: 1, name: 'QA Staff', role: r })
       )
     } else {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
     }
-  }, enabled)
+  }, role)
 }
 
 /** Routes that also get a full-page screenshot for the review record. */
@@ -82,6 +90,7 @@ const shotRoutes = new Set([
   '/registration/status?token=demo',
   '/registration/status?token=demo-pass',
   '/ticket/demo-pass',
+  '/admin/dashboard',
   '/volunteer/dashboard',
   '/volunteer/arrival',
   '/volunteer/scan',
@@ -116,9 +125,13 @@ for (const width of widths) {
       return
     }
     const body =
-      pathname === '/api/attendance/event' || pathname === '/api/sessions/'
+      pathname === '/api/attendance/event' ||
+      pathname === '/api/sessions/' ||
+      pathname === '/api/admin/volunteers'
         ? '[]'
-        : '{"items":[],"total":0}'
+        : pathname === '/api/admin/dashboard'
+          ? '{"total_participants":0,"total_sessions":0,"total_attendance_records":0,"event_checkins":0,"participants_by_category":{},"recent_registrations":[]}'
+          : '{"items":[],"total":0}'
     request.respond({ status: 200, contentType: 'application/json', body })
   })
 
@@ -126,7 +139,7 @@ for (const width of widths) {
 
   for (const route of routes) {
     consoleErrors.length = 0
-    await setSession(page, isVolunteerRoute(route))
+    await setSession(page, isAdminRoute(route) ? 'ADMIN' : isVolunteerRoute(route) ? 'VOLUNTEER' : null)
     await page.goto(base + route, { waitUntil: 'networkidle0', timeout: 30000 })
     // let lazy routes + fonts settle
     await page.evaluate(() => document.fonts?.ready)

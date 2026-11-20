@@ -41,6 +41,14 @@ export const flags = {
   liveOps: flag('LIVE_OPS', false),
   /** Admin reconciliation screen (requires backend endpoint). */
   reconciliation: flag('RECONCILIATION', false),
+  /** Admin imports screen (requires backend endpoint). */
+  importsV2: flag('IMPORTS_V2', false),
+  /** Admin analytics screen (requires backend endpoint). */
+  analyticsV2: flag('ANALYTICS_V2', false),
+  /** Admin settings screen (requires backend endpoint). */
+  settingsV2: flag('SETTINGS_V2', false),
+  /** Admin audit log screen (requires backend endpoint). */
+  auditV2: flag('AUDIT_V2', false),
 }
 
 export default flags

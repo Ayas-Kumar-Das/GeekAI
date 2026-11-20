@@ -3,8 +3,10 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Layout from './components/Layout'
 import AdminLayout from './components/AdminLayout'
 import VolunteerLayout from './components/volunteer/VolunteerLayout'
+import WaitingForBackend from './components/volunteer/WaitingForBackend'
 import PublicLayout from './components/public/PublicLayout'
 import ProtectedRoute from './components/ProtectedRoute'
+import flags from './content/flags'
 import ErrorBoundary from './components/ErrorBoundary'
 import RouteFallback from './components/RouteFallback'
 
@@ -99,6 +101,44 @@ export default function App() {
             <Route path="attendance" element={<Attendance />} />
             <Route path="volunteers" element={<Volunteers />} />
             <Route path="export" element={<Export />} />
+            {/* Future admin screens — flag-gated; missing backend endpoints
+                show "Waiting for backend" instead of invented screens. */}
+            {flags.importsV2 && (
+              <Route
+                path="imports"
+                element={<WaitingForBackend title="Imports" endpoints={['POST /api/admin/imports']} />}
+              />
+            )}
+            {flags.liveOps && (
+              <Route
+                path="live-ops"
+                element={<WaitingForBackend title="Live ops" endpoints={['GET /api/admin/live-ops']} />}
+              />
+            )}
+            {flags.analyticsV2 && (
+              <Route
+                path="analytics"
+                element={<WaitingForBackend title="Analytics" endpoints={['GET /api/admin/analytics']} />}
+              />
+            )}
+            {flags.settingsV2 && (
+              <Route
+                path="settings"
+                element={<WaitingForBackend title="Settings" endpoints={['GET /api/admin/settings']} />}
+              />
+            )}
+            {flags.auditV2 && (
+              <Route
+                path="audit"
+                element={<WaitingForBackend title="Audit log" endpoints={['GET /api/admin/audit']} />}
+              />
+            )}
+            {flags.reconciliation && (
+              <Route
+                path="reconciliation"
+                element={<WaitingForBackend title="Reconciliation" endpoints={['GET /api/admin/reconciliation']} />}
+              />
+            )}
           </Route>
 
           {/* Volunteer routes — event-day shell (§7.5): ink app bar, desk
