@@ -703,7 +703,7 @@ Recommended defaults are given so implementation can start; each still needs an 
 
 | Stage | Status | Commit | Date | Evidence |
 |---|---|---|---|---|
-| **S0** | Complete — awaiting owner review | `de941e5` | 2026-11-21 | `docs/decisions.md`, `docs/contracts/{registration,qr,sync}-v1.md`, `docs/route-matrix.md`, `docs/naming.md`, `backend/tests/`, `backend/scripts/generate_fixtures.py`, `.github/workflows/backend.yml` |
+| **S0** | Complete — awaiting owner review | `de941e5`, CI fix `6cb6ee1` | 2026-11-21 | `docs/decisions.md`, `docs/contracts/{registration,qr,sync}-v1.md`, `docs/route-matrix.md`, `docs/naming.md`, `backend/tests/`, `backend/scripts/generate_fixtures.py`, `.github/workflows/backend.yml` |
 | **S1** | Not started | — | — | — |
 | **S2–S10** | Not started | — | — | — |
 
@@ -729,6 +729,7 @@ Recommended defaults are given so implementation can start; each still needs an 
 | Migration | `alembic upgrade head` → `downgrade base` → `upgrade head` on disposable `pgvector/pgvector:pg16` | Clean, head `001_initial` |
 | Fixtures | `python scripts/generate_fixtures.py --count 1000` | 1,011 records, deterministic, 7.5 s |
 | Links | internal markdown link check | No missing targets |
+| CI | GitHub Actions `backend` workflow | Migration, pytest and ruff green on `6cb6ee1`; `pip-audit` is non-blocking |
 
 **Decisions taken in S0**
 
