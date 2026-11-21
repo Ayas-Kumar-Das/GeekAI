@@ -43,7 +43,9 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://geekai:geekai@localhost:5432/geekai
       SECRET_KEY: ci-only-secret-not-for-production
       CORS_ORIGINS: http://localhost:5173
-      UPLOAD_DIR: ${{ runner.temp }}/geekai-uploads
+      # Static path on the Ubuntu runner. The `runner` context is not allowed
+      # in job-level env, only in step-level env.
+      UPLOAD_DIR: /tmp/geekai-uploads
 
     defaults:
       run:
