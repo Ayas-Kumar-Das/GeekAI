@@ -6,11 +6,13 @@ on:
     paths:
       - "backend/**"
       - "docs/**"
+      - "Backend-Implementation-Plan.md"
       - ".github/workflows/backend.yml"
   pull_request:
     paths:
       - "backend/**"
       - "docs/**"
+      - "Backend-Implementation-Plan.md"
       - ".github/workflows/backend.yml"
   workflow_dispatch:
 
