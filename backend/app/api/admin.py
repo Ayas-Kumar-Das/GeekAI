@@ -6,7 +6,7 @@ import csv
 import io
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from sqlalchemy import func, select
@@ -16,12 +16,37 @@ from app.core.deps import get_current_admin, get_db
 from app.core.security import hash_password
 from app.models.models import Attendance, Participant, ParticipantCategory, Session, User, UserRole
 from app.schemas.schemas import DashboardStats, ParticipantOut, VolunteerCreate, VolunteerOut
+from app.services.audit import audit_log
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+async def _audit(
+    db: AsyncSession,
+    request: Request,
+    action: str,
+    actor: User,
+    entity: str,
+    entity_id: str | None = None,
+    after: dict | None = None,
+) -> None:
+    await audit_log(
+        db,
+        action=action,
+        actor_id=actor.id,
+        actor_role=actor.role.value if hasattr(actor.role, "value") else actor.role,
+        entity=entity,
+        entity_id=entity_id,
+        after=after,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        request_id=getattr(request.state, "request_id", None),
+    )
+
+
 @router.get("/dashboard", response_model=DashboardStats)
 async def dashboard(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
@@ -47,6 +72,7 @@ async def dashboard(
     )
     recent = [ParticipantOut.model_validate(p) for p in recent_result.scalars().all()]
 
+    await _audit(db, request, "ADMIN_DASHBOARD_READ", _admin, "dashboard", after={"recent_count": len(recent)})
     return DashboardStats(
         total_participants=total_participants,
         total_sessions=total_sessions,
@@ -61,6 +87,7 @@ async def dashboard(
 
 @router.get("/volunteers", response_model=list[VolunteerOut])
 async def list_volunteers(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
@@ -77,6 +104,7 @@ async def list_volunteers(
     )
     result = await db.execute(stmt)
     rows = result.all()
+    await _audit(db, request, "VOLUNTEER_LIST_READ", _admin, "user", after={"count": len(rows)})
     return [
         VolunteerOut(
             id=u.id,
@@ -94,6 +122,7 @@ async def list_volunteers(
 @router.post("/volunteers", response_model=VolunteerOut, status_code=status.HTTP_201_CREATED)
 async def create_volunteer(
     body: VolunteerCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
@@ -115,6 +144,7 @@ async def create_volunteer(
     await db.flush()
     await db.refresh(user)
 
+    await _audit(db, request, "VOLUNTEER_CREATED", _admin, "user", str(user.id), {"role": user.role.value})
     return VolunteerOut(
         id=user.id,
         email=user.email,
@@ -129,6 +159,7 @@ async def create_volunteer(
 @router.patch("/volunteers/{volunteer_id}/toggle-status", response_model=VolunteerOut)
 async def toggle_volunteer_status(
     volunteer_id: int,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
@@ -149,6 +180,7 @@ async def toggle_volunteer_status(
     )
     count = count_result.scalar() or 0
 
+    await _audit(db, request, "VOLUNTEER_STATUS_CHANGED", _admin, "user", str(volunteer_id), {"is_active": user.is_active})
     return VolunteerOut(
         id=user.id,
         email=user.email,
@@ -163,6 +195,7 @@ async def toggle_volunteer_status(
 @router.delete("/volunteers/{volunteer_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_volunteer(
     volunteer_id: int,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ):
@@ -180,12 +213,14 @@ async def delete_volunteer(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
 
+    await _audit(db, request, "VOLUNTEER_DELETED", admin, "user", str(volunteer_id), {})
     await db.delete(user)
     await db.flush()
 
 
 @router.get("/export/participants")
 async def export_participants(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
@@ -207,6 +242,7 @@ async def export_participants(
             p.registered_at.isoformat() if p.registered_at else "",
         ])
 
+    await _audit(db, request, "PARTICIPANTS_EXPORTED", _admin, "participant", after={"count": len(participants)})
     output.seek(0)
     return StreamingResponse(
         iter([output.getvalue()]),
@@ -217,6 +253,7 @@ async def export_participants(
 
 @router.get("/export/attendance")
 async def export_attendance(
+    request: Request,
     format: str = "csv",
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
@@ -237,6 +274,7 @@ async def export_attendance(
     )
     rows = result.all()
 
+    await _audit(db, request, "ATTENDANCE_EXPORTED", _admin, "attendance", after={"count": len(rows), "format": format})
     headers = ["ID", "Participant Name", "Email", "Session", "Method", "Marked At"]
 
     if format == "excel":

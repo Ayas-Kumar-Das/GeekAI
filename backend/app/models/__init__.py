@@ -1,5 +1,6 @@
 """SQLAlchemy models and enums package."""
 
+from app.models.audit import AuditLog
 from app.models.models import (
     Attendance,
     AttendanceMethod,
@@ -17,6 +18,7 @@ __all__ = [
     "UserRole",
     "ParticipantCategory",
     "AttendanceMethod",
+    "AuditLog",
     "User",
     "Participant",
     "FaceEmbedding",

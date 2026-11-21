@@ -1,7 +1,9 @@
 """OpenAPI schema load test.
 
 This catches import-time route breakage and accidental removal of the route
-families the delivered frontend already uses. It intentionally asserts a
+families the delivered frontend already uses. Updated in S1 for the new
+reality: `/api/auth/seed` is replaced by `/api/auth/bootstrap`, the public
+`/uploads` static mount is gone, and PII routes are protected. It asserts a
 subset, not an exact route count, so later stages can add routes without
 rewriting the baseline.
 """
@@ -15,8 +17,9 @@ REQUIRED_PATHS = {
     "/health",
     "/api/health",
     "/api/auth/login",
+    "/api/auth/bootstrap",
+    "/api/auth/change-password",
     "/api/auth/register",
-    "/api/auth/seed",
     "/api/participants/",
     "/api/participants/{participant_id}",
     "/api/participants/{participant_id}/photo",
@@ -52,6 +55,9 @@ async def test_openapi_schema_loads_and_contains_current_route_families(client):
     paths = set(schema["paths"])
     missing = REQUIRED_PATHS - paths
     assert not missing, f"OpenAPI schema is missing expected paths: {sorted(missing)}"
+
+    # S1: the old public seed endpoint must be gone.
+    assert "/api/auth/seed" not in paths
 
 
 @pytest.mark.asyncio

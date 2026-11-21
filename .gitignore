@@ -49,9 +49,9 @@ face-checkin/cache/photos/*
 # Generated synthetic fixtures (regenerate with backend/scripts/generate_fixtures.py)
 backend/fixtures/generated/
 
-# InsightFace models download cache
+# InsightFace models download cache (root only — do not ignore backend/app/models/)
 .insightface/
-models/
+/models/
 
 # Database data volume
 postgres_data/

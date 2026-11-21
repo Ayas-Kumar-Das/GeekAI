@@ -43,6 +43,8 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+asyncpg://geekai:geekai@localhost:5432/geekai
+      # Opt in to DB-dependent tests against the disposable pgvector service.
+      GEEKAI_TEST_DB: "1"
       SECRET_KEY: ci-only-secret-not-for-production
       CORS_ORIGINS: http://localhost:5173
       # Static path on the Ubuntu runner. The `runner` context is not allowed

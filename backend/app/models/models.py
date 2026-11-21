@@ -62,6 +62,7 @@ class User(Base):
     role = Column(Enum(UserRole, name="user_role"), nullable=False, default=UserRole.VOLUNTEER)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    password_changed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     attendances_marked = relationship("Attendance", back_populates="marked_by_user")

@@ -703,8 +703,8 @@ Recommended defaults are given so implementation can start; each still needs an 
 
 | Stage | Status | Commit | Date | Evidence |
 |---|---|---|---|---|
-| **S0** | Complete — awaiting owner review | `de941e5`, CI fix `6cb6ee1` | 2026-11-21 | `docs/decisions.md`, `docs/contracts/{registration,qr,sync}-v1.md`, `docs/route-matrix.md`, `docs/naming.md`, `backend/tests/`, `backend/scripts/generate_fixtures.py`, `.github/workflows/backend.yml` |
-| **S1** | Not started | — | — | — |
+| **S0** | Complete — owner approved | `de941e5`, CI fix `6cb6ee1`, remediation `0d9c5a5` | 2026-11-21 | `docs/decisions.md`, `docs/contracts/{registration,qr,sync}-v1.md`, `docs/route-matrix.md`, `docs/naming.md`, `backend/tests/`, `backend/scripts/generate_fixtures.py`, `.github/workflows/backend.yml` |
+| **S1** | Complete — awaiting owner review | see PR #4 head | 2026-11-21 | `docs/gates/G1.md`, `docs/route-matrix.md` (updated), `backend/app/core/{deps,security,middleware,rate_limit}.py`, `backend/app/services/audit.py`, `backend/app/models/audit.py`, `backend/migrations/versions/002_security_foundation.py`, `backend/tests/test_security.py` |
 | **S2–S10** | Not started | — | — | — |
 
 ### S0 delivery detail
@@ -745,8 +745,26 @@ Recommended defaults are given so implementation can start; each still needs an 
 - Owner sign-off on the proposed defaults in `docs/decisions.md`.
 - AWS/Cloudflare/SES access requests are long-lead items for S3 and should start now.
 
-**Next stage:** S1 — security foundation (G1). Not started; blocked on owner approval of S0.
+### S1 delivery detail
+
+**Delivered (all nine work items)**
+
+- Principal model: JWT claims `role`, `event_ids`, optional `station_id`/`hub_id`, `password_changed_at`; `get_current_admin`, `get_current_staff`, `get_hub_or_station`, `require_event_scope` in `core/deps.py`. Event mismatch is 403.
+- PII routes protected: participants, sessions, attendance reads, embeddings (admin + 410), admin. Anonymous access is 401, `/uploads/*` is 404.
+- Public static mount removed; participant photos served through authenticated `FileResponse`; QR PNG route returns 410.
+- Default credentials removed; `POST /api/auth/bootstrap` with one-time env token, Postgres advisory lock, forced password change via `/api/auth/change-password`; `docker-compose.yml` and all `.env.example` files cleaned.
+- Audit foundation: `audit_log` model, additive reversible migration `002_security_foundation`, request-id middleware, redacting audit helper and structured JSON logging.
+- Legacy `validate-qr` returns 410 `LEGACY_QR_DISABLED` with an audit row; QR key placeholders loaded from settings.
+- In-process rate limiting on login (5/min/IP + 20/hour/account) and bootstrap (3/min/IP) with 429 `RATE_LIMITED`.
+- Security tests and the full HTTP/curl matrix in `docs/gates/G1.md`.
+- Non-root container user, `.dockerignore`, no secrets in image layers.
+
+**Verification:** 28 passed (DB-backed), 19 passed / 9 skipped (no DB), ruff clean, migration reversible, `git diff --check` clean.
+
+**Still open by design:** S2 adds `events` and real `event_id` columns; S3 adds Cloudflare rules; S5 replaces legacy QR; S8 replaces gated embedding export. No PENDING decision was silently approved.
+
+**Next stage:** S2 — database foundation (M1–M9). Not started; blocked on owner approval of S1.
 
 ---
 
-*Planning document only. No application code was changed in this pass.*
+*Stage S1 added application code. PDF for this document regenerated locally and not committed.*

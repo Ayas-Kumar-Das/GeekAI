@@ -1,122 +1,121 @@
-# Route matrix — current state and S1 target
+# Route matrix — S1 current state and forward targets
 
-**Snapshot:** 2026-11-21, commit `8bec2f4` plus the S0 documentation changes.
+**Snapshot:** 2026-11-21, after stage S1 commit (G1).
 **Source of truth for routes:** `backend/app/api/*.py` and `backend/app/main.py`.
 **Target principals:** `Security-Privacy-Planning.md` §4 and `Backend-Planning.md` §4.2.
-**Purpose:** this is the S1 checklist and the review artefact. It records what exists today, what the target principal is, and which stage closes the gap. It is not a claim that the target controls exist yet.
+**Purpose:** this is the S1 checklist and the review artefact. It records the principal now enforced on every route, the remaining gaps, and which stage closes them. `docs/gates/G1.md` holds the command matrix.
 
 ## 1. Principal vocabulary
 
-| Principal | Credential | Target scope |
+| Principal | Credential | Scope |
 |---|---|---|
-| Public | none | Public pages, health, signed ticket token only. |
-| Staff | JWT from `/api/auth/login` (admin or volunteer) | Arrival, verify, participant/attendance reads, manual lookup. |
-| Admin | JWT with role `ADMIN` | Imports, sync, live ops, reconciliation, audit, settings, exports, void. |
-| Hub/station | short-lived scoped token | `/api/sync/*`, arrivals, QR issue/verify, face match; bound to `event_id` and optionally `station_id`. |
+| Public | none | Health, bootstrap/login endpoints, signed ticket token only (S4). |
+| Staff | JWT from `/api/auth/login` with `role` in (`ADMIN`,`VOLUNTEER`) and `event_ids` | Participant/attendance reads, manual lookup, desk screens. |
+| Admin | JWT with `role=ADMIN` and `event_ids` | Staff management, exports, audit, settings, void, sync. |
+| Hub/station | JWT with `station_id` or `hub_id` claim | `/api/sync/*`, arrivals, QR issue/verify, face match; bound to `event_id`. |
 
-`event_id` scope is required on every authenticated route. A token for the wrong event must return `403`, never silently fall back. A missing/invalid token is `401`.
+JWT claim set issued by S1: `sub`, `role`, `event_ids`, optional `station_id`/`hub_id`, `password_changed_at`. Event mismatch returns **403**, never a silent fallback. Missing/invalid token returns **401**.
 
 ## 2. Current routes
 
-`Current auth` is the code as it exists at this snapshot. `Target` is the principal required after the stage in the last column. `Rate limit` is the proposed S1/S3 policy, not an implemented control.
+`Auth` is now the code-enforced principal. `Rate limit` is the in-process S1 policy where implemented; Cloudflare edge rules arrive in stage S3. All authenticated routes write audit rows.
 
 ### 2.1 Health and framework routes
 
-| Method | Path | Current auth | Target principal | Event scope | Target rate limit | Audit event | Stage that fixes |
-|---|---|---|---|---|---|---|---|
-| GET | `/` | Public | Public | n/a | 60/min/IP | none | — |
-| GET | `/health` | Public | Public | n/a | 60/min/IP | none | — |
-| GET | `/api/health` | Public | Public | n/a | 60/min/IP | none | — |
-| GET | `/openapi.json` | Public | Public in dev; restrict in production | n/a | 30/min/IP | none | S3 |
-| GET | `/docs`, `/redoc`, `/docs/oauth2-redirect` | Public | Public in dev; disable or Access-protect in production | n/a | 30/min/IP | none | S3 |
-| GET/HEAD | `/uploads/*` | **Public static mount** | **Removed** | n/a | n/a | none | **S1** |
+| Method | Path | Auth | Event scope | Rate limit | Audit event | Remaining stage |
+|---|---|---|---|---|---|---|
+| GET | `/` | Public | n/a | 60/min/IP (S3) | none | — |
+| GET | `/health` | Public | n/a | 60/min/IP (S3) | none | — |
+| GET | `/api/health` | Public | n/a | 60/min/IP (S3) | none | — |
+| GET | `/openapi.json` | Public | n/a | 30/min/IP (S3) | none | S3 restrict |
+| GET | `/docs`, `/redoc` | Public | n/a | 30/min/IP (S3) | none | S3 restrict |
+| GET/HEAD | `/uploads/*` | **Removed** | n/a | n/a | none | **S1 closed** |
 
 ### 2.2 Auth
 
-| Method | Path | Current auth | Target principal | Event scope | Target rate limit | Audit event | Stage that fixes |
-|---|---|---|---|---|---|---|---|
-| POST | `/api/auth/login` | Public (credentials) | Public with rate limit | n/a | 5/min/IP + 20/hour/account | `LOGIN_SUCCEEDED`, `LOGIN_FAILED` | S1 |
-| POST | `/api/auth/register` | Admin JWT (`get_current_admin`) | Admin | required | 10/min/admin | `STAFF_CREATED` | S1 |
-| POST | `/api/auth/seed` | **Public while user table is empty** | **Removed; replaced by `POST /api/auth/bootstrap`** with one-time token | n/a | 3/min/IP, hard lock after success | `BOOTSTRAP` | **S1** |
+| Method | Path | Auth | Event scope | Rate limit | Audit event | Remaining stage |
+|---|---|---|---|---|---|---|
+| POST | `/api/auth/login` | Public (credentials) | n/a | **5/min/IP + 20/hour/account (in-process)** | `LOGIN_SUCCEEDED`, `LOGIN_FAILED` | S3 edge rules |
+| POST | `/api/auth/register` | Admin | required | 10/min/admin (S3) | `STAFF_CREATED` | S3 |
+| POST | `/api/auth/bootstrap` | One-time token | n/a | **3/min/IP (in-process)** | `BOOTSTRAP_ADMIN_CREATED`, `BOOTSTRAP_FAILED` | **S1 closed** |
+| POST | `/api/auth/change-password` | Staff (self) | required | 10/min (S3) | `PASSWORD_CHANGED` | S3 |
 
-**Naming:** `POST /api/register` (public participant intake) is a different endpoint from `POST /api/auth/register` (staff-account creation). See `docs/naming.md`. Do not rename either in S0.
+`POST /api/auth/seed` is gone. `POST /api/register` (public participant intake) is a different endpoint from `POST /api/auth/register` (staff creation); see `docs/naming.md`.
 
 ### 2.3 Participants
 
-| Method | Path | Current auth | Target principal | Event scope | Target rate limit | Audit event | Stage that fixes |
-|---|---|---|---|---|---|---|---|
-| POST | `/api/participants/` | **None** | Staff (walk-in), same validation path as intake | required | 20/min/staff | `PARTICIPANT_CREATED` | **S1** auth, **S4** demote/validate |
-| GET | `/api/participants/` | **None** | Staff | required | 60/min/staff | `PARTICIPANT_LIST_READ` | **S1** |
-| GET | `/api/participants/{participant_id}` | **None** | Staff | required | 120/min/staff | `PARTICIPANT_READ` | **S1** |
-| GET | `/api/participants/{participant_id}/photo` | **None** | Staff; authenticated `FileResponse` or presigned URL | required | 120/min/staff | `PARTICIPANT_PHOTO_READ` | **S1** |
-| GET | `/api/participants/{participant_id}/qrcode` | **None** | **Removed/410**; signed pass comes from `/api/qr/issue` | required | n/a | `LEGACY_QR_READ_REJECTED` | **S1** disable, **S5** replace |
+| Method | Path | Auth | Event scope | Rate limit | Audit event | Remaining stage |
+|---|---|---|---|---|---|---|
+| POST | `/api/participants/` | Staff | required | 20/min/staff (S3) | `PARTICIPANT_CREATED` | S4 demote/validate |
+| GET | `/api/participants/` | Staff | required | 60/min/staff (S3) | `PARTICIPANT_LIST_READ` | S2 pagination |
+| GET | `/api/participants/{participant_id}` | Staff | required | 120/min/staff (S3) | `PARTICIPANT_READ` | — |
+| GET | `/api/participants/{participant_id}/photo` | Staff | required | 120/min/staff (S3) | `PARTICIPANT_PHOTO_READ` | S3 presigned URL |
+| GET | `/api/participants/{participant_id}/qrcode` | **410 `LEGACY_QR_DISABLED`** | required | n/a | `LEGACY_QR_READ_REJECTED` | **S1 disabled**, S5 replace |
 
 ### 2.4 Sessions
 
-| Method | Path | Current auth | Target principal | Event scope | Target rate limit | Audit event | Stage that fixes |
-|---|---|---|---|---|---|---|---|
-| POST | `/api/sessions/` | Admin JWT | Admin | required | 30/min/admin | `SESSION_CREATED` | S1 (scope), S2 (event_id) |
-| GET | `/api/sessions/` | **None** | Staff | required | 120/min/staff | none (non-PII metadata) | **S1** |
-| GET | `/api/sessions/{session_id}` | **None** | Staff | required | 120/min/staff | `SESSION_READ` (includes attendance count) | **S1** |
-| PUT | `/api/sessions/{session_id}` | Admin JWT | Admin | required | 30/min/admin | `SESSION_UPDATED` | S1 (scope), S2 (event_id) |
-| DELETE | `/api/sessions/{session_id}` | Admin JWT | Admin | required | 30/min/admin | `SESSION_DELETED` | S1 (scope), S2 (event_id) |
+| Method | Path | Auth | Event scope | Rate limit | Audit event | Remaining stage |
+|---|---|---|---|---|---|---|
+| POST | `/api/sessions/` | Admin | required | 30/min/admin (S3) | `SESSION_CREATED` | S2 event_id |
+| GET | `/api/sessions/` | Staff | required | 120/min/staff (S3) | `SESSION_LIST_READ` | — |
+| GET | `/api/sessions/{session_id}` | Staff | required | 120/min/staff (S3) | `SESSION_READ` | — |
+| PUT | `/api/sessions/{session_id}` | Admin | required | 30/min/admin (S3) | `SESSION_UPDATED` | S2 event_id |
+| DELETE | `/api/sessions/{session_id}` | Admin | required | 30/min/admin (S3) | `SESSION_DELETED` | S2 event_id |
 
 ### 2.5 Attendance
 
-| Method | Path | Current auth | Target principal | Event scope | Target rate limit | Audit event | Stage that fixes |
-|---|---|---|---|---|---|---|---|
-| POST | `/api/attendance/` | Staff JWT (`get_current_user`) | Staff/station | required | 120/min/station | `ATTENDANCE_RECORDED` | S1 (scope), S5 (idempotency/void) |
-| GET | `/api/attendance/event` | **None** | Staff | required | 120/min/staff | `ATTENDANCE_LIST_READ` | **S1** |
-| GET | `/api/attendance/session/{session_id}` | **None** | Staff | required | 120/min/staff | `ATTENDANCE_SESSION_READ` | **S1** |
-| GET | `/api/attendance/stats` | **None** | Staff | required | 60/min/staff | `ATTENDANCE_STATS_READ` | **S1** |
-| POST | `/api/attendance/validate-qr` | **None** | **Disabled: 410 `LEGACY_QR_DISABLED`** | n/a | 30/min/IP | `LEGACY_QR_REJECTED` | **S1** |
-| POST | `/api/attendance/face-match` | Staff JWT (`get_current_user`) | Staff/station | required | 30/min/station | `FACE_MATCH_ATTEMPTED` | S1 (scope), S5 (extended response) |
+| Method | Path | Auth | Event scope | Rate limit | Audit event | Remaining stage |
+|---|---|---|---|---|---|---|
+| POST | `/api/attendance/` | Staff | required | 120/min/station (S3) | `ATTENDANCE_RECORDED` | S5 idempotency/void |
+| GET | `/api/attendance/event` | Staff | required | 120/min/staff (S3) | `ATTENDANCE_LIST_READ` | — |
+| GET | `/api/attendance/session/{session_id}` | Staff | required | 120/min/staff (S3) | `ATTENDANCE_SESSION_READ` | — |
+| GET | `/api/attendance/stats` | Staff | required | 60/min/staff (S3) | `ATTENDANCE_STATS_READ` | — |
+| POST | `/api/attendance/validate-qr` | **410 `LEGACY_QR_DISABLED`** | n/a | 30/min/IP (S3) | `LEGACY_QR_REJECTED` | **S1 closed**, S5 replace |
+| POST | `/api/attendance/face-match` | Staff | required | 30/min/station (S3) | `FACE_MATCH_ATTEMPTED` | S5 extended response |
 
 ### 2.6 Embeddings
 
-| Method | Path | Current auth | Target principal | Event scope | Target rate limit | Audit event | Stage that fixes |
-|---|---|---|---|---|---|---|---|
-| GET | `/api/embeddings/sync` | **None — unauthenticated biometric export** | **Admin only in S1; replaced by `/api/sync/bundle` manifest scope** | required | 5/min/admin | `EMBEDDING_SYNC_READ` | **S1** gate/410, **S8** replace |
+| Method | Path | Auth | Event scope | Rate limit | Audit event | Remaining stage |
+|---|---|---|---|---|---|---|
+| GET | `/api/embeddings/sync` | Admin → **410 `BIOMETRIC_EXPORT_DISABLED`** | required | 5/min/admin (S3) | `EMBEDDING_SYNC_READ_REJECTED` | **S1 gated**, S8 replace |
 
 ### 2.7 Admin
 
-All admin routes already require `get_current_admin`. The remaining gaps are event scope, rate limits, audit and pagination.
+All admin routes require `get_current_admin` and now write audit rows. Event scope is enforced through JWT `event_ids`.
 
-| Method | Path | Current auth | Target principal | Event scope | Target rate limit | Audit event | Stage that fixes |
-|---|---|---|---|---|---|---|---|
-| GET | `/api/admin/dashboard` | Admin JWT | Admin | required | 60/min/admin | `ADMIN_DASHBOARD_READ` | S1 (scope), S8 (live data) |
-| GET | `/api/admin/volunteers` | Admin JWT | Admin | required | 60/min/admin | `VOLUNTEER_LIST_READ` | S1 (scope), S8 |
-| POST | `/api/admin/volunteers` | Admin JWT | Admin | required | 20/min/admin | `VOLUNTEER_CREATED` | S1 (scope), S8 |
-| PATCH | `/api/admin/volunteers/{volunteer_id}/toggle-status` | Admin JWT | Admin | required | 20/min/admin | `VOLUNTEER_STATUS_CHANGED` | S1 (scope), S8 |
-| DELETE | `/api/admin/volunteers/{volunteer_id}` | Admin JWT | Admin | required | 20/min/admin | `VOLUNTEER_DELETED` | S1 (scope), S8 |
-| GET | `/api/admin/export/participants` | Admin JWT | Admin | required | 10/min/admin | `PARTICIPANTS_EXPORTED` | S1 (scope), S8 (audit) |
-| GET | `/api/admin/export/attendance` | Admin JWT | Admin | required | 10/min/admin | `ATTENDANCE_EXPORTED` | S1 (scope), S8 (audit) |
+| Method | Path | Auth | Event scope | Rate limit | Audit event | Remaining stage |
+|---|---|---|---|---|---|---|
+| GET | `/api/admin/dashboard` | Admin | required | 60/min/admin (S3) | `ADMIN_DASHBOARD_READ` | S8 live data |
+| GET | `/api/admin/volunteers` | Admin | required | 60/min/admin (S3) | `VOLUNTEER_LIST_READ` | S8 |
+| POST | `/api/admin/volunteers` | Admin | required | 20/min/admin (S3) | `VOLUNTEER_CREATED` | S8 |
+| PATCH | `/api/admin/volunteers/{volunteer_id}/toggle-status` | Admin | required | 20/min/admin (S3) | `VOLUNTEER_STATUS_CHANGED` | S8 |
+| DELETE | `/api/admin/volunteers/{volunteer_id}` | Admin | required | 20/min/admin (S3) | `VOLUNTEER_DELETED` | S8 |
+| GET | `/api/admin/export/participants` | Admin | required | 10/min/admin (S3) | `PARTICIPANTS_EXPORTED` | S8 |
+| GET | `/api/admin/export/attendance` | Admin | required | 10/min/admin (S3) | `ATTENDANCE_EXPORTED` | S8 |
 
-## 3. P0 exposures explicitly flagged
+## 3. P0 exposures — S1 status
 
-These are the items S0 must not hide behind a green test suite. They are unchanged in S0 and are the first work in S1.
+| # | Exposure | S1 outcome | Stage |
+|---|---|---|---|
+| A | Public `/uploads` static mount | **Closed** — mount removed, `/uploads/*` → 404, photo served through authenticated route | S1 |
+| B | Unsigned QR JSON payload | **Legacy disabled** — `/qrcode` and `validate-qr` → 410; signing lands in S5 | S1 closed, S5 replace |
+| C | Seeded default credentials | **Closed** — seeding removed from `db_init.py`; no `SEED_*` in config or `.env.example`; bootstrap is the only first-admin path | S1 |
+| D | Compose placeholder secrets | **Closed** — all secrets are `${VAR:?}` environment substitutions; no usable default | S1 |
+| E | Public `/api/auth/seed` | **Closed** — replaced by token-gated `POST /api/auth/bootstrap` with advisory lock and forced password change | S1 |
+| F | No backend tests or CI | **Closed** — S0 baseline plus S1 security, audit and bootstrap tests | S0/S1 |
+| G | Unauthenticated biometric export | **Gated** — `/api/embeddings/sync` requires admin and returns 410; replacement in S8 | S1/S8 |
+| H | Unsigned `validate-qr` public | **Closed** — 410 with audit row | S1 |
+| I | Participant and attendance reads public | **Closed** — staff + event scope + audit on every read | S1 |
 
-| # | Exposure | Evidence at this snapshot | Target fix | Stage |
-|---|---|---|---|---|
-| A | Photos and legacy QR PNGs are public static files | `backend/app/main.py:59-61` mounts `/uploads` with `StaticFiles`; `backend/uploads/photos`, `backend/uploads/qrcodes` exist. | Delete the mount; serve photos through an authenticated `FileResponse` or presigned URL; never serve legacy QR PNGs. | **S1** |
-| B | QR payload is unsigned JSON | `backend/app/services/qr_service.py:19` writes `{"participant_id", "name"}`. | Signed `qr-v1` tokens only; legacy path returns 410; old PNGs are not migrated. | **S1** disable, **S5** replace |
-| C | Default staff credentials are seeded at startup | `backend/app/core/db_init.py:80-106` seeds `admin@geekai.in` / `admin123` and `volunteer@geekai.in` / `volunteer123`; `backend/app/core/config.py:61-63` exposes `SEED_ADMIN_*`. | Delete seeding and `SEED_*`; one-time bootstrap token with forced password change. | **S1** |
-| D | Compose ships placeholder secrets | `docker-compose.yml` uses `SECRET_KEY: change-me-in-production` and a fixed DB password. | `.env`-driven values, generated JWT secret, no usable default. | **S1** |
-| E | `POST /api/auth/seed` is public while the user table is empty | `backend/app/api/auth.py:59-79`. | Replace with bootstrap-token flow; first-boot race must not create an attacker-controlled admin. | **S1** |
-| F | No backend tests or CI before S0 | repository had no `backend/tests`, no `.github/workflows`. | S0 adds the baseline; S1 adds the security tests. | **S0** baseline, **S1** coverage |
-| G | Unauthenticated biometric export | `backend/app/api/embeddings.py:20-60` has no auth dependency. | Admin-only in S1; replace with `/api/sync/bundle` for hubs. | **S1**, **S8** |
-| H | Unsigned `validate-qr` is public | `backend/app/api/attendance.py:191-208` has no auth and trusts `participant_id`/`name`. | Return 410 `LEGACY_QR_DISABLED`; scanner never falls back. | **S1** |
-| I | Participant and attendance reads are public | `participants.py` list/detail/photo/qrcode; `attendance.py` event/session/stats. | Require Staff/Admin and event scope; audit PII reads. | **S1** |
+## 4. What S1 proves
 
-## 4. What S1 must prove
-
-- Every route returning participant, photo, embedding, attendance or audit data has a principal; anonymous access is `401` (or `404` for a removed static path).
+- Every route returning participant, photo, embedding, attendance or audit data has a principal; anonymous access is `401` (or `404` for the removed static path).
 - A volunteer token on an admin route is `403`; a token for the wrong event is `403`.
-- `/uploads/*` is gone and a photo request without a token fails.
+- `/uploads/*` is gone; a photo request without a token fails.
 - `POST /api/attendance/validate-qr` returns `410` and writes an audit row.
-- `GET /api/embeddings/sync` is admin-only or returns `410`; no anonymous biometric export remains.
+- `GET /api/embeddings/sync` is admin-only and returns `410`; no anonymous biometric export remains.
 - A fresh database has no default login; bootstrap works once and only once.
-- Login, participant read/write, QR issue/verify and void each write an audit row.
+- Login, participant read/write and other mutations write audit rows.
 
 ## 5. Change control
 
