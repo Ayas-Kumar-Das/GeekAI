@@ -1,7 +1,7 @@
 # GeekAI — Backend Planning
 
 **Odisha AI Symposium 2026** · Companion to [WorkFlow.md](WorkFlow.md) and [WorkFlow-After-Frontend-Redesign.md](WorkFlow-After-Frontend-Redesign.md)
-**Status:** Plan only · 20 November 2026
+**Status:** Plan only · 20 November 2026 · Execution order: [Backend-Implementation-Plan.md](Backend-Implementation-Plan.md)
 
 ---
 

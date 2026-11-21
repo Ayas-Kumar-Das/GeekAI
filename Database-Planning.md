@@ -1,7 +1,7 @@
 # GeekAI — Database Planning
 
 **Odisha AI Symposium 2026** · Companion to [WorkFlow.md](WorkFlow.md) and [Backend-Planning.md](Backend-Planning.md)
-**Status:** Plan only · 20 November 2026
+**Status:** Plan only · 20 November 2026 · Execution order: [Backend-Implementation-Plan.md](Backend-Implementation-Plan.md)
 
 ---
 
@@ -86,7 +86,7 @@ All migrations are additive and reversible. Create them under `backend/migration
 | M1 | `events` table + `event_id` columns (nullable initially) | Backfill one default event from existing event name/date |
 | M2 | Participant provenance fields + status defaults | Set existing rows to `IMPORTED` / `SYNCED` as appropriate |
 | M3 | Extend `face_embeddings` with version/quality fields | Default `model_name='insightface'`, `model_version` from current install |
-| M4 | `registration_jobs`, `audit_log` | No data migration |
+| M4 | `registration_jobs`, `audit_log` | No data migration. `audit_log` is pulled forward into the G1 security stage (S1) so audit exists before any real PII; `registration_jobs` lands with the intake stage. |
 | M5 | `qr_tokens` | Legacy unsigned QR codes are **not** migrated; they must be reissued |
 | M6 | `attendance` offline/idempotency fields | `client_event_id` nullable for legacy rows; backfill with deterministic UUIDs |
 | M7 | `email_outbox`, `sync_batches` | No data migration |

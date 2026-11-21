@@ -1,7 +1,7 @@
 # GeekAI — Local Hub & Offline Planning
 
 **Odisha AI Symposium 2026** · Companion to [WorkFlow.md](WorkFlow.md), [Backend-Planning.md](Backend-Planning.md) and [React Registration Planning](React-Registration-Planning.md)
-**Status:** Plan only · 20 November 2026
+**Status:** Plan only · 20 November 2026 · Execution order: [Backend-Implementation-Plan.md](Backend-Implementation-Plan.md)
 
 ---
 
