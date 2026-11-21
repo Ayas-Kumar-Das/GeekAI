@@ -699,4 +699,53 @@ Recommended defaults are given so implementation can start; each still needs an 
 
 ---
 
+## 13. Progress log
+
+| Stage | Status | Commit | Date | Evidence |
+|---|---|---|---|---|
+| **S0** | Complete — awaiting owner review | `de941e5` | 2026-11-21 | `docs/decisions.md`, `docs/contracts/{registration,qr,sync}-v1.md`, `docs/route-matrix.md`, `docs/naming.md`, `backend/tests/`, `backend/scripts/generate_fixtures.py`, `.github/workflows/backend.yml` |
+| **S1** | Not started | — | — | — |
+| **S2–S10** | Not started | — | — | — |
+
+### S0 delivery detail
+
+**Delivered**
+
+- `docs/decisions.md` — D1–D12 with status, owner, impact and date. Proposed defaults are marked where the owner has not yet signed off.
+- `docs/contracts/registration-v1.md` — multipart parts, consent JSON, success/duplicate responses, all 19 codes, HTTP mapping and idempotency.
+- `docs/contracts/qr-v1.md` — payload, encoding, Ed25519 signing, key-id rule, issue/verify, fixed verification order, canonical decisions and revocation.
+- `docs/contracts/sync-v1.md` — manifest, bundle files, batch envelope, checksum/cursor and per-item results.
+- `docs/route-matrix.md` — every current route with target principal, rate limit, audit event, fixing stage and the P0 exposures A–I.
+- `docs/naming.md` — `POST /api/register` is the public site form; `POST /api/auth/register` is staff-account creation.
+- Test/CI baseline — `backend/pytest.ini`, `backend/ruff.toml`, `backend/Makefile`, `backend/tests/` (health, OpenAPI, fixture generator), `backend/requirements-dev.txt`, `.github/workflows/backend.yml`.
+- Synthetic fixtures — `backend/scripts/generate_fixtures.py` writes 1,000 valid plus the reject mix, an oversized upload, placeholder blurry/dark/multi-face/low-resolution images, a deterministic manifest and an honest caveat.
+
+**Verification**
+
+| Check | Command | Result |
+|---|---|---|
+| Tests | `python -m pytest -q` (from `backend/`) | 6 passed |
+| Lint | `python -m ruff check .` | All checks passed |
+| Migration | `alembic upgrade head` → `downgrade base` → `upgrade head` on disposable `pgvector/pgvector:pg16` | Clean, head `001_initial` |
+| Fixtures | `python scripts/generate_fixtures.py --count 1000` | 1,011 records, deterministic, 7.5 s |
+| Links | internal markdown link check | No missing targets |
+
+**Decisions taken in S0**
+
+- QR key id is resolved from `iss`; no `kid` is added to the frozen Appendix B payload (recorded as proposed default D7).
+- Registration replay: identical replay returns 200 with the original response; same `submission_id` with different content returns 409 `DUPLICATE_SUBMISSION`; a new `submission_id` with an existing email returns 409 `DUPLICATE_EMAIL`.
+- Contract HTTP mappings are S0 proposals and must stay in sync with the frontend tests.
+- `backend/requirements-dev.txt` is a curated test runtime, not the full production set; InsightFace, ONNX Runtime and OpenCV stay in `requirements.txt` and are lazy-imported.
+- Placeholder fixture images exercise plumbing only; they do not validate real face-quality thresholds.
+
+**Still open (by design, not S0 scope)**
+
+- All P0 exposures in `docs/route-matrix.md` remain until S1: public `/uploads`, unsigned legacy QR, seeded staff credentials, public `/api/auth/seed`, unauthenticated biometric export.
+- Owner sign-off on the proposed defaults in `docs/decisions.md`.
+- AWS/Cloudflare/SES access requests are long-lead items for S3 and should start now.
+
+**Next stage:** S1 — security foundation (G1). Not started; blocked on owner approval of S0.
+
+---
+
 *Planning document only. No application code was changed in this pass.*
