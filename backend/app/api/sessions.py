@@ -15,6 +15,7 @@ from app.core.deps import get_current_admin, get_current_staff, get_db, require_
 from app.models.models import Attendance, Session, User
 from app.schemas.schemas import SessionCreate, SessionDetail, SessionOut, SessionUpdate
 from app.services.audit import audit_log
+from app.services.events import get_active_event_id
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -51,7 +52,7 @@ async def create_session(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
-    session = Session(**body.model_dump())
+    session = Session(**body.model_dump(), event_id=await get_active_event_id(db))
     db.add(session)
     await db.flush()
     await db.refresh(session)

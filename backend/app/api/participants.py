@@ -39,6 +39,7 @@ from app.models.models import (
 from app.schemas.schemas import AttendanceOut, ParticipantDetail, ParticipantList, ParticipantOut
 from app.services.audit import audit_log
 from app.services.email_service import send_qr_email
+from app.services.events import get_active_event_id
 from app.services.embedding_service import generate_embedding
 from app.services.qr_service import generate_qr_code
 
@@ -99,6 +100,7 @@ async def register_participant(
         phone=phone,
         institution=institution,
         category=category,
+        event_id=await get_active_event_id(db),
     )
     db.add(participant)
     await db.flush()

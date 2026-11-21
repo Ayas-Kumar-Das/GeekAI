@@ -38,6 +38,7 @@ from app.schemas.schemas import (
 )
 from app.services.audit import audit_log
 from app.services.embedding_service import generate_embedding
+from app.services.events import get_active_event_id
 
 router = APIRouter(prefix="/api/attendance", tags=["attendance"])
 
@@ -114,6 +115,7 @@ async def record_attendance(
         session_id=body.session_id,
         method=body.method,
         marked_by=current_user.id,
+        event_id=await get_active_event_id(db),
     )
     db.add(attendance)
     await db.flush()

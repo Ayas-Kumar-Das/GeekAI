@@ -38,6 +38,7 @@ Async tests share a session-scoped event loop (`pytest.ini`) because the SQLAlch
 - `test_openapi.py`: schema loads; contains the route families the frontend uses; `/api/auth/seed` is gone and `/uploads` is not published.
 - `test_fixtures.py`: synthetic fixture generator determinism.
 - `test_security.py`: 401 matrix for every PII route; `/uploads/*` → 404; volunteer-on-admin → 403; wrong event → 403; legacy QR → 410; bootstrap flow; audit rows; audit redaction.
+- `test_database_schema.py` (S2): the `Database-Planning.md` §7 validation queries — counts by event/status/source, active-embedding uniqueness, active ENTRY token uniqueness, idempotency/void reasons, outbox/batch checks, audit coverage, and the M8 constraints. DB-backed and opt-in via `GEEKAI_TEST_DB=1`.
 
 Manual curl matrix and full gate evidence live in `docs/gates/G1.md`.
 

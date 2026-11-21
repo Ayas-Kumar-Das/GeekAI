@@ -704,8 +704,9 @@ Recommended defaults are given so implementation can start; each still needs an 
 | Stage | Status | Commit | Date | Evidence |
 |---|---|---|---|---|
 | **S0** | Complete — owner approved | `de941e5`, CI fix `6cb6ee1`, remediation `0d9c5a5` | 2026-11-21 | `docs/decisions.md`, `docs/contracts/{registration,qr,sync}-v1.md`, `docs/route-matrix.md`, `docs/naming.md`, `backend/tests/`, `backend/scripts/generate_fixtures.py`, `.github/workflows/backend.yml` |
-| **S1** | Complete — awaiting owner review | see PR #4 head | 2026-11-21 | `docs/gates/G1.md`, `docs/route-matrix.md` (updated), `backend/app/core/{deps,security,middleware,rate_limit}.py`, `backend/app/services/audit.py`, `backend/app/models/audit.py`, `backend/migrations/versions/002_security_foundation.py`, `backend/tests/test_security.py` |
-| **S2–S10** | Not started | — | — | — |
+| **S1** | Complete — owner approved (G1 closed) | `f55bc91` | 2026-11-21 | `docs/gates/G1.md`, `docs/route-matrix.md` (updated), `backend/app/core/{deps,security,middleware,rate_limit}.py`, `backend/app/services/audit.py`, `backend/app/models/audit.py`, `backend/migrations/versions/002_security_foundation.py`, `backend/tests/test_security.py` |
+| **S2** | Complete — awaiting owner review | see PR #4 head | 2026-11-22 | `docs/gates/G3.md`, `backend/migrations/versions/003..010_*.py`, `backend/app/models/{entities,enums}.py`, `backend/tests/test_database_schema.py` |
+| **S3–S10** | Not started | — | — | — |
 
 ### S0 delivery detail
 
@@ -763,8 +764,24 @@ Recommended defaults are given so implementation can start; each still needs an 
 
 **Still open by design:** S2 adds `events` and real `event_id` columns; S3 adds Cloudflare rules; S5 replaces legacy QR; S8 replaces gated embedding export. No PENDING decision was silently approved.
 
-**Next stage:** S2 — database foundation (M1–M9). Not started; blocked on owner approval of S1.
+**Next stage (after S1):** S2 was authorised by the owner under the existing provisional defaults. D1 and D3 remain PENDING.
+
+### S2 delivery detail
+
+**Delivered**
+
+- Models: `events`, `registration_jobs`, `qr_tokens`, `email_outbox`, `sync_batches`; extended `participants`, `face_embeddings`, `attendance`, `sessions`. `users` columns unchanged (hub/station remain token principals).
+- Eight additive, reversible revisions `003_events_event_ids` … `010_constraints_indexes` (M1–M8). M9 is evidence only; seeding was removed in S1.
+- Backfills: default event `oas-2026` (code/name only; dates and venue NULL), participants `ADMIN`/`IMPORTED` or `SYNCED`, embedding metadata with an explicit `unknown-not-installed` placeholder version, deterministic attendance `client_event_id` without rewriting `marked_at`.
+- M8 constraints: non-null `event_id`, unique `(event_id, lower(email))`, unique `(event_id, submission_id)` where not null, unique `client_event_id`, one active ENTRY token per participant/event, HNSW on embeddings; existing `uq_participant_session` and the partial event-level index preserved.
+- Validation-query tests in `backend/tests/test_database_schema.py`; gate evidence in `docs/gates/G3.md` with the RDS snapshot/restore drill explicitly PENDING until staging exists (S3).
+
+**Verification:** fresh upgrade, populated `002` upgrade with no data loss, full downgrade and re-upgrade all clean; 38 passed with the DB flag, 19 passed / 19 skipped without it; ruff clean; frontend 143/143.
+
+**Deferred:** RDS snapshots and restore drill (S3), photo migration to S3 (S3/S4), registration intake and the 1,000-row report (S4), signed QR (S5), email worker (S6), sync (S7/S8), forced-password enforcement in the admin UI (S8). No PENDING decision was silently approved.
+
+**Next stage:** S3 — AWS + Cloudflare foundation. Not started; must be run in parallel by the owner for RDS snapshots and SES.
 
 ---
 
-*Stage S1 added application code. PDF for this document regenerated locally and not committed.*
+*Stages S1 and S2 added application code. PDF for this document regenerated locally and not committed.*

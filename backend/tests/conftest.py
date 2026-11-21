@@ -105,11 +105,17 @@ async def clean_tables(db_session):
     """Truncate all audit/user data before a DB test to keep tests isolated."""
     from sqlalchemy import text
 
+    # Truncate every table written by S0-S2, including the S2 additions.
     await db_session.execute(text("TRUNCATE TABLE audit_log RESTART IDENTITY CASCADE"))
+    await db_session.execute(text("TRUNCATE TABLE email_outbox RESTART IDENTITY CASCADE"))
+    await db_session.execute(text("TRUNCATE TABLE sync_batches RESTART IDENTITY CASCADE"))
+    await db_session.execute(text("TRUNCATE TABLE qr_tokens RESTART IDENTITY CASCADE"))
+    await db_session.execute(text("TRUNCATE TABLE registration_jobs RESTART IDENTITY CASCADE"))
     await db_session.execute(text("TRUNCATE TABLE attendance RESTART IDENTITY CASCADE"))
     await db_session.execute(text("TRUNCATE TABLE face_embeddings RESTART IDENTITY CASCADE"))
     await db_session.execute(text("TRUNCATE TABLE participants RESTART IDENTITY CASCADE"))
     await db_session.execute(text("TRUNCATE TABLE sessions RESTART IDENTITY CASCADE"))
+    await db_session.execute(text("TRUNCATE TABLE events RESTART IDENTITY CASCADE"))
     await db_session.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
     await db_session.commit()
     yield db_session
