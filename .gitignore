@@ -42,6 +42,13 @@ face-checkin/cache/*
 face-checkin/cache/photos/*
 !face-checkin/cache/photos/.gitkeep
 
+# Backend test/lint caches
+.pytest_cache/
+.ruff_cache/
+
+# Generated synthetic fixtures (regenerate with backend/scripts/generate_fixtures.py)
+backend/fixtures/generated/
+
 # InsightFace models download cache
 .insightface/
 models/
