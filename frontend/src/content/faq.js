@@ -6,6 +6,12 @@
 
 export const faqs = [
   {
+    id: 'platform',
+    question: 'Which organisation runs this portal?',
+    answer:
+      'This registration portal is built and operated by the Geek AI developer team. It currently handles registration for the Odisha AI Symposium 2026 and can be reused for future events. It is not the symposium’s official website.',
+  },
+  {
     id: 'register',
     question: 'How do I register?',
     answer:
@@ -15,7 +21,7 @@ export const faqs = [
     id: 'pass',
     question: 'How do I get my pass?',
     answer:
-      'Your pass is issued at the arrival desk when you arrive. You do not need to print anything, and no QR code is sent by email before the event.',
+      'Your pass is issued at the arrival desk when you arrive. You do not need to print anything, and no QR code is sent by email before the event. Registration and status are handled by the Geek AI portal; the pass itself is issued by the event team on site.',
   },
   {
     id: 'bring',
@@ -27,7 +33,7 @@ export const faqs = [
     id: 'accessibility',
     question: 'Is the venue accessible?',
     answer:
-      'Accessibility notes, arrival support and contact details will be published before the event. If you need support now, contact the host office.',
+      'Accessibility notes, arrival support and contact details will be published before the event. If you need support now, contact the event team.',
   },
   {
     id: 'when-where',
@@ -44,7 +50,7 @@ export const faqs = [
     id: 'contact',
     question: 'Who can I contact?',
     answer:
-      'The host office can help with registration, accessibility and attendance. Contact details to be announced.',
+      'The event team can help with registration, accessibility and attendance. Contact details to be announced.',
   },
 ]
 
@@ -53,7 +59,7 @@ export const featuredFaqs = faqs.slice(0, 4)
 
 export const faqStatus = {
   heading: 'Good to know.',
-  body: "Still unsure? Write to the host office and the team will point you to the right person.",
+  body: 'Still unsure? These answers explain how the Geek AI registration portal works and what happens on event day.',
 }
 
 export default faqs

@@ -20,9 +20,9 @@ export default function Programme() {
   return (
     <>
       <PageHero
-        eyebrow="02 — Programme"
+        eyebrow="01 - Programme"
         title="A programme in progress."
-        lead="Talks, research and hands-on workshops. Session titles, speakers and times will be published as they are confirmed."
+        lead="Talks, research and hands-on workshops for this event. Session titles and times will be published as they are confirmed — register through the Geek AI portal to attend."
         crumbs={[
           { to: '/', label: 'Home' },
           { label: 'Programme' },
@@ -70,7 +70,7 @@ export default function Programme() {
             <div className="border-t border-border pt-8">
               <EmptyState
                 title={programmeStatus.empty}
-                body="Check back closer to the event, or register your interest and the host office will keep you posted."
+                body="Check back closer to the event, or register your interest and the event team will keep you posted."
                 action={
                   <a
                     href="/register"
@@ -87,8 +87,8 @@ export default function Programme() {
         </div>
 
         <p className="mt-6 text-xs leading-relaxed text-muted">
-          Times, titles and speakers are placeholders until the host office confirms them.
-          Nothing on this page should be read as a final schedule.
+          Times and titles are placeholders until the event team confirms them. Nothing on this
+          page should be read as a final schedule.
         </p>
       </div>
     </>

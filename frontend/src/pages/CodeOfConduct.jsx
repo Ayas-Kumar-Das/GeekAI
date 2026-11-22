@@ -12,7 +12,7 @@ export default function CodeOfConduct() {
       <PageHero
         eyebrow="Practical · Code of conduct"
         title="Code of conduct."
-        lead="How we expect everyone at the symposium — speakers, participants, staff and volunteers — to treat each other."
+        lead="How we expect everyone at the event — participants, staff and volunteers — to treat each other."
         crumbs={[
           { to: '/', label: 'Home' },
           { label: 'Code of conduct' },
@@ -30,14 +30,14 @@ export default function CodeOfConduct() {
             <h2 className="text-h4 font-semibold text-ink-900">The short version</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-700">
               Be respectful. Harassment, intimidation, discrimination and disruptive behaviour
-              are not accepted at any symposium activity — on site, online or at social events.
+              are not accepted at any event activity — on site, online or at social events.
             </p>
           </section>
 
           <section>
             <h2 className="text-h4 font-semibold text-ink-900">If something happens</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-700">
-              Report it to any member of staff or to the host office. Reports are taken
+              Report it to any member of staff or to the event team. Reports are taken
               seriously and handled confidentially as far as possible. The reporting contact
               will be published here before the event.
             </p>

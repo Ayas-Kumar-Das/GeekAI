@@ -3,7 +3,6 @@ import { ArrowRight, CalendarDays, MapPin, Ticket } from 'lucide-react'
 import WheelCard from '../components/public/WheelCard'
 import FactStrip from '../components/public/FactStrip'
 import SessionCard, { MiniRow } from '../components/public/SessionCard'
-import SpeakerCard from '../components/public/SpeakerCard'
 import FaqAccordion from '../components/public/FaqAccordion'
 import StepExplainer from '../components/public/StepExplainer'
 import VenueMap from '../components/public/VenueMap'
@@ -11,10 +10,9 @@ import { SectionLabel, Eyebrow } from '../components/public/SectionLabel'
 import { ActionLink } from '../components/ui/ActionLink'
 import { Badge } from '../components/ui/Badge'
 import { sessions, programmeStatus } from '../content/programme'
-import { featuredSpeakers, speakersStatus } from '../content/speakers'
 import { featuredFaqs, faqStatus } from '../content/faq'
 import { venue } from '../content/venue'
-import { event } from '../content/event'
+import { event, platform } from '../content/event'
 
 /** Sticky bottom bar — mobile only, 78px + safe area (§7.1 mobile, mockup 03). */
 function MobileStickyCta() {
@@ -37,9 +35,9 @@ function MobileStickyCta() {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[10.5px] font-semibold leading-tight text-ink-900">
-            Registration details
+            Geek AI registration
           </p>
-          <p className="mt-0.5 truncate text-[9px] text-muted">On this site</p>
+          <p className="mt-0.5 truncate text-[9px] text-muted">For {event.shortName}</p>
         </div>
         <ActionLink to="/register" variant="primary" className="h-10 shrink-0 px-[15px] text-xs">
           Register interest
@@ -75,17 +73,17 @@ export default function Home() {
 
         <div className="container-wide relative grid items-center gap-10 py-9 md:py-14 lg:grid-cols-[1.03fr_.97fr] lg:gap-[70px] lg:py-16">
           <div className="lg:pb-1">
-            <Eyebrow>Odisha AI Symposium 2026</Eyebrow>
+            <Eyebrow>{platform.eyebrow}</Eyebrow>
 
             <h1 className="mt-3 text-display font-semibold text-ink-900">
-              Intelligence,
+              Registration,
               <br />
-              rooted in Odisha.
+              handled by Geek AI.
             </h1>
 
             <p className="mt-4.5 max-w-[500px] text-lead text-slate-700">
-              A symposium on artificial intelligence that serves place, people and public good —
-              hosted by SOA University and AIC for Innovation Center.
+              {platform.purpose} {platform.reuse} — an in-site form, a clear status page and a
+              pass issued at the arrival desk.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3 lg:gap-5">
@@ -116,8 +114,8 @@ export default function Home() {
             </ul>
 
             <p className="mt-5 max-w-md text-xs leading-relaxed text-muted">
-              Working copy — the symposium line above is pending host approval. No date or
-              speaker is implied.
+              {platform.status} {event.name}. Event details come from the event team; Geek AI
+              operates this registration portal only.
             </p>
           </div>
 
@@ -144,7 +142,7 @@ export default function Home() {
           </div>
           <div className="flex flex-col items-start gap-2 md:items-end">
             <span className="text-xs text-muted">
-              Full schedule and speakers to be announced
+              Full schedule to be announced
             </span>
             <ActionLink to="/programme" variant="link" size="sm" className="px-0 text-xs font-semibold">
               View programme
@@ -176,48 +174,13 @@ export default function Home() {
             From the form to the arrival desk.
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-700">
-            Registration takes a few minutes on this site. Your pass is issued in
-            person when you arrive — nothing is emailed to you before the event.
+            The Geek AI portal takes your details, photo and consent in a few minutes. The event
+            team reviews them, and your pass is issued in person at the arrival desk — nothing is
+            emailed to you before the event.
           </p>
           <div className="mt-9">
             <StepExplainer />
           </div>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------- Speakers */}
-      <section className="relative overflow-hidden bg-ink-900 text-ivory-100">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-65 -top-90 h-[720px] w-[720px] rounded-full border border-gold-500/10"
-        />
-        <div className="container-wide relative py-12 md:py-15">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <SectionLabel onDark>Speakers</SectionLabel>
-              <h2 className="mt-3 text-h3 font-semibold tracking-[-0.02em] text-ivory-50">
-                {speakersStatus.heading}
-              </h2>
-              <p className="mt-3 max-w-[560px] text-lead text-ivory-100/62">
-                {speakersStatus.body}
-              </p>
-            </div>
-            <ActionLink
-              to="/speakers"
-              variant="linkGold"
-              size="sm"
-              className="px-0 text-xs font-semibold"
-            >
-              View all speakers
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-            </ActionLink>
-          </div>
-
-          <ul className="mt-7 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-            {featuredSpeakers.map((speaker) => (
-              <SpeakerCard key={speaker.id} speaker={speaker} />
-            ))}
-          </ul>
         </div>
       </section>
 
@@ -311,8 +274,8 @@ export default function Home() {
             <SectionLabel onDark>Registration</SectionLabel>
             <h2 className="mt-3 text-h3 font-semibold tracking-[-0.02em]">Registration required.</h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ivory-100/76">
-              Entry is in person only. Register on this site; your pass is issued at the arrival desk. {event.dateLabel} —
-              expressions of interest are open.
+              Entry is in person only. Register through the Geek AI portal; your pass is issued
+              at the arrival desk. {event.dateLabel} — expressions of interest are open.
             </p>
           </div>
           <ActionLink to="/register" variant="gold" size="lg" className="shrink-0">

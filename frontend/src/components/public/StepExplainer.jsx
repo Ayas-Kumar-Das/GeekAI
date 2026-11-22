@@ -22,7 +22,7 @@ const steps = [
   {
     step: 'Step 3',
     title: 'Watch for approval',
-    body: 'The team reviews each response. You will hear from the host office once it is confirmed.',
+    body: 'The event team reviews each response. The Geek AI portal keeps your status up to date.',
     icon: LayoutDashboard,
   },
   {

@@ -3,12 +3,11 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ArrowRight, Menu } from 'lucide-react'
 import KonarkMark from './KonarkMark'
 import MobileMenu from './MobileMenu'
-import { event } from '../../content/event'
+import { event, platform } from '../../content/event'
 import { cn } from '../../lib/cn'
 
 const navLinks = [
   { to: '/programme', label: 'Programme' },
-  { to: '/speakers', label: 'Speakers' },
   { to: '/venue', label: 'Venue' },
   { to: '/faq', label: 'FAQ' },
 ]
@@ -41,11 +40,11 @@ export function PublicHeader() {
       <div className="hidden bg-ink-900 lg:block">
         <div className="container-wide flex h-9 items-center justify-between text-[11px] tracking-[0.06em] text-ivory-100/72">
           <span>
-            Presented by <b className="font-semibold text-ivory-100">SOA University</b>
-            {'  ·  '}
-            <b className="font-semibold text-ivory-100">AIC for Innovation Center</b>
+            A registration service by the <b className="font-semibold text-ivory-100">{platform.owner}</b>
           </span>
-          <span>{event.locationLine}</span>
+          <span>
+            {platform.status} <b className="font-semibold text-ivory-100">{event.shortName}</b>
+          </span>
         </div>
       </div>
 
@@ -59,14 +58,14 @@ export function PublicHeader() {
       >
         <div className="container-wide flex h-full items-center justify-between gap-4">
           {/* Lockup */}
-          <Link to="/" className="flex items-center gap-2.5 lg:gap-3" aria-label="Odisha AI Symposium — home">
+          <Link to="/" className="flex items-center gap-2.5 lg:gap-3" aria-label="Geek AI Registration Portal — home">
             <KonarkMark className="h-[30px] w-[30px] shrink-0 text-gold-600 lg:h-[38px] lg:w-[38px]" />
             <span className="min-w-0">
               <span className="block truncate text-[9.5px] font-bold uppercase leading-[1.2] tracking-[0.09em] text-ink-900 lg:text-[13px] lg:tracking-[0.08em]">
-                Odisha AI Symposium
+                Geek AI
               </span>
               <span className="mt-0.5 block truncate text-[8px] uppercase leading-[1.2] tracking-[0.13em] text-muted lg:text-[9.5px] lg:tracking-[0.16em]">
-                {event.hosts[0]} · {event.edition}
+                Registration portal · {event.shortName}
               </span>
             </span>
           </Link>

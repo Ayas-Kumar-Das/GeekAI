@@ -2,7 +2,8 @@
  * Programme content — every session is a typed placeholder until the host
  * office confirms it (FrontendPlanning.md §7.1: no invented session titles,
  * speakers or times). Replace entries as they are confirmed; never hard-code
- * programme copy in a component.
+ * programme copy in a component. Session content is shown so students know
+ * what they are registering for; no speaker lineup is published here.
  */
 
 export const tracks = [
@@ -23,7 +24,7 @@ export const sessions = [
     time: 'Time TBA',
     title: 'Opening remarks and keynote',
     subtitle: 'Session title to be announced',
-    description: 'Speaker and session title to be announced.',
+    description: 'Session title and details to be announced.',
     tags: ['Keynote', 'Main hall'],
     meta: 'Plenary · all participants',
     detail: 'Details to be announced',
@@ -37,7 +38,7 @@ export const sessions = [
     tone: 'teal',
     time: 'Time TBA',
     title: 'Research and applications track',
-    subtitle: 'Session and speaker to be announced',
+    subtitle: 'Session details to be announced',
     description: 'Peer research, field notes and applied AI from Odisha.',
     tags: ['Talks', 'Track room'],
     meta: 'Parallel session',
@@ -52,7 +53,7 @@ export const sessions = [
     tone: 'sand',
     time: 'Time TBA',
     title: 'Applied AI workshop',
-    subtitle: 'Session and speaker to be announced',
+    subtitle: 'Session details to be announced',
     description: 'Hands-on building with local data and public problems.',
     tags: ['Workshop', 'Requirements to be announced'],
     meta: 'Registration required',

@@ -436,7 +436,7 @@ function Interim() {
       <PageHero
         eyebrow="Registration status"
         title="Check your registration status."
-        lead="Status checks open from the signed link in your confirmation email. Until email and reference lookup ships, the host office can confirm your registration directly."
+        lead="Status checks open from the signed link in your confirmation email. Until email and reference lookup ships, the event team can confirm your registration directly."
         crumbs={[
           { to: '/', label: 'Home' },
           { label: 'Registration status' },

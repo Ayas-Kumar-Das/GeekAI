@@ -22,7 +22,7 @@ Status key: **PASS** = automated or inspected; **BY DESIGN** = intentionally not
 | Item | Status | Evidence |
 |---|---|---|
 | No page says QR/pass is emailed before arrival | PASS | `App.copyfreeze.test.jsx` scans 32 routes for forbidden claims |
-| Unconfirmed facts labelled (date/speaker/session/TBA) | PASS | `src/content/{event,speakers,programme}.js` use explicit placeholder labels; copyfreeze test |
+| Unconfirmed facts labelled (date/session/TBA) | PASS | `src/content/{event,programme}.js` use explicit placeholder labels; copyfreeze test |
 | No invented speaker/sponsor/number/email/phone | PASS | Content files carry placeholders; contact email only from `VITE_CONTACT_EMAIL`; registration form uses user-supplied data only |
 | "Registration required" only if confirmed; no "free" | PASS | copyfreeze forbidden patterns |
 | Sample data marked "Sample data" | PASS | Demo ticket banner + admin "Sample data" pill |

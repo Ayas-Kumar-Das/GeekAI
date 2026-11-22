@@ -1,11 +1,33 @@
 /**
- * Event configuration — single source of truth for static event facts.
- * Every value here is a placeholder until the host office confirms it.
- * Never hard-code a date, venue address, form URL or contact in a component.
+ * Single source of truth for static facts.
+ *
+ * This site is the Geek AI registration portal — built and operated by the
+ * Geek AI developer team. It is NOT the official Odisha AI Symposium website.
+ * It currently handles registration for Odisha AI Symposium 2026 and is built
+ * to be reused for future events. The `event` block below describes the event
+ * currently being served; the `platform` block describes the portal itself.
+ *
+ * Never hard-code a date, venue address or contact in a component. Unconfirmed
+ * facts stay explicitly labelled; nothing is invented.
  */
 
 const env = import.meta.env
 
+/** The product: Geek AI's reusable registration platform. */
+export const platform = {
+  name: 'Geek AI Registration Portal',
+  shortName: 'Geek AI',
+  owner: 'Geek AI developer team',
+  eyebrow: 'Geek AI · Registration portal',
+  line: 'Registration, handled with care.',
+  purpose:
+    'Built and operated by the Geek AI developer team for registration and registration management at partner events.',
+  reuse:
+    'This portal currently serves Odisha AI Symposium 2026 and can be reused for future events.',
+  status: 'Currently serving',
+}
+
+/** The event currently being served by the portal. */
 export const event = {
   name: 'Odisha AI Symposium 2026',
   shortName: 'AIS 2026',
@@ -25,12 +47,12 @@ export const event = {
     region: 'Odisha',
     country: 'India',
     label: 'SOA University, Bhubaneswar',
-    address: null, // confirmed address pending from the host office
+    address: null, // confirmed address pending from the event team
     mapUrl: null,
   },
 
   hosts: ['SOA University', 'AIC for Innovation Center'],
-  hostLine: 'Presented by SOA University · AIC for Innovation Center',
+  hostLine: 'Presented by SOA University & AIC for Innovation Center',
   locationLine: 'Bhubaneswar, Odisha · 2026',
 
   registration: {
@@ -41,9 +63,9 @@ export const event = {
   },
 
   contact: {
-    // Not invented: set VITE_CONTACT_EMAIL when the host office confirms it.
+    // Not invented: set VITE_CONTACT_EMAIL when the event team confirms it.
     email: env.VITE_CONTACT_EMAIL || '',
-    label: 'Contact the host office',
+    label: 'Contact the event team',
     supportLabel: 'Contact support',
   },
 

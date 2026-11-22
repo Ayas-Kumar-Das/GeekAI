@@ -14,7 +14,6 @@ const Home = lazy(() => import('./pages/Home'))
 const Login = lazy(() => import('./pages/Login'))
 const Register = lazy(() => import('./pages/Register'))
 const Programme = lazy(() => import('./pages/Programme'))
-const Speakers = lazy(() => import('./pages/Speakers'))
 const VenuePage = lazy(() => import('./pages/Venue'))
 const FaqPage = lazy(() => import('./pages/Faq'))
 const Privacy = lazy(() => import('./pages/Privacy'))
@@ -59,7 +58,6 @@ export default function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/programme" element={<Programme />} />
-            <Route path="/speakers" element={<Speakers />} />
             <Route path="/venue" element={<VenuePage />} />
             <Route path="/faq" element={<FaqPage />} />
             <Route path="/register" element={<Register />} />

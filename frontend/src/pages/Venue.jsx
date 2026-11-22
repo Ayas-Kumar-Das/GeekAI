@@ -12,7 +12,7 @@ export default function Venue() {
   return (
     <>
       <PageHero
-        eyebrow="04 — Venue"
+        eyebrow="02 - Venue"
         title={venue.heading}
         lead={venue.note}
         crumbs={[

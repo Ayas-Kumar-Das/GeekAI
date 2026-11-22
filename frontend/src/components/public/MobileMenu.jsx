@@ -5,7 +5,6 @@ import { cn } from '../../lib/cn'
 
 const links = [
   { to: '/programme', label: 'Programme' },
-  { to: '/speakers', label: 'Speakers' },
   { to: '/venue', label: 'Venue' },
   { to: '/faq', label: 'FAQ' },
 ]

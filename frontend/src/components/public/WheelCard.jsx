@@ -1,9 +1,9 @@
 import KonarkMark from './KonarkMark'
 
 /**
- * WheelCard — the ink hero card (§7.1 item 3, mockups 01/03): gold rim,
- * cropped line wheel, quote and host meta. Caption is working copy approved
- * by the spec itself; no coordinates or dates appear on it.
+ * WheelCard — the ink hero card: gold rim, cropped line wheel, quote and
+ * meta. Keeps the approved visual; the caption now names the Geek AI portal
+ * and the event it currently serves. No coordinates or dates appear on it.
  * 158px tall on mobile (wheel cropped bottom-right), 390px on desktop.
  */
 export function WheelCard() {
@@ -42,11 +42,11 @@ export function WheelCard() {
 
       {/* Caption */}
       <p className="absolute left-4 top-11 w-[170px] text-[15px] font-semibold leading-[1.3] tracking-[-0.015em] text-ivory-50 md:left-6 md:top-auto md:bottom-[68px] md:w-[230px] md:text-[17px] md:leading-[1.34] md:tracking-normal">
-        “A conference for AI that serves Odisha.”
+        “Registration, handled by Geek AI.”
       </p>
       <div className="absolute bottom-3.5 left-4 font-mono text-[8px] uppercase leading-relaxed tracking-[0.16em] text-ivory-100/56 md:bottom-5.5 md:left-6 md:text-[9.5px] md:tracking-[0.14em]">
-        <span className="block">SOA University</span>
-        <span className="block">Bhubaneswar · Odisha</span>
+        <span className="block">Geek AI developer team</span>
+        <span className="block">Currently serving AIS 2026</span>
       </div>
     </div>
   )

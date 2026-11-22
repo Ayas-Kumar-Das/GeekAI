@@ -1,22 +1,21 @@
 import { Link } from 'react-router-dom'
 import KonarkMark from './KonarkMark'
-import { event } from '../../content/event'
+import { event, platform } from '../../content/event'
 import { flags } from '../../content/flags'
 
 const columns = [
   {
-    heading: 'Event',
+    heading: 'Portal',
     links: [
       { to: '/programme', label: 'Programme' },
-      { to: '/speakers', label: 'Speakers' },
       { to: '/venue', label: 'Venue' },
       { to: '/faq', label: 'FAQ' },
     ],
   },
   {
-    heading: 'Practical',
+    heading: 'Registration',
     links: [
-      { to: '/register', label: 'Registration' },
+      { to: '/register', label: 'Register' },
       ...(flags.ticketPage
         ? [{ to: '/registration/status', label: 'Registration status' }]
         : []),
@@ -48,35 +47,34 @@ export function PublicFooter() {
               <KonarkMark className="h-8 w-8 text-gold-500" strokeWidth={1.7} />
               <span>
                 <span className="block text-[10.5px] font-bold uppercase tracking-[0.1em] text-ivory-100">
-                  Odisha AI Symposium
+                  Geek AI
                 </span>
                 <span className="mt-1 block text-[9px] uppercase tracking-[0.16em] text-ivory-100/56">
-                  {event.edition} · {event.venue.city}
+                  Registration portal · {event.shortName}
                 </span>
               </span>
             </div>
 
             <p className="mt-3.5 max-w-[280px] text-2xl font-semibold leading-tight tracking-[-0.02em] text-ivory-50">
-              {event.workingLine}
+              {platform.line}
             </p>
             <p className="mt-2.5 max-w-[300px] text-[11.5px] leading-relaxed text-ivory-100/50">
-              A symposium for researchers, students and builders working on AI that serves
-              place and public good.
+              {platform.purpose} {platform.reuse}
             </p>
 
-            {/* Co-brand lockups */}
+            {/* Platform owner + currently served event */}
             <div className="mt-5.5 flex items-stretch gap-4.5">
               <div className="border-l border-ivory-100/16 pl-4.5">
                 <b className="block text-[10px] font-bold uppercase tracking-[0.1em] text-ivory-100/82">
-                  SOA University
+                  Geek AI developer team
                 </b>
-                <span className="mt-0.5 block text-[9px] text-ivory-100/56">Host institution</span>
+                <span className="mt-0.5 block text-[9px] text-ivory-100/56">Platform owner</span>
               </div>
               <div className="border-l border-ivory-100/16 pl-4.5">
                 <b className="block text-[10px] font-bold uppercase tracking-[0.1em] text-ivory-100/82">
-                  AIC for Innovation Center
+                  {event.name}
                 </b>
-                <span className="mt-0.5 block text-[9px] text-ivory-100/56">Co-host</span>
+                <span className="mt-0.5 block text-[9px] text-ivory-100/56">Currently serving</span>
               </div>
             </div>
           </div>
@@ -102,14 +100,14 @@ export function PublicFooter() {
             </nav>
           ))}
 
-          {/* Host office */}
+          {/* About this portal */}
           <div>
             <h2 className="mb-3 text-[9.5px] font-bold uppercase tracking-[0.16em] text-ivory-100/58">
-              Host office
+              About this portal
             </h2>
             <ul className="text-[11.5px] text-ivory-100/72">
-              <li className="mb-2">SOA University</li>
-              <li className="mb-2">{event.venue.label}</li>
+              <li className="mb-2">{platform.owner}</li>
+              <li className="mb-2">{platform.status} {event.shortName}</li>
               <li className="mb-2">Contact to be announced</li>
             </ul>
             <Link
@@ -124,7 +122,7 @@ export function PublicFooter() {
 
         {/* Bottom bar */}
         <div className="mt-8.5 flex flex-col gap-3 border-t border-ivory-100/10 pt-3.5 text-[9.5px] tracking-[0.02em] text-ivory-100/56 md:flex-row md:items-center md:justify-between">
-          <p>© {event.edition} Odisha AI Symposium · Content in development</p>
+          <p>© {event.edition} Geek AI · Registration portal for {event.name}</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <Link
               to="/privacy"
