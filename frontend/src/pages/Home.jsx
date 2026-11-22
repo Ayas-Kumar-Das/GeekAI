@@ -71,7 +71,7 @@ export default function Home() {
           }}
         />
 
-        <div className="container-wide relative grid items-center gap-10 py-9 md:py-14 lg:grid-cols-[1.03fr_.97fr] lg:gap-[70px] lg:py-16">
+        <div className="container-wide relative grid items-center gap-10 py-9 md:py-14 lg:grid-cols-[1.03fr_.97fr] lg:gap-[70px] lg:items-start lg:py-16">
           <div className="lg:pb-1">
             <Eyebrow>{platform.eyebrow}</Eyebrow>
 
