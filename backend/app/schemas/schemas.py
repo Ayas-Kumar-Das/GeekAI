@@ -22,6 +22,10 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     role: UserRole
     name: str
+    # True when the principal must change their password before further work.
+    # Additive field — the delivered frontend ignores unknown response keys.
+    must_change_password: bool = False
+    event_ids: List[str] = []
 
 
 class RegisterRequest(BaseModel):
@@ -31,10 +35,30 @@ class RegisterRequest(BaseModel):
     role: UserRole = UserRole.VOLUNTEER
 
 
-class SeedRequest(BaseModel):
+class BootstrapRequest(BaseModel):
+    """One-time first-admin bootstrap request.
+
+    `token` is the bootstrap secret from the environment (BOOTSTRAP_TOKEN).
+    Only accepted while the users table is empty.
+    """
+    token: str = Field(min_length=1)
     email: EmailStr
-    password: str = Field(min_length=6)
+    password: str = Field(min_length=8)
     name: str = Field(min_length=1)
+
+
+class BootstrapResponse(BaseModel):
+    """Bootstrap result: the first admin user plus their login token."""
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
+    must_change_password: bool = True
+
+
+class ChangePasswordRequest(BaseModel):
+    """First-login password change for the bootstrap admin."""
+    current_password: str
+    new_password: str = Field(min_length=8)
 
 
 class UserOut(BaseModel):
@@ -263,3 +287,4 @@ class VerifyPaymentResponse(BaseModel):
 # Resolve forward references
 # ---------------------------------------------------------------------------
 ParticipantDetail.model_rebuild()
+BootstrapResponse.model_rebuild()

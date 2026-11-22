@@ -1,4 +1,9 @@
-"""Application settings loaded from environment variables."""
+"""Application settings loaded from environment variables.
+
+Stage S1 removes the seed-admin defaults and the usable database/JWT
+placeholders. Every placeholder below is intentionally unusable in
+production; real values must come from the environment or a secrets vault.
+"""
 
 from __future__ import annotations
 
@@ -15,13 +20,27 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/geekai"
+    # Database — placeholder is intentionally unusable.
+    DATABASE_URL: str = "postgresql+asyncpg://<user>:<password>@localhost:5432/geekai"
 
-    # JWT
-    SECRET_KEY: str = "change-me-to-a-random-secret-at-least-32-chars"
+    # JWT — placeholder is intentionally unusable. Generate a real secret and
+    # supply it via the environment or a secrets manager.
+    SECRET_KEY: str = "<generate-a-random-value>"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
+
+    # One-time bootstrap token for creating the first admin user. Must be set
+    # in the environment before the first boot; there is no usable default.
+    BOOTSTRAP_TOKEN: str = "<set-BOOTSTRAP_TOKEN-in-the-environment>"
+
+    # Active event code used for JWT `event_ids` scope checks.
+    ACTIVE_EVENT_CODE: str = "oas-2026"
+
+    # QR signing-key placeholders (stage S5 will use real values). These are
+    # intentionally unusable placeholders — never a real signing key.
+    QR_SIGNING_KEY: str = "<set-QR_SIGNING_KEY-in-the-environment>"
+    QR_KEY_ID: str = "<set-QR_KEY_ID-in-the-environment>"
+    QR_ISSUER: str = "geekai-hub-01"
 
     # CORS
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
@@ -57,10 +76,9 @@ class Settings(BaseSettings):
         p.mkdir(parents=True, exist_ok=True)
         return p
 
-    # Seed admin
-    SEED_ADMIN_EMAIL: str = "admin@geekai.in"
-    SEED_ADMIN_PASSWORD: str = "admin123"
-    SEED_ADMIN_NAME: str = "System Admin"
+    # Bootstrap forced password change: tracked via password_changed_at on
+    # the users table (null = change required on next login). No column is
+    # added here; the migration creates it.
 
     # Cashfree Payment Gateway
     CASHFREE_APP_ID: str = ""

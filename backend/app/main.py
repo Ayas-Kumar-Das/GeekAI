@@ -1,35 +1,40 @@
-"""GeekAI — FastAPI application entry point."""
+"""GeekAI — FastAPI application entry point.
+
+Stage S1 removes the public `/uploads` static mount and startup seeding,
+adds request-id middleware and structured JSON logging with PII redaction.
+"""
 
 from __future__ import annotations
 
 import logging
+import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.core.db_init import run_migrations_async, seed_initial_users_async
+from app.core.db_init import run_migrations_async
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+# Structured JSON logging with redaction of emails, phones and tokens.
+from app.logging_config import configure_logging
+
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup / shutdown lifecycle."""
-    # Ensure upload directories exist
     settings.photos_dir
     settings.qrcodes_dir
     logger.info("GeekAI backend starting — upload directories ready")
 
-    # Ensure database schema is migrated before accepting traffic
+    # Ensure database schema is migrated before accepting traffic.
     await run_migrations_async()
 
-    # Auto-seed default credentials if database is empty
-    await seed_initial_users_async()
+    # Stage S1: no default users are seeded. The first admin is created
+    # exclusively through POST /api/auth/bootstrap with a one-time token.
 
     yield
     logger.info("GeekAI backend shutting down")
@@ -43,8 +48,11 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------------------
-# CORS
+# Middleware
 # ---------------------------------------------------------------------------
+from app.core.middleware import RequestIDMiddleware  # noqa: E402
+
+app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -53,12 +61,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# Static files — serve uploaded photos & QR codes
-# ---------------------------------------------------------------------------
-uploads_path = Path(settings.UPLOAD_DIR)
-uploads_path.mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")
+# Stage S1: the public `/uploads` StaticFiles mount has been removed.
+# Participant photos are served only through the authenticated
+# GET /api/participants/{id}/photo route. Legacy QR PNGs are never served.
 
 # ---------------------------------------------------------------------------
 # Routers
