@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   User, Mail, Phone, Building, AlertCircle, ArrowLeft, Brain,
-  MapPin, Calendar,
+  MapPin, Calendar, Tag, Check, X,
 } from 'lucide-react'
 import client from '../api/client'
 import toast from 'react-hot-toast'
@@ -22,7 +22,7 @@ const OAIC_GUIDELINES = [
   'Registration is open to students, researchers, professionals, and speakers.',
   'Each participant must register with a unique email address.',
   'Upload a clear, front-facing photograph for AI-powered face recognition at check-in.',
-  'The registration fee of ₹300 is non-refundable once paid.',
+  'The registration fee of ₹300 is non-refundable once paid (unless using an authorized waiver coupon).',
   'Your QR code will be emailed after successful registration — keep it handy for session entry.',
   'Sessions may have limited capacity; check-in is first-come, first-served.',
   'For queries, contact info@oaic.in.',
@@ -44,6 +44,11 @@ export default function EventRegister() {
   const [photoConsent, setPhotoConsent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState(null)
+  const [validatingCoupon, setValidatingCoupon] = useState(false)
 
   /* ── Fetch event + sessions ── */
   useEffect(() => {
@@ -75,7 +80,35 @@ export default function EventRegister() {
       prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
     )
 
-  /* ── Submit registration (after optional payment) ── */
+  /* ── Apply Coupon Code ── */
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast.error('Please enter a coupon code')
+      return
+    }
+    setValidatingCoupon(true)
+    try {
+      const res = await client.post(`/events/${eventSlug}/validate-coupon`, {
+        code: couponCode.trim(),
+      })
+      setAppliedCoupon(res.data)
+      toast.success(res.data.message || 'Coupon applied! Registration fee waived.')
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Invalid or expired coupon code'
+      toast.error(typeof msg === 'string' ? msg : 'Invalid coupon code')
+      setAppliedCoupon(null)
+    } finally {
+      setValidatingCoupon(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponCode('')
+    toast.success('Coupon removed')
+  }
+
+  /* ── Submit registration (after payment or coupon bypass) ── */
   const submitRegistration = async (paymentOrderId = null) => {
     const fd = new FormData()
     fd.append('name', form.name)
@@ -85,7 +118,11 @@ export default function EventRegister() {
     fd.append('category', form.category)
     fd.append('photo', photo)
     if (event?.id) fd.append('event_id', String(event.id))
-    if (paymentOrderId) {
+
+    if (appliedCoupon) {
+      fd.append('coupon_code', appliedCoupon.code)
+      fd.append('payment_status', 'SUCCESS')
+    } else if (paymentOrderId) {
       fd.append('payment_order_id', paymentOrderId)
       fd.append('payment_status', 'SUCCESS')
     }
@@ -104,9 +141,12 @@ export default function EventRegister() {
 
     setLoading(true)
     try {
-      const paymentEnabled = event?.registration_fee > 0
+      const feeRequired = event?.registration_fee && event.registration_fee > 0
 
-      if (paymentEnabled) {
+      // If coupon is applied OR event is free, completely bypass Cashfree payment gateway!
+      if (appliedCoupon || !feeRequired) {
+        await submitRegistration()
+      } else {
         /* Create Cashfree order */
         const orderRes = await client.post('/payments/create-order', {
           event_slug: eventSlug,
@@ -133,9 +173,6 @@ export default function EventRegister() {
         } else {
           toast.error('Payment was not completed. Please try again.')
         }
-      } else {
-        /* Free event — register directly */
-        await submitRegistration()
       }
     } catch (err) {
       const msg = err.response?.data?.detail || 'Registration failed'
@@ -313,10 +350,67 @@ export default function EventRegister() {
           </span>
         </label>
 
+        {/* Coupon Code / Payment Bypass Section */}
+        {event?.registration_fee > 0 && (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                <Tag className="h-4 w-4 text-primary" /> Have a Coupon / Waiver Code?
+              </span>
+              {appliedCoupon && (
+                <span className="text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+                  100% OFF (FREE)
+                </span>
+              )}
+            </div>
+
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-emerald-800 text-sm tracking-wider">
+                    {appliedCoupon.code}
+                  </span>
+                  <span className="text-xs text-emerald-600 font-medium">
+                    — Payment Bypassed (Free Registration)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="text-xs text-red-600 hover:text-red-800 font-semibold cursor-pointer underline"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter coupon code (e.g. OAICFREE)"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  className="flex-1 uppercase font-mono rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <Button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  loading={validatingCoupon}
+                  variant="primary"
+                  size="sm"
+                >
+                  Apply Code
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         <Button type="submit" loading={loading} className="w-full" size="lg" variant="accent">
-          {event?.registration_fee > 0
+          {appliedCoupon
+            ? 'Complete Free Registration (Coupon Applied)'
+            : event?.registration_fee > 0
             ? `Pay ${feeDisplay} & Register`
-            : 'Complete Registration'}
+            : 'Complete Free Registration'}
         </Button>
       </form>
     </div>

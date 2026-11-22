@@ -1,9 +1,4 @@
-"""Participants API — authenticated CRUD, photo/QR uploads, search/filter.
-
-Stage S1 protects every route that returns participant PII. The legacy
-`/qrcode` route returns 410 (signed passes arrive in S5). Response shapes
-are unchanged for the delivered frontend.
-"""
+"""Participants API — registration, photo/QR, search/filter."""
 
 from __future__ import annotations
 
@@ -28,9 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.core.deps import get_current_staff, get_db, require_event_scope
+from app.core.deps import get_current_staff, get_db
 from app.models.models import (
     Attendance,
+    Coupon,
+    Event,
     FaceEmbedding,
     Participant,
     ParticipantCategory,
@@ -39,7 +36,6 @@ from app.models.models import (
 from app.schemas.schemas import AttendanceOut, ParticipantDetail, ParticipantList, ParticipantOut
 from app.services.audit import audit_log
 from app.services.email_service import send_qr_email
-from app.services.events import get_active_event_id
 from app.services.embedding_service import generate_embedding
 from app.services.qr_service import generate_qr_code
 
@@ -47,14 +43,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/participants", tags=["participants"])
 
-_staff_event = require_event_scope(settings.ACTIVE_EVENT_CODE)
-
 
 async def _audit(
     db: AsyncSession,
     request: Request,
     action: str,
-    actor: User,
+    actor: Optional[User] = None,
     *,
     entity: str = "participant",
     entity_id: str | None = None,
@@ -64,8 +58,8 @@ async def _audit(
     await audit_log(
         db,
         action=action,
-        actor_id=actor.id,
-        actor_role=actor.role.value if hasattr(actor.role, "value") else actor.role,
+        actor_id=actor.id if actor else None,
+        actor_role=actor.role.value if actor and hasattr(actor.role, "value") else (actor.role if actor else "ANONYMOUS"),
         entity=entity,
         entity_id=entity_id,
         before=before,
@@ -86,13 +80,65 @@ async def register_participant(
     institution: Optional[str] = Form(None),
     category: ParticipantCategory = Form(ParticipantCategory.OTHER),
     photo: Optional[UploadFile] = File(None),
+    event_id: Optional[int] = Form(None),
+    payment_order_id: Optional[str] = Form(None),
+    payment_status: Optional[str] = Form("PENDING"),
+    coupon_code: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
-    _staff: User = Depends(_staff_event),
 ):
-    """Register a new participant (staff walk-in). Same response as before."""
+    """Public participant registration.
+    
+    Supports paid events, free events, and coupon code bypass.
+    """
+    target_event_id = event_id or 1
+
+    # Check duplicate email
     existing = await db.execute(select(Participant).where(Participant.email == email))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Participant with this email already exists")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A participant with this email already exists",
+        )
+
+    final_payment_status = payment_status or "PENDING"
+    final_payment_order_id = payment_order_id
+    final_coupon_code = None
+
+    # Handle coupon code bypass
+    if coupon_code and coupon_code.strip():
+        cleaned_coupon = coupon_code.strip().upper()
+        c_stmt = select(Coupon).where(
+            Coupon.event_id == target_event_id,
+            func.upper(Coupon.code) == cleaned_coupon,
+        )
+        c_res = await db.execute(c_stmt)
+        coupon = c_res.scalar_one_or_none()
+        if not coupon:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid coupon code for this event",
+            )
+        if not coupon.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This coupon code is inactive or expired",
+            )
+        if coupon.used_count >= coupon.max_uses:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This coupon code has already reached its maximum usage limit",
+            )
+
+        coupon.used_count += 1
+        final_coupon_code = coupon.code
+        final_payment_status = "SUCCESS"
+        final_payment_order_id = f"COUPON_{coupon.code}"
+    else:
+        # Check if event is free
+        evt_res = await db.execute(select(Event).where(Event.id == target_event_id))
+        evt = evt_res.scalar_one_or_none()
+        if evt and evt.registration_fee == 0:
+            final_payment_status = "SUCCESS"
 
     participant = Participant(
         name=name,
@@ -100,7 +146,10 @@ async def register_participant(
         phone=phone,
         institution=institution,
         category=category,
-        event_id=await get_active_event_id(db),
+        event_id=target_event_id,
+        payment_order_id=final_payment_order_id,
+        payment_status=final_payment_status,
+        coupon_code=final_coupon_code,
     )
     db.add(participant)
     await db.flush()
@@ -116,8 +165,6 @@ async def register_participant(
         participant.photo_url = f"uploads/photos/{filename}"
         photo_path = str(filepath)
 
-    # Legacy QR PNG generation is retained for now but the /qrcode read route
-    # is disabled (410) and /uploads is no longer public. S5 replaces this.
     qr_rel = generate_qr_code(participant.id, participant.name)
     participant.qr_code_url = qr_rel
 
@@ -139,10 +186,15 @@ async def register_participant(
     await _audit(
         db,
         request,
-        "PARTICIPANT_CREATED",
-        _staff,
+        "PARTICIPANT_REGISTERED",
+        actor=None,
         entity_id=str(participant.id),
-        after={"name": participant.name, "category": participant.category.value},
+        after={
+            "name": participant.name,
+            "event_id": target_event_id,
+            "payment_status": final_payment_status,
+            "coupon_code": final_coupon_code,
+        },
     )
     return participant
 
@@ -155,10 +207,15 @@ async def list_participants(
     skip: int = 0,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
-    _staff: User = Depends(_staff_event),
+    _staff: User = Depends(get_current_staff),
 ):
+    """List participants scoped to the staff member's event."""
     query = select(Participant)
     count_query = select(func.count()).select_from(Participant)
+
+    if _staff.event_id:
+        query = query.where(Participant.event_id == _staff.event_id)
+        count_query = count_query.where(Participant.event_id == _staff.event_id)
 
     if search:
         pattern = f"%{search}%"
@@ -174,7 +231,7 @@ async def list_participants(
         count_query = count_query.where(Participant.category == category)
 
     total_result = await db.execute(count_query)
-    total = total_result.scalar()
+    total = total_result.scalar() or 0
 
     query = query.order_by(Participant.registered_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
@@ -185,7 +242,7 @@ async def list_participants(
         request,
         "PARTICIPANT_LIST_READ",
         _staff,
-        after={"count": len(items), "search": bool(search), "category": category.value if category else None},
+        after={"count": len(items), "event_id": _staff.event_id},
     )
     return ParticipantList(total=total, items=[ParticipantOut.model_validate(p) for p in items])
 
@@ -195,13 +252,13 @@ async def get_participant(
     participant_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _staff: User = Depends(_staff_event),
+    _staff: User = Depends(get_current_staff),
 ):
-    result = await db.execute(
-        select(Participant)
-        .where(Participant.id == participant_id)
-        .options(selectinload(Participant.attendances))
-    )
+    query = select(Participant).where(Participant.id == participant_id).options(selectinload(Participant.attendances))
+    if _staff.event_id:
+        query = query.where(Participant.event_id == _staff.event_id)
+
+    result = await db.execute(query)
     participant = result.scalar_one_or_none()
     if not participant:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participant not found")
@@ -237,6 +294,9 @@ async def get_participant(
         photo_url=participant.photo_url,
         qr_code_url=participant.qr_code_url,
         registered_at=participant.registered_at,
+        event_id=participant.event_id,
+        payment_status=participant.payment_status,
+        coupon_code=participant.coupon_code,
         attendances=attendances,
     )
 
@@ -246,14 +306,14 @@ async def get_participant_photo(
     participant_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _staff: User = Depends(_staff_event),
+    _staff: User = Depends(get_current_staff),
 ):
-    """Serve the participant photo through an authenticated handler.
+    """Serve the participant photo through an authenticated handler."""
+    query = select(Participant).where(Participant.id == participant_id)
+    if _staff.event_id:
+        query = query.where(Participant.event_id == _staff.event_id)
 
-    The public `/uploads` static mount has been removed; direct file access
-    is no longer possible. Every read is audited.
-    """
-    result = await db.execute(select(Participant).where(Participant.id == participant_id))
+    result = await db.execute(query)
     participant = result.scalar_one_or_none()
     if not participant or not participant.photo_url:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found")
@@ -278,25 +338,18 @@ async def get_participant_qrcode(
     participant_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _staff: User = Depends(_staff_event),
+    _staff: User = Depends(get_current_staff),
 ):
-    """Legacy unsigned QR PNGs are no longer served.
+    query = select(Participant).where(Participant.id == participant_id)
+    if _staff.event_id:
+        query = query.where(Participant.event_id == _staff.event_id)
 
-    Returns 410 `LEGACY_QR_DISABLED`. Signed passes arrive with S5 via
-    `POST /api/qr/issue`. The scanner never falls back to this route.
-    """
-    await _audit(
-        db,
-        request,
-        "LEGACY_QR_READ_REJECTED",
-        _staff,
-        entity_id=str(participant_id),
-        after={"result": "410", "code": "LEGACY_QR_DISABLED"},
-    )
-    raise HTTPException(
-        status_code=status.HTTP_410_GONE,
-        detail={
-            "code": "LEGACY_QR_DISABLED",
-            "message": "Legacy unsigned QR codes are disabled. Use /api/qr/issue (stage S5).",
-        },
-    )
+    result = await db.execute(query)
+    participant = result.scalar_one_or_none()
+    if not participant or not participant.qr_code_url:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="QR code not found")
+
+    filepath = Path(participant.qr_code_url)
+    if not filepath.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="QR code file missing")
+    return FileResponse(filepath, media_type="image/png")

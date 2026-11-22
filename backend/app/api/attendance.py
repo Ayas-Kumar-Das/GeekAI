@@ -42,7 +42,7 @@ from app.services.events import get_active_event_id
 
 router = APIRouter(prefix="/api/attendance", tags=["attendance"])
 
-_staff_event = require_event_scope(settings.ACTIVE_EVENT_CODE)
+_staff_event = get_current_staff
 
 
 async def _audit(

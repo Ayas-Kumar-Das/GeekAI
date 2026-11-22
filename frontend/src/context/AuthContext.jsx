@@ -17,8 +17,8 @@ export function AuthProvider({ children }) {
     setLoading(true)
     try {
       const { data } = await client.post('/auth/login', { email, password })
-      const { access_token, role, name } = data
-      const userData = { role, name }
+      const { access_token, role, name, event_id, event_name, event_slug } = data
+      const userData = { role, name, event_id, event_name, event_slug }
       localStorage.setItem('token', access_token)
       localStorage.setItem('user', JSON.stringify(userData))
       setToken(access_token)

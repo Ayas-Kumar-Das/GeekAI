@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_admin, get_db
-from app.models.models import Event, Session
-from app.schemas.schemas import EventOut, SessionOut
+from app.models.models import Coupon, Event, Session
+from app.schemas.schemas import EventOut, SessionOut, ValidateCouponRequest, ValidateCouponResponse
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -43,3 +43,41 @@ async def get_event_sessions(slug: str, db: AsyncSession = Depends(get_db)):
         .order_by(Session.start_time)
     )
     return result.scalars().all()
+
+
+@router.post("/{slug}/validate-coupon", response_model=ValidateCouponResponse)
+async def validate_coupon(
+    slug: str,
+    body: ValidateCouponRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Validate a coupon code for an event to bypass payment."""
+    event_result = await db.execute(select(Event).where(Event.slug == slug))
+    event = event_result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    cleaned_code = body.code.strip().upper()
+    coupon_result = await db.execute(
+        select(Coupon).where(
+            Coupon.event_id == event.id,
+            func.upper(Coupon.code) == cleaned_code,
+        )
+    )
+    coupon = coupon_result.scalar_one_or_none()
+    if not coupon:
+        raise HTTPException(status_code=400, detail="Invalid coupon code for this event")
+
+    if not coupon.is_active:
+        raise HTTPException(status_code=400, detail="This coupon code is inactive or expired")
+
+    if coupon.used_count >= coupon.max_uses:
+        raise HTTPException(status_code=400, detail="This coupon has already reached its maximum usage limit (one-time coupon already used)")
+
+    return ValidateCouponResponse(
+        valid=True,
+        code=coupon.code,
+        message=f"Coupon {coupon.code} applied! Registration fee is waived.",
+        event_name=event.name,
+    )
+

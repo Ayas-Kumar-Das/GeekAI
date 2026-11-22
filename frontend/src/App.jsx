@@ -13,6 +13,7 @@ import Sessions from './pages/admin/Sessions'
 import Attendance from './pages/admin/Attendance'
 import Export from './pages/admin/Export'
 import Volunteers from './pages/admin/Volunteers'
+import Coupons from './pages/admin/Coupons'
 import VolunteerDashboard from './pages/volunteer/VolunteerDashboard'
 import FaceCheckIn from './pages/volunteer/FaceCheckIn'
 import QRScanner from './pages/volunteer/QRScanner'
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="sessions" element={<Sessions />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="volunteers" element={<Volunteers />} />
+        <Route path="coupons" element={<Coupons />} />
         <Route path="export" element={<Export />} />
       </Route>
 

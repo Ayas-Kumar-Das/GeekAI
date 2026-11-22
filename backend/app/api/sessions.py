@@ -1,8 +1,4 @@
-"""Sessions API — CRUD for symposium sessions.
-
-Stage S1 protects the previously anonymous list/detail reads with staff
-principal and event scope. Writes were already admin-only and gain scope.
-"""
+"""Sessions API — CRUD for event sessions."""
 
 from __future__ import annotations
 
@@ -10,17 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
-from app.core.deps import get_current_admin, get_current_staff, get_db, require_event_scope
+from app.core.deps import get_current_admin, get_current_staff, get_db
 from app.models.models import Attendance, Session, User
 from app.schemas.schemas import SessionCreate, SessionDetail, SessionOut, SessionUpdate
 from app.services.audit import audit_log
-from app.services.events import get_active_event_id
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
-
-_staff_event = require_event_scope(settings.ACTIVE_EVENT_CODE)
-_admin_event = require_event_scope(settings.ACTIVE_EVENT_CODE)
 
 
 async def _audit(
@@ -52,11 +43,12 @@ async def create_session(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
-    session = Session(**body.model_dump(), event_id=await get_active_event_id(db))
+    target_event_id = _admin.event_id or 1
+    session = Session(**body.model_dump(), event_id=target_event_id)
     db.add(session)
     await db.flush()
     await db.refresh(session)
-    await _audit(db, request, "SESSION_CREATED", _admin, str(session.id), {"name": session.name})
+    await _audit(db, request, "SESSION_CREATED", _admin, str(session.id), {"name": session.name, "event_id": target_event_id})
     return session
 
 
@@ -64,11 +56,16 @@ async def create_session(
 async def list_sessions(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _staff: User = Depends(_staff_event),
+    _staff: User = Depends(get_current_staff),
 ):
-    result = await db.execute(select(Session).order_by(Session.start_time))
+    query = select(Session)
+    if _staff.event_id:
+        query = query.where(Session.event_id == _staff.event_id)
+    query = query.order_by(Session.start_time)
+
+    result = await db.execute(query)
     sessions = result.scalars().all()
-    await _audit(db, request, "SESSION_LIST_READ", _staff, after={"count": len(sessions)})
+    await _audit(db, request, "SESSION_LIST_READ", _staff, after={"count": len(sessions), "event_id": _staff.event_id})
     return sessions
 
 
@@ -77,9 +74,12 @@ async def get_session(
     session_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _staff: User = Depends(_staff_event),
+    _staff: User = Depends(get_current_staff),
 ):
-    result = await db.execute(select(Session).where(Session.id == session_id))
+    query = select(Session).where(Session.id == session_id)
+    if _staff.event_id:
+        query = query.where(Session.event_id == _staff.event_id)
+    result = await db.execute(query)
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
@@ -87,7 +87,7 @@ async def get_session(
     count_result = await db.execute(
         select(func.count()).select_from(Attendance).where(Attendance.session_id == session_id)
     )
-    count = count_result.scalar()
+    count = count_result.scalar() or 0
 
     await _audit(db, request, "SESSION_READ", _staff, str(session_id), {"attendance_count": count})
     return SessionDetail(
@@ -110,7 +110,10 @@ async def update_session(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
-    result = await db.execute(select(Session).where(Session.id == session_id))
+    query = select(Session).where(Session.id == session_id)
+    if _admin.event_id:
+        query = query.where(Session.event_id == _admin.event_id)
+    result = await db.execute(query)
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
@@ -132,7 +135,10 @@ async def delete_session(
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
-    result = await db.execute(select(Session).where(Session.id == session_id))
+    query = select(Session).where(Session.id == session_id)
+    if _admin.event_id:
+        query = query.where(Session.event_id == _admin.event_id)
+    result = await db.execute(query)
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")

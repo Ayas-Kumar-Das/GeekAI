@@ -18,7 +18,7 @@ from app.core.security import (
     token_claims,
     verify_password,
 )
-from app.models.models import User, UserRole
+from app.models.models import Event, User, UserRole
 from app.schemas.schemas import (
     BootstrapRequest,
     BootstrapResponse,
@@ -112,10 +112,20 @@ async def login(
             detail="Account deactivated",
         )
 
+    event_name = None
+    event_slug = None
+    if user.event_id:
+        evt_res = await db.execute(select(Event).where(Event.id == user.event_id))
+        evt = evt_res.scalar_one_or_none()
+        if evt:
+            event_name = evt.name
+            event_slug = evt.slug
+
+    effective_event_ids = [event_slug] if event_slug else _event_ids(user)
     claims = token_claims(
         sub=user.id,
         role=user.role.value,
-        event_ids=_event_ids(user),
+        event_ids=effective_event_ids,
         password_changed_at=(
             user.password_changed_at.isoformat() if user.password_changed_at else None
         ),
@@ -129,14 +139,17 @@ async def login(
         actor_id=user.id,
         actor_role=user.role.value,
         entity_id=str(user.id),
-        after={"result": "success", "must_change_password": must_change},
+        after={"result": "success", "must_change_password": must_change, "event_id": user.event_id},
     )
     return TokenResponse(
         access_token=token,
         role=user.role,
         name=user.name,
         must_change_password=must_change,
-        event_ids=_event_ids(user),
+        event_ids=effective_event_ids,
+        event_id=user.event_id,
+        event_name=event_name,
+        event_slug=event_slug,
     )
 
 

@@ -1,8 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { LogOut, Menu, X } from 'lucide-react'
+import { Brain, LogOut, Menu, X } from 'lucide-react'
 import { useState } from 'react'
-import { KonarkMark } from './public/KonarkMark'
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth()
@@ -19,7 +18,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2 text-white font-bold text-xl">
-            <KonarkMark className="h-6 w-6 text-accent" />
+            <Brain className="h-7 w-7 text-accent" />
             GeekAI
           </Link>
 
@@ -87,4 +86,3 @@ export default function Navbar() {
     </nav>
   )
 }
-

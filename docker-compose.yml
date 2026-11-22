@@ -2,18 +2,16 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     container_name: geekai-postgres
-    # All database credentials come from the root .env file (never committed).
-    # The operator must create .env from .env.example before starting compose.
-    env_file:
-      - .env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-geekai}
+      POSTGRES_USER: geekai
+      POSTGRES_PASSWORD: geekai123
+      POSTGRES_DB: geekai
     ports:
       - "5438:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-geekai} -d ${POSTGRES_DB:-geekai}"]
+      test: ["CMD-SHELL", "pg_isready -U geekai -d geekai"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -23,16 +21,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: geekai-backend
-    # Secrets are supplied at runtime from the root .env file. Generate a
-    # JWT secret with: python -c "import secrets; print(secrets.token_urlsafe(64))"
-    env_file:
-      - .env
     environment:
-      # DATABASE_URL is supplied by the root .env via env_file. Under Compose
-      # its host MUST be `postgres` (not `localhost`) — see .env.example.
-      ACTIVE_EVENT_CODE: ${ACTIVE_EVENT_CODE:-oas-2026}
-      QR_ISSUER: ${QR_ISSUER:-geekai-hub-01}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      DATABASE_URL: postgresql+asyncpg://geekai:geekai123@postgres:5432/geekai
+      SECRET_KEY: change-me-in-production-geekai-super-secret-key-32chars
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000"
       PYTHONUNBUFFERED: "1"
       CASHFREE_APP_ID: ""
       CASHFREE_SECRET_KEY: ""

@@ -26,6 +26,9 @@ class TokenResponse(BaseModel):
     # Additive field — the delivered frontend ignores unknown response keys.
     must_change_password: bool = False
     event_ids: List[str] = []
+    event_id: Optional[int] = None
+    event_name: Optional[str] = None
+    event_slug: Optional[str] = None
 
 
 class RegisterRequest(BaseModel):
@@ -68,6 +71,8 @@ class UserOut(BaseModel):
     role: UserRole
     is_active: bool
     created_at: datetime
+    event_id: Optional[int] = None
+    event_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -81,6 +86,8 @@ class VolunteerOut(BaseModel):
     is_active: bool
     created_at: datetime
     attendance_count: int = 0
+    event_id: Optional[int] = None
+    event_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -90,6 +97,7 @@ class VolunteerCreate(BaseModel):
     name: str = Field(min_length=1)
     email: EmailStr
     password: str = Field(min_length=6)
+    event_id: Optional[int] = None
 
 
 # ===== Participants =========================================================
@@ -101,6 +109,7 @@ class ParticipantCreate(BaseModel):
     phone: Optional[str] = None
     institution: Optional[str] = None
     category: ParticipantCategory = ParticipantCategory.OTHER
+    coupon_code: Optional[str] = None
 
 
 class ParticipantOut(BaseModel):
@@ -113,6 +122,9 @@ class ParticipantOut(BaseModel):
     photo_url: Optional[str] = None
     qr_code_url: Optional[str] = None
     registered_at: datetime
+    event_id: Optional[int] = None
+    payment_status: Optional[str] = None
+    coupon_code: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -281,6 +293,42 @@ class VerifyPaymentResponse(BaseModel):
     order_status: str
     paid: bool
     amount: int  # in paise
+
+
+# ===== Coupons ===============================================================
+
+class CouponCreate(BaseModel):
+    code: str = Field(min_length=2, max_length=50)
+    description: Optional[str] = None
+    max_uses: int = Field(default=1, ge=1)
+    is_active: bool = True
+    event_id: Optional[int] = None
+
+
+class CouponOut(BaseModel):
+    id: int
+    code: str
+    event_id: int
+    event_name: Optional[str] = None
+    description: Optional[str] = None
+    max_uses: int = 1
+    used_count: int = 0
+    is_active: bool = True
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ValidateCouponRequest(BaseModel):
+    code: str
+
+
+class ValidateCouponResponse(BaseModel):
+    valid: bool
+    code: str
+    message: str
+    event_name: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
