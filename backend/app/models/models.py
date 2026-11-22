@@ -88,9 +88,15 @@ class Participant(Base):
         nullable=False,
     )
 
+    # Event FK + payment fields
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=True, index=True)
+    payment_order_id = Column(String(255), nullable=True)
+    payment_status = Column(String(50), nullable=True, default="PENDING")  # PENDING, SUCCESS, FAILED
+
     # Relationships
     face_embeddings = relationship("FaceEmbedding", back_populates="participant", cascade="all, delete-orphan")
     attendances = relationship("Attendance", back_populates="participant", cascade="all, delete-orphan")
+    event = relationship("Event", back_populates="participants")
 
 
 class FaceEmbedding(Base):
@@ -116,8 +122,12 @@ class Session(Base):
     location = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
+    # Event FK
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=True, index=True)
+
     # Relationships
     attendances = relationship("Attendance", back_populates="session", cascade="all, delete-orphan")
+    event = relationship("Event", back_populates="sessions")
 
 
 class Attendance(Base):
@@ -143,3 +153,26 @@ class Attendance(Base):
     participant = relationship("Participant", back_populates="attendances")
     session = relationship("Session", back_populates="attendances")
     marked_by_user = relationship("User", back_populates="attendances_marked")
+
+
+class Event(Base):
+    __tablename__ = "events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False)
+    slug = Column(String(100), unique=True, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    tagline = Column(String(255), nullable=True)
+    logo_url = Column(String(512), nullable=True)
+    banner_url = Column(String(512), nullable=True)
+    registration_fee = Column(Integer, nullable=False, default=0)  # in paise/smallest unit
+    is_active = Column(Boolean, default=True, nullable=False)
+    event_date = Column(DateTime(timezone=True), nullable=True)
+    venue = Column(String(255), nullable=True)
+    registration_deadline = Column(DateTime(timezone=True), nullable=True)
+    website = Column(String(512), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    # Relationships
+    participants = relationship("Participant", back_populates="event")
+    sessions = relationship("Session", back_populates="event")

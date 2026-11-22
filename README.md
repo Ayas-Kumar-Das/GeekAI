@@ -1,367 +1,287 @@
-# GeekAI — Smart Registration & Attendance Management
+# GeekAI — Multi-Event Registration & Attendance Platform
 
-> **Odisha AI Symposium** · Designed for 500–1,000 participants
+> AI-powered event registration, face check-in, and real-time attendance management — inspired by Unstop.
 
-GeekAI is a full-stack platform that handles participant registration, face-recognition-based event check-in, QR-code session attendance, and a comprehensive admin dashboard — all in one system.
+[![Docker](https://img.shields.io/badge/Docker-Compose-blue)](https://docs.docker.com/compose/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/Frontend-React%2019-61DAFB)](https://react.dev/)
+[![PostgreSQL](https://img.shields.io/badge/DB-PostgreSQL%2016%20+%20pgvector-336791)](https://github.com/pgvector/pgvector)
 
 ---
 
-## Architecture
+## Overview
+
+GeekAI is a multi-event platform that lets organisations host events with:
+
+- **Online registration** with photo upload and QR code generation
+- **AI face check-in** (InsightFace + pgvector cosine similarity)
+- **QR & manual session attendance** tracking per session
+- **Cashfree payment gateway** integration for paid events
+- **Admin panel** for participant management, attendance, analytics, and CSV export
+- **Volunteer dashboard** for face check-in and QR scanning at the venue
+
+Currently hosting: **Odisha AI Conference (OAIC)** — registration fee ₹300.
+
+---
+
+## Quick Start (Docker)
+
+### Prerequisites
+- Docker + Docker Compose
+- Git
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/msVivekRanjan/GeekAI.git
+cd GeekAI
+```
+
+### 2. Configure environment
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set at minimum:
+```
+SECRET_KEY=your-random-secret-32-chars-min
+SMTP_HOST=smtp.gmail.com
+SMTP_USER=your@gmail.com
+SMTP_PASSWORD=your-app-password
+
+# Cashfree (sandbox credentials from https://merchant.cashfree.com)
+CASHFREE_APP_ID=your_app_id
+CASHFREE_SECRET_KEY=your_secret_key
+CASHFREE_ENV=sandbox   # change to "production" for live
+```
+
+> [!NOTE]
+> Cashfree sandbox credentials are free — sign up at https://merchant.cashfree.com and generate test API keys.
+> Without Cashfree keys the payment step will fail (503). Set `registration_fee = 0` in the events table if you want to skip payment during development.
+
+### 3. Start all services
+```bash
+docker compose up -d
+```
+
+This will:
+1. Start PostgreSQL 16 + pgvector
+2. Apply all Alembic schema migrations automatically
+3. Seed default admin and volunteer accounts
+4. Start the FastAPI backend on port 8000
+5. Build and serve the React SPA via nginx on port 5173
+
+### 4. Open the app
+| URL | Description |
+|-----|-------------|
+| http://localhost:5173 | GeekAI homepage + event discovery |
+| http://localhost:5173/events/oaic/register | OAIC registration form |
+| http://localhost:5173/login | Event Operator Login (admin/volunteer) |
+| http://localhost:8000/docs | FastAPI Swagger docs |
+
+### Default credentials (auto-seeded)
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@geekai.in | admin123 |
+| Volunteer | volunteer@geekai.in | volunteer123 |
+
+> [!CAUTION]
+> Change these immediately in production via `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` env vars.
+
+---
+
+## Project Structure
 
 ```
 GeekAI/
-├── frontend/          React + Vite (registration portal, admin dashboard, volunteer interface)
-├── backend/           Python FastAPI (REST API, QR/email services, face embeddings)
-├── face-checkin/      Local Python app (OpenCV + InsightFace webcam check-in)
-└── README.md
+├── backend/                  # FastAPI + SQLAlchemy + Alembic
+│   ├── app/
+│   │   ├── api/              # Route handlers
+│   │   │   ├── auth.py       # Login / JWT
+│   │   │   ├── participants.py
+│   │   │   ├── sessions.py
+│   │   │   ├── attendance.py # QR, manual, face match
+│   │   │   ├── events.py     # Multi-event API
+│   │   │   ├── payments.py   # Cashfree create-order + verify
+│   │   │   ├── admin.py      # Admin + volunteer management
+│   │   │   └── embeddings.py
+│   │   ├── models/models.py  # SQLAlchemy ORM models
+│   │   ├── schemas/schemas.py
+│   │   ├── core/
+│   │   │   ├── config.py     # Pydantic settings (env vars)
+│   │   │   ├── db_init.py    # Migration runner + seeder
+│   │   │   ├── deps.py       # Auth dependencies
+│   │   │   └── security.py   # JWT + bcrypt
+│   │   └── services/
+│   │       ├── email_service.py
+│   │       ├── embedding_service.py  # InsightFace
+│   │       └── qr_service.py
+│   ├── migrations/
+│   │   └── versions/
+│   │       ├── 001_initial.py
+│   │       └── 002_multi_event_payment.py
+│   ├── Dockerfile
+│   ├── docker-entrypoint.sh  # Waits for PG, runs alembic upgrade head
+│   └── requirements.txt
+│
+├── frontend/                 # React 19 + Vite + Tailwind CSS v4
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Home.jsx          # GeekAI homepage + event cards
+│   │   │   ├── EventRegister.jsx # Reusable event registration
+│   │   │   ├── Login.jsx         # Event Operator Login
+│   │   │   ├── Register.jsx      # Legacy (preserved)
+│   │   │   ├── admin/            # Admin dashboard pages
+│   │   │   └── volunteer/        # Volunteer dashboard pages
+│   │   ├── components/
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── AdminLayout.jsx
+│   │   │   └── ui/               # Input, Button, PhotoCapture
+│   │   ├── context/AuthContext.jsx
+│   │   └── api/client.js         # Axios + JWT interceptors
+│   └── Dockerfile
+│
+├── face-checkin/             # Standalone Python face-check-in app
+│   ├── matcher.py            # InsightFace embedding matching
+│   ├── api_client.py         # Syncs with backend
+│   └── requirements.txt
+│
+├── docker-compose.yml
+├── .env.example
+└── tasks/
+    ├── todo.md
+    └── lessons.md
 ```
-
-### Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19, Vite 6, Tailwind CSS v4, React Router, TanStack Query |
-| Backend | Python 3.10+, FastAPI, SQLAlchemy (async), Alembic |
-| Database | PostgreSQL with pgvector extension |
-| Face AI | InsightFace / ArcFace (512-d embeddings) |
-| Local Check-in | OpenCV, InsightFace (runs on registration desk computer) |
-
-### System Flow
-
-```
-┌─────────────┐    ┌─────────────┐    ┌───────────────┐
-│  Registration│───▶│   FastAPI    │───▶│  PostgreSQL   │
-│   Portal     │    │   Backend   │    │  + pgvector   │
-└─────────────┘    └──────┬──────┘    └───────────────┘
-                          │
-              ┌───────────┼───────────┐
-              ▼           ▼           ▼
-        ┌──────────┐ ┌──────────┐ ┌──────────────┐
-        │  Admin   │ │Volunteer │ │ Face Check-in│
-        │Dashboard │ │QR Scanner│ │  (Local App) │
-        └──────────┘ └──────────┘ └──────────────┘
-```
-
----
-
-## Quick Start
-
-### 🚀 Option A: 1-Command Startup with Docker (Recommended)
-
-The easiest way to run the complete GeekAI platform (PostgreSQL with pgvector, FastAPI Backend, React Frontend, with automated migrations and default account seeding):
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/msVivekRanjan/GeekAI.git
-cd GeekAI
-
-# 2. Start all services
-docker compose up --build
-```
-
-Once started, all services are ready:
-- **Web Application**: [http://localhost:5173](http://localhost:5173)
-- **Backend API Docs (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **PostgreSQL with pgvector**: `localhost:5432`
-
-#### Default Login Credentials
-| Portal | URL | Email | Password |
-|---|---|---|---|
-| **Admin Dashboard** | `http://localhost:5173/admin` | `admin@geekai.in` | `admin123` |
-| **Volunteer Dashboard** | `http://localhost:5173/volunteer` | `volunteer@geekai.in` | `volunteer123` |
-| **Public Registration** | `http://localhost:5173/register` | *(Publicly accessible)* | — |
-
----
-
-### 💻 Option B: Manual Local Development Setup
-
-#### Prerequisites
-
-- **Python 3.10+**
-- **Node.js 18+** & npm
-- **PostgreSQL 14+** with [pgvector](https://github.com/pgvector/pgvector) extension installed
-- A webcam (for face check-in)
-
-### 1. Database Setup
-
-```bash
-# Create the database
-createdb geekai
-
-# Enable pgvector extension
-psql geekai -c "CREATE EXTENSION IF NOT EXISTS vector;"
-```
-
-### 2. Backend Setup
-
-```bash
-cd backend
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate   # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your database URL, secret key, and SMTP settings
-
-# Run database migrations
-alembic upgrade head
-
-# Seed the initial admin user
-# (This creates the first admin account — see .env for default credentials)
-curl -X POST http://localhost:8000/api/auth/seed \
-  -H "Content-Type: application/json" \
-  -d '{"email": "admin@geekai.in", "password": "admin123", "name": "System Admin"}'
-
-# Start the server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 3. Frontend Setup
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start dev server (proxies /api/* to localhost:8000)
-npm run dev
-```
-
-The frontend runs at **http://localhost:5173**
-
-### 4. Face Check-in Setup (Local App)
-
-```bash
-cd face-checkin
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure
-cp .env.example .env
-# Edit .env with backend API URL and volunteer credentials
-
-# Run the check-in app
-python main.py
-```
-
-> **Note:** InsightFace will download model weights (~300 MB) on first run.
-
----
-
-## Features
-
-### 📝 Public Registration Portal (`/register`)
-- Online registration form with photo capture/upload
-- Captures: name, email, phone, institution, category
-- Generates face embedding from photo (InsightFace ArcFace, 512-dim)
-- Generates QR code with participant ID
-- Emails QR code to participant
-- Duplicate email detection
-
-### 🎛️ Admin Dashboard (`/admin`)
-- **Dashboard** — Live stats: total participants, check-ins, sessions, category breakdown
-- **Participants** — Searchable, filterable list; click for full profile with attendance history
-- **Sessions** — Create, edit, delete symposium sessions
-- **Attendance** — Event-level and per-session monitoring with method breakdown
-- **Volunteers** — Add/remove volunteers with custom email and password, toggle active status, track check-ins marked
-- **Export** — Download participants (CSV) and attendance (CSV/Excel)
-
-### 📱 Volunteer Interface (`/volunteer`)
-- **Event Face Check-In (`/volunteer/face-checkin`)** — Integrated camera-based face recognition for one-time event entry
-  - Captures webcam frame → matches against 512-d embeddings via InsightFace
-  - Displays matched participant profile, photo, category, and similarity score
-  - Options to confirm identity and **Mark Present** or **Mark Absent / Reject**
-  - Enforces one-time check-in (prevents duplicate event check-ins)
-  - Includes manual search fallback for event entry
-- **QR Scanner (`/volunteer/scan`)** — Camera-based QR scanning for individual symposium sessions
-  - Select session → scan QR → auto-validate → confirm attendance
-  - Clear feedback: ✅ success, ⚠️ already marked, ❌ invalid
-- **Manual Lookup (`/volunteer/manual`)** — Search participant by name, mark session attendance manually
-
-### 🎥 Face Check-in (Local Desktop App)
-- Webcam-based face detection using InsightFace
-- Downloads participant embeddings from backend
-- Real-time cosine similarity matching (all processing LOCAL)
-- Displays matched participant photo + details
-- Volunteer confirms with Y/N keys
-- Records event-level attendance via API
-- Manual lookup fallback (M key)
-- Auto-sync embeddings periodically
-
----
-
-## API Endpoints
-
-### Auth
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/auth/login` | Login → JWT token |
-| POST | `/api/auth/register` | Create user (admin only) |
-| POST | `/api/auth/seed` | Create initial admin |
-
-### Participants
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/participants/` | Register participant (multipart form + photo) |
-| GET | `/api/participants/` | List/search/filter participants |
-| GET | `/api/participants/{id}` | Participant details + attendance |
-| GET | `/api/participants/{id}/photo` | Serve photo |
-| GET | `/api/participants/{id}/qrcode` | Serve QR code |
-
-### Sessions
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/sessions/` | Create session (admin) |
-| GET | `/api/sessions/` | List sessions |
-| GET | `/api/sessions/{id}` | Session detail + attendance count |
-| PUT | `/api/sessions/{id}` | Update session (admin) |
-| DELETE | `/api/sessions/{id}` | Delete session (admin) |
-
-### Attendance
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/attendance/` | Record attendance (prevents duplicates) |
-| POST | `/api/attendance/face-match` | Identify participant from face snapshot & check event attendance |
-| GET | `/api/attendance/event` | Event-level check-ins |
-| GET | `/api/attendance/session/{id}` | Session attendance |
-| GET | `/api/attendance/stats` | Aggregate statistics |
-| POST | `/api/attendance/validate-qr` | Validate QR data |
-
-### Embeddings & Admin
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/embeddings/sync` | Download all embeddings (for face-checkin) |
-| GET | `/api/admin/dashboard` | Dashboard stats |
-| GET | `/api/admin/volunteers` | List all volunteers with attendance counts |
-| POST | `/api/admin/volunteers` | Add a new volunteer (custom name, email, password) |
-| PATCH | `/api/admin/volunteers/{id}/toggle-status` | Toggle volunteer active/inactive status |
-| DELETE | `/api/admin/volunteers/{id}` | Remove a volunteer account |
-| GET | `/api/admin/export/participants` | CSV export |
-| GET | `/api/admin/export/attendance` | CSV/Excel export |
-
----
-
-## Database Schema
-
-```
-users              participants         face_embeddings
-├── id (PK)        ├── id (PK)          ├── id (PK)
-├── email          ├── name             ├── participant_id (FK)
-├── password_hash  ├── email            ├── embedding vector(512)
-├── name           ├── phone            └── created_at
-├── role           ├── institution
-├── is_active      ├── category         sessions
-└── created_at     ├── photo_url        ├── id (PK)
-                   ├── qr_code_url      ├── name
-                   └── registered_at    ├── description
-                                        ├── start_time
-attendance                              ├── end_time
-├── id (PK)                             ├── location
-├── participant_id (FK)                 └── created_at
-├── session_id (FK, nullable)
-├── method (FACE/QR/MANUAL)
-├── marked_by (FK users)
-└── marked_at
-```
-
-- `session_id = NULL` → event-level attendance (face check-in at entry)
-- `session_id = <id>` → session-specific attendance (QR/manual)
-- Unique constraint on `(participant_id, session_id)` prevents duplicates
-- Partial unique index for event attendance where `session_id IS NULL`
 
 ---
 
 ## Environment Variables
 
-### Backend (`backend/.env`)
+Copy `.env.example` to `.env`. All variables with defaults are optional.
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://postgres:password@localhost:5432/geekai` |
-| `SECRET_KEY` | JWT signing key | (change in production!) |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiry | `480` |
-| `CORS_ORIGINS` | Allowed frontend origins | `http://localhost:3000,http://localhost:5173` |
-| `SMTP_HOST` | SMTP server | (empty = skip emails) |
-| `SMTP_PORT` | SMTP port | `587` |
-| `SMTP_USER` | SMTP username | |
-| `SMTP_PASSWORD` | SMTP password | |
-| `SMTP_FROM_EMAIL` | Sender email | `noreply@geekai.in` |
-| `UPLOAD_DIR` | Photo/QR storage directory | `uploads` |
-| `SEED_ADMIN_EMAIL` | Default admin email | `admin@geekai.in` |
-| `SEED_ADMIN_PASSWORD` | Default admin password | `admin123` |
-
-### Face Check-in (`face-checkin/.env`)
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `API_URL` | Backend API URL | `http://localhost:8000` |
-| `VOLUNTEER_EMAIL` | Login email | `volunteer@geekai.com` |
-| `VOLUNTEER_PASSWORD` | Login password | `volunteer123` |
-| `CAMERA_INDEX` | Webcam device index | `0` |
-| `MATCH_THRESHOLD` | Face match threshold | `0.4` |
-| `MODEL_NAME` | InsightFace model | `buffalo_l` |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | ✅ | set in compose | PostgreSQL async URL |
+| `SECRET_KEY` | ✅ | weak default | JWT signing key (min 32 chars) |
+| `CASHFREE_APP_ID` | For paid events | — | Cashfree merchant App ID |
+| `CASHFREE_SECRET_KEY` | For paid events | — | Cashfree secret key |
+| `CASHFREE_ENV` | — | `sandbox` | `sandbox` or `production` |
+| `BACKEND_URL` | — | `http://localhost:8000` | Used in Cashfree webhook URL |
+| `SMTP_HOST` | For emails | — | SMTP server (e.g. smtp.gmail.com) |
+| `SMTP_PORT` | — | `587` | SMTP port |
+| `SMTP_USER` | For emails | — | SMTP username |
+| `SMTP_PASSWORD` | For emails | — | SMTP password / app password |
+| `SMTP_FROM_EMAIL` | — | `noreply@geekai.in` | Sender address |
+| `SEED_ADMIN_EMAIL` | — | `admin@geekai.in` | Default admin email |
+| `SEED_ADMIN_PASSWORD` | — | `admin123` | Default admin password |
 
 ---
 
-## Deployment Notes
+## Multi-Event Architecture
 
-### Production Considerations
-- Change `SECRET_KEY` to a strong random value
-- Set up proper SMTP for email delivery
-- Use a managed PostgreSQL with pgvector support
-- Serve the frontend via nginx or a CDN
-- Run backend with Gunicorn + Uvicorn workers
-- Enable HTTPS
-- Set `CORS_ORIGINS` to your production domain
+GeekAI is designed to host multiple independent events. Each event has its own:
+- Branding (name, slug, logo, tagline, venue, date)
+- Registration fee (stored in paise; ₹300 = 30000)
+- Sessions (linked via `event_id`)
+- Participants (linked via `event_id`)
 
-### Building for Production
+### Add a new event (via psql or admin API):
+```sql
+INSERT INTO events (name, slug, description, tagline, registration_fee, is_active, event_date, venue, website)
+VALUES ('My Conference 2027', 'myconf27', 'Description...', 'Tagline', 50000, true, '2027-03-10', 'Venue Name', 'https://myconf.com');
+```
+
+The event will automatically appear on the homepage under "Active Events" and its registration page will be available at `/events/myconf27/register`.
+
+---
+
+## Cashfree Payment Setup
+
+1. Sign up at https://merchant.cashfree.com
+2. Under **Developers → API Keys**, create a sandbox key pair
+3. Copy the `App ID` and `Secret Key` into your `.env`:
+   ```
+   CASHFREE_APP_ID=CF_TEST_XXXX
+   CASHFREE_SECRET_KEY=cfsk_ma_XXXX
+   CASHFREE_ENV=sandbox
+   ```
+4. For production: change `CASHFREE_ENV=production` and use live credentials
+5. Restart the backend: `docker compose restart backend`
+
+> [!TIP]
+> Use Cashfree test card `4111 1111 1111 1111` / expiry `12/26` / CVV `123` for sandbox testing.
+
+---
+
+## Face Check-In Module
+
+The `face-checkin/` directory contains a standalone Python app for venue-side face recognition. It:
+1. Authenticates with the GeekAI backend as a volunteer
+2. Downloads face embeddings from the backend
+3. Opens a webcam and matches faces using InsightFace + cosine similarity
+4. Marks attendance via the backend API
 
 ```bash
-# Frontend
-cd frontend && npm run build
-# Output in frontend/dist/ — serve via nginx
+cd face-checkin
+cp .env.example .env   # set VOLUNTEER_EMAIL, VOLUNTEER_PASSWORD, API_BASE_URL
+pip install -r requirements.txt
+python matcher.py
+```
 
-# Backend
+> [!NOTE]
+> Requires a physical webcam. The volunteer browser-based Face Check-In is also available at `/volunteer/face-checkin` in the main app — no separate setup needed.
+
+---
+
+## Development (without Docker)
+
+### Backend
+```bash
 cd backend
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+# Set DATABASE_URL to a local PostgreSQL instance in .env
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
 ```
 
-### Docker Compose (One-Click Setup)
-
-To spin up PostgreSQL with pgvector, the FastAPI backend, and the React frontend with Nginx:
-
+### Frontend
 ```bash
-docker compose up -d --build
+cd frontend
+npm install
+npm run dev    # starts at http://localhost:5173
 ```
-
-- Frontend: `http://localhost:5173`
-- Backend API & Docs: `http://localhost:8000/docs`
-- PostgreSQL: `localhost:5432`
 
 ---
 
-## Default Credentials
+## API Reference
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | `admin@geekai.in` | `admin123` |
+Full interactive docs at: http://localhost:8000/docs
 
-> ⚠️ Change these immediately in production by updating `.env` and re-seeding.
+Key endpoints:
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/events/` | List active events |
+| `GET` | `/api/events/{slug}` | Event details + branding |
+| `GET` | `/api/events/{slug}/sessions` | Sessions for an event |
+| `POST` | `/api/payments/create-order` | Create Cashfree order |
+| `POST` | `/api/payments/verify` | Verify payment status |
+| `POST` | `/api/participants/` | Register participant |
+| `POST` | `/api/auth/login` | Get JWT token |
+| `GET` | `/api/admin/volunteers` | List volunteers (admin) |
+| `POST` | `/api/attendance/face-match` | Match face image |
+| `POST` | `/api/attendance/` | Record attendance |
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Commit your changes: `git commit -m "feat: add my feature"`
+4. Push and open a PR
 
 ---
 
 ## License
 
-Built for the Odisha AI Symposium. Internal use.
-
+MIT © GeekAI

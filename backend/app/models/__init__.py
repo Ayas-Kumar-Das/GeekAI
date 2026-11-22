@@ -4,6 +4,7 @@ from app.models.models import (
     Attendance,
     AttendanceMethod,
     Base,
+    Event,
     FaceEmbedding,
     Participant,
     ParticipantCategory,
@@ -22,5 +23,6 @@ __all__ = [
     "FaceEmbedding",
     "Session",
     "Attendance",
+    "Event",
 ]
 

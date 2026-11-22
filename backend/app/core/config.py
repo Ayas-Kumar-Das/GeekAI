@@ -62,5 +62,17 @@ class Settings(BaseSettings):
     SEED_ADMIN_PASSWORD: str = "admin123"
     SEED_ADMIN_NAME: str = "System Admin"
 
+    # Cashfree Payment Gateway
+    CASHFREE_APP_ID: str = ""
+    CASHFREE_SECRET_KEY: str = ""
+    CASHFREE_ENV: str = "sandbox"  # "sandbox" or "production"
+
+    @property
+    def cashfree_configured(self) -> bool:
+        return bool(self.CASHFREE_APP_ID and self.CASHFREE_SECRET_KEY)
+
+    # Backend base URL (for webhooks etc.)
+    BACKEND_URL: str = "http://localhost:8000"
+
 
 settings = Settings()

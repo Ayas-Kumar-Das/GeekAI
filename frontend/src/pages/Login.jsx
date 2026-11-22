@@ -34,8 +34,8 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Brain className="h-12 w-12 text-primary mx-auto mb-3" />
-          <h1 className="text-2xl font-bold text-gray-900">Staff Login</h1>
-          <p className="text-gray-500 mt-1">Admin &amp; Volunteer Access</p>
+          <h1 className="text-2xl font-bold text-gray-900">Event Operator Login</h1>
+          <p className="text-gray-500 mt-1">Admin &amp; Volunteer Portal</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">

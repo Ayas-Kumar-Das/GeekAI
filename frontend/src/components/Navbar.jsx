@@ -24,7 +24,7 @@ export default function Navbar() {
 
           {/* Desktop menu */}
           <div className="hidden md:flex items-center gap-4">
-            <Link to="/register" className="text-white/80 hover:text-white transition-colors text-sm font-medium">
+            <Link to="/events/oaic/register" className="text-white/80 hover:text-white transition-colors text-sm font-medium">
               Register
             </Link>
             {isAuthenticated ? (
@@ -59,7 +59,7 @@ export default function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden bg-primary-dark px-4 pb-4 space-y-2">
-          <Link to="/register" className="block text-white/80 hover:text-white py-2 text-sm" onClick={() => setMenuOpen(false)}>
+          <Link to="/events/oaic/register" className="block text-white/80 hover:text-white py-2 text-sm" onClick={() => setMenuOpen(false)}>
             Register
           </Link>
           {isAuthenticated ? (

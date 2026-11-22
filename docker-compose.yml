@@ -26,6 +26,10 @@ services:
       SECRET_KEY: change-me-in-production
       CORS_ORIGINS: "http://localhost:5173,http://localhost:3000"
       PYTHONUNBUFFERED: "1"
+      CASHFREE_APP_ID: ""
+      CASHFREE_SECRET_KEY: ""
+      CASHFREE_ENV: "sandbox"
+      BACKEND_URL: "http://localhost:8000"
     ports:
       - "8000:8000"
     volumes:

@@ -210,6 +210,55 @@ class DashboardStats(BaseModel):
     recent_registrations: List[ParticipantOut]
 
 
+# ===== Events ===============================================================
+
+class EventOut(BaseModel):
+    id: int
+    name: str
+    slug: str
+    description: Optional[str] = None
+    tagline: Optional[str] = None
+    logo_url: Optional[str] = None
+    banner_url: Optional[str] = None
+    registration_fee: int = 0  # in paise
+    is_active: bool = True
+    event_date: Optional[datetime] = None
+    venue: Optional[str] = None
+    registration_deadline: Optional[datetime] = None
+    website: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ===== Payments =============================================================
+
+class CreateOrderRequest(BaseModel):
+    event_slug: str
+    amount: int  # in paise (e.g., 30000 = ₹300)
+    customer_name: str
+    customer_email: EmailStr
+    customer_phone: Optional[str] = None
+
+
+class CreateOrderResponse(BaseModel):
+    order_id: str
+    payment_session_id: str
+    order_status: str
+
+
+class VerifyPaymentRequest(BaseModel):
+    order_id: str
+
+
+class VerifyPaymentResponse(BaseModel):
+    order_id: str
+    order_status: str
+    paid: bool
+    amount: int  # in paise
+
+
 # ---------------------------------------------------------------------------
 # Resolve forward references
 # ---------------------------------------------------------------------------

@@ -14,6 +14,12 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* Logo carousel animation */
+@keyframes logoScroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-33.333%); }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
