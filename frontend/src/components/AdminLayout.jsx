@@ -101,7 +101,7 @@ export default function AdminLayout() {
           <KonarkMark className="h-4 w-4 text-gold-600" strokeWidth={1.4} />
           <div className="min-w-0">
             <div className="text-[10px] font-bold leading-none tracking-[0.02em] text-ink-900">
-              AIS 2026
+              OAIS 2026
             </div>
             <div className="text-[7px] uppercase tracking-[0.16em] text-muted">
               Admin console
@@ -129,7 +129,7 @@ export default function AdminLayout() {
             <KonarkMark className="h-5 w-5 text-gold-500" strokeWidth={1.4} />
             <div>
               <div className="text-[11px] font-bold leading-none tracking-[0.02em] text-ivory-50">
-                AIS 2026
+                OAIS 2026
               </div>
               <div className="text-[7px] uppercase tracking-[0.16em] text-ivory-50/60">
                 Admin console
@@ -195,7 +195,7 @@ export default function AdminLayout() {
             <KonarkMark className="h-4 w-4 text-gold-500" strokeWidth={1.4} />
             <div className="min-w-0">
               <div className="text-[10px] font-bold leading-none tracking-[0.02em] text-ink-900">
-                AIS 2026
+                OAIS 2026
               </div>
               <div className="text-[7px] uppercase tracking-[0.16em] text-muted">
                 Admin console

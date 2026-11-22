@@ -12,7 +12,7 @@ export default function Privacy() {
       <PageHero
         eyebrow="Legal · Privacy"
         title="Privacy notice."
-        lead="How the Geek AI registration portal handles your details and photo for the event you are registering for."
+        lead="How the GeekAI registration portal handles your details and photo for the event you are registering for."
         crumbs={[
           { to: '/', label: 'Home' },
           { label: 'Privacy' },

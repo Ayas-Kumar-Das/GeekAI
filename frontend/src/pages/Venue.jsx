@@ -64,8 +64,9 @@ export default function Venue() {
         </div>
 
         <p className="mt-8 text-xs leading-relaxed text-muted">
-          The graphic above is schematic and not to scale. Verified address, parking and
-          transport details will be published here once the venue supplies them.
+          The map above shows the venue. Use “Get directions” to open Google Maps for ITER, SOA
+          University. Verified address, parking and transport details will be published here once
+          the venue supplies them.
         </p>
       </div>
     </>

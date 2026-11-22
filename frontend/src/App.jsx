@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import Layout from './components/Layout'
 import AdminLayout from './components/AdminLayout'
 import VolunteerLayout from './components/volunteer/VolunteerLayout'
 import PublicLayout from './components/public/PublicLayout'
@@ -83,12 +82,10 @@ export default function App() {
           {/* Dev-only token/primitive reference (Phase 0 exit criterion). */}
           {import.meta.env.DEV && <Route path="/design" element={<DesignSystem />} />}
 
-          {/* Staff sign-in (legacy shell until Stage 4) */}
-          <Route element={<Layout />}>
-            <Route path="/login" element={<Login />} />
-            <Route path="/admin/login" element={<Login />} />
-            <Route path="/volunteer/login" element={<Login />} />
-          </Route>
+          {/* Staff sign-in — dedicated design-system shell */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/admin/login" element={<Login />} />
+          <Route path="/volunteer/login" element={<Login />} />
 
           {/* Admin routes */}
           <Route

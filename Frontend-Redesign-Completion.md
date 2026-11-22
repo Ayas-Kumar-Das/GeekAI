@@ -87,7 +87,7 @@ The public shell provides the top strip, masthead, mobile sheet and footer. The 
 
 The programme, venue, FAQ, privacy, accessibility and code-of-conduct pages use shared content files. Every unconfirmed fact is labelled "to be announced" or "TBA". No speaker names, dates, sponsors or attendance numbers were invented. The Speakers page was subsequently removed: this is a registration portal, not the event's official website, so there is no speaker lineup to showcase.
 
-**Content repositioning (November 2026):** the copy now presents the site as the Geek AI Registration Portal — built and operated by the Geek AI developer team — which currently serves Odisha AI Symposium 2026 and can be reused for future events. The UI, colour system and layout are unchanged; only content, navigation links and metadata were updated to remove the impression that this is the symposium's official site.
+**Content repositioning (November 2026):** the copy now presents the site as the GeekAI Registration Portal — built and operated by the GeekAI Developer Team — which currently serves Odisha AI Symposium 2026 and can be reused for future events. The UI, colour system and layout are unchanged; only content, navigation links and metadata were updated to remove the impression that this is the symposium's official site.
 
 ### 4.3 Stage 3 — Participant and volunteer
 

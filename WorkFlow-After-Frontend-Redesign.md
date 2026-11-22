@@ -75,7 +75,7 @@ What remains is **integration and backend/database/infrastructure delivery** —
 
 ### 3.1 What is done
 
-- Public site: landing, programme, venue, FAQ, privacy, accessibility, code of conduct, and the in-site React registration form on `/register`. The Speakers page was removed because this is a registration portal, not the event's official site. Content now identifies the Geek AI developer team as the platform owner, currently serving Odisha AI Symposium 2026.
+- Public site: landing, programme, venue, FAQ, privacy, accessibility, code of conduct, and the in-site React registration form on `/register`. The Speakers page was removed because this is a registration portal, not the event's official site. Content now identifies the GeekAI Developer Team as the platform owner, currently serving Odisha AI Symposium 2026.
 - Participant: nine-state registration status, ticket page with signed-token-only QR rendering, print styles, signed-link lookup.
 - Volunteer: arrival desk with face capture, candidate confirmation, manual fallback with reason, badge printing; QR scanner with entry/session modes and ten result states; manual lookup, pending-sync queue, desk runbook.
 - Admin: shell, live dashboard from real stats, participants, sessions, attendance with void dialog, volunteers, exports, plus flag-gated imports, import detail, live ops, reconciliation, audit and settings.

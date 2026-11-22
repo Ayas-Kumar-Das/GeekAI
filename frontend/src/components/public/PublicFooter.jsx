@@ -47,7 +47,7 @@ export function PublicFooter() {
               <KonarkMark className="h-8 w-8 text-gold-500" strokeWidth={1.7} />
               <span>
                 <span className="block text-[10.5px] font-bold uppercase tracking-[0.1em] text-ivory-100">
-                  Geek AI
+                  GeekAI
                 </span>
                 <span className="mt-1 block text-[9px] uppercase tracking-[0.16em] text-ivory-100/56">
                   Registration portal · {event.shortName}
@@ -66,7 +66,7 @@ export function PublicFooter() {
             <div className="mt-5.5 flex items-stretch gap-4.5">
               <div className="border-l border-ivory-100/16 pl-4.5">
                 <b className="block text-[10px] font-bold uppercase tracking-[0.1em] text-ivory-100/82">
-                  Geek AI developer team
+                  GeekAI Developer Team
                 </b>
                 <span className="mt-0.5 block text-[9px] text-ivory-100/56">Platform owner</span>
               </div>
@@ -122,7 +122,7 @@ export function PublicFooter() {
 
         {/* Bottom bar */}
         <div className="mt-8.5 flex flex-col gap-3 border-t border-ivory-100/10 pt-3.5 text-[9.5px] tracking-[0.02em] text-ivory-100/56 md:flex-row md:items-center md:justify-between">
-          <p>© {event.edition} Geek AI · Registration portal for {event.name}</p>
+          <p>© {event.edition} GeekAI · Registration portal for {event.name}</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <Link
               to="/privacy"

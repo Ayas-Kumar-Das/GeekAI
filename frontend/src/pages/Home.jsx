@@ -35,7 +35,7 @@ function MobileStickyCta() {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[10.5px] font-semibold leading-tight text-ink-900">
-            Geek AI registration
+            GeekAI registration
           </p>
           <p className="mt-0.5 truncate text-[9px] text-muted">For {event.shortName}</p>
         </div>
@@ -78,12 +78,12 @@ export default function Home() {
             <h1 className="mt-3 text-display font-semibold text-ink-900">
               Registration,
               <br />
-              handled by Geek AI.
+              handled by GeekAI.
             </h1>
 
             <p className="mt-4.5 max-w-[500px] text-lead text-slate-700">
-              {platform.purpose} {platform.reuse} — an in-site form, a clear status page and a
-              pass issued at the arrival desk.
+              {platform.purpose} — an in-site form, a clear status page and a pass issued at the
+              arrival desk.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3 lg:gap-5">
@@ -114,7 +114,7 @@ export default function Home() {
             </ul>
 
             <p className="mt-5 max-w-md text-xs leading-relaxed text-muted">
-              {platform.status} {event.name}. Event details come from the event team; Geek AI
+              {platform.status} {event.name}. Event details come from the event team; GeekAI
               operates this registration portal only.
             </p>
           </div>
@@ -174,7 +174,7 @@ export default function Home() {
             From the form to the arrival desk.
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-700">
-            The Geek AI portal takes your details, photo and consent in a few minutes. The event
+            The GeekAI portal takes your details, photo and consent in a few minutes. The event
             team reviews them, and your pass is issued in person at the arrival desk — nothing is
             emailed to you before the event.
           </p>
@@ -274,7 +274,7 @@ export default function Home() {
             <SectionLabel onDark>Registration</SectionLabel>
             <h2 className="mt-3 text-h3 font-semibold tracking-[-0.02em]">Registration required.</h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ivory-100/76">
-              Entry is in person only. Register through the Geek AI portal; your pass is issued
+              Entry is in person only. Register through the GeekAI portal; your pass is issued
               at the arrival desk. {event.dateLabel} — expressions of interest are open.
             </p>
           </div>

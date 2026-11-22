@@ -58,11 +58,11 @@ export function PublicHeader() {
       >
         <div className="container-wide flex h-full items-center justify-between gap-4">
           {/* Lockup */}
-          <Link to="/" className="flex items-center gap-2.5 lg:gap-3" aria-label="Geek AI Registration Portal — home">
+          <Link to="/" className="flex items-center gap-2.5 lg:gap-3" aria-label="GeekAI Registration Portal — home">
             <KonarkMark className="h-[30px] w-[30px] shrink-0 text-gold-600 lg:h-[38px] lg:w-[38px]" />
             <span className="min-w-0">
               <span className="block truncate text-[9.5px] font-bold uppercase leading-[1.2] tracking-[0.09em] text-ink-900 lg:text-[13px] lg:tracking-[0.08em]">
-                Geek AI
+                GeekAI
               </span>
               <span className="mt-0.5 block truncate text-[8px] uppercase leading-[1.2] tracking-[0.13em] text-muted lg:text-[9.5px] lg:tracking-[0.16em]">
                 Registration portal · {event.shortName}

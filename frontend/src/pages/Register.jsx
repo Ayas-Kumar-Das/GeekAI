@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { PageHero, PlaceholderBadge } from '../components/public/PageHero'
+import { PageHero } from '../components/public/PageHero'
 import Banner from '../components/ui/Banner'
 import RegistrationForm from '../components/registration/RegistrationForm'
 import { event, platform } from '../content/event'
@@ -56,7 +56,7 @@ export default function Register() {
   return (
     <>
       <PageHero
-        eyebrow="Geek AI · Registration portal"
+        eyebrow="GeekAI · Registration portal"
         title="Register for the event."
         lead={`It takes about five minutes. This portal is run by the ${platform.owner} and currently serves ${event.name}. Your pass is issued at the arrival desk after identity verification.`}
         crumbs={[
@@ -148,9 +148,6 @@ export default function Register() {
           </>
         )}
 
-        <div className="mt-8">
-          <PlaceholderBadge>Working copy — pending host approval</PlaceholderBadge>
-        </div>
       </div>
     </>
   )

@@ -75,13 +75,14 @@ describe('Stage 2 public routes', () => {
     expect(links.some((a) => a.getAttribute('href') === '/register')).toBe(true)
   })
 
-  it('presents itself as the Geek AI portal currently serving the event', async () => {
+  it('presents itself as the GeekAI portal currently serving the event', async () => {
     renderAt('/')
     await screen.findByRole('heading', { level: 1, name: /Registration,/i })
     const text = document.body.textContent ?? ''
-    expect(text).toMatch(/Geek AI developer team/i)
+    expect(text).toMatch(/GeekAI Developer Team/i)
     expect(text).toMatch(/Odisha AI Symposium 2026/i)
-    expect(text).toMatch(/currently serves/i)
+    expect(text).toMatch(/currently serving/i)
+    expect(text).not.toMatch(/can be reused for future events/i)
     expect(screen.queryByRole('link', { name: /speakers/i })).toBeNull()
   })
 

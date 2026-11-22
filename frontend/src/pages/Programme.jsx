@@ -22,7 +22,7 @@ export default function Programme() {
       <PageHero
         eyebrow="01 - Programme"
         title="A programme in progress."
-        lead="Talks, research and hands-on workshops for this event. Session titles and times will be published as they are confirmed — register through the Geek AI portal to attend."
+        lead="Talks, research and hands-on workshops for this event. Session titles and times will be published as they are confirmed — register through the GeekAI portal to attend."
         crumbs={[
           { to: '/', label: 'Home' },
           { label: 'Programme' },
