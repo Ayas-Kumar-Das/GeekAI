@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, CalendarDays, MapPin, Ticket } from 'lucide-react'
 import WheelCard from '../components/public/WheelCard'
+import KonarkMark from '../components/public/KonarkMark'
 import FactStrip from '../components/public/FactStrip'
 import SessionCard, { MiniRow } from '../components/public/SessionCard'
 import FaqAccordion from '../components/public/FaqAccordion'
@@ -97,26 +98,115 @@ export default function Home() {
               </ActionLink>
             </div>
 
-            {/* Fact row — inline items with rules (§7.1 hero) */}
-            <ul className="mt-7 flex flex-wrap items-center text-[11.5px] text-muted">
-              <li className="flex items-center gap-1.5 border-r border-border py-1 pr-3.5 first:pl-0 last:border-r-0">
-                <CalendarDays className="h-3.5 w-3.5 text-gold-600" aria-hidden="true" />
-                {event.dateLabel}
-              </li>
-              <li className="flex items-center gap-1.5 border-r border-border px-3.5 py-1 last:border-r-0">
-                <MapPin className="h-3.5 w-3.5 text-gold-600" aria-hidden="true" />
-                {event.venue.label}
-              </li>
-              <li className="flex items-center gap-1.5 px-3.5 py-1">
-                <Ticket className="h-3.5 w-3.5 text-gold-600" aria-hidden="true" />
-                In person · registration required
-              </li>
-            </ul>
+            {/* ----------------- Event Quick-Facts & Status Strip ----------------- */}
+            <div className="mt-8 space-y-3.5 max-w-xl">
+              {/* Event highlight capsule bar */}
+              <div className="relative overflow-hidden rounded-2xl border border-sand-200/90 bg-paper/95 p-1.5 shadow-[0_4px_16px_-4px_rgba(11,31,58,0.06)] backdrop-blur-md transition-all duration-300 hover:border-gold-500/30 hover:shadow-[0_6px_20px_-4px_rgba(11,31,58,0.09)]">
+                {/* Ambient top gold/teal sheen line */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-gold-500/50 via-teal-500/40 to-ink-900/30"
+                />
 
-            <p className="mt-5 max-w-md text-xs leading-relaxed text-muted">
-              {platform.status} {event.name}. Event details come from the event team; GeekAI
-              operates this registration portal only.
-            </p>
+                <ul className="grid grid-cols-1 divide-y divide-sand-200/70 sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
+                  {/* Date */}
+                  <li className="group flex items-center gap-2.5 p-2.5 transition-colors sm:p-3 hover:bg-sand-100/30 rounded-xl">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/10 to-gold-500/20 text-gold-700 ring-1 ring-gold-500/30 shadow-xs transition-transform duration-200 group-hover:scale-105">
+                      <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block font-mono text-[9px] font-semibold uppercase tracking-wider text-gold-700">
+                        Date
+                      </span>
+                      <span className="block text-[11.5px] font-semibold text-ink-900 leading-tight">
+                        {event.dateLabel}
+                      </span>
+                    </div>
+                  </li>
+
+                  {/* Venue */}
+                  <li className="group flex items-center gap-2.5 p-2.5 transition-colors sm:p-3 hover:bg-sand-100/30 rounded-xl">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500/10 to-teal-500/20 text-teal-700 ring-1 ring-teal-500/30 shadow-xs transition-transform duration-200 group-hover:scale-105">
+                      <MapPin className="h-4 w-4" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block font-mono text-[9px] font-semibold uppercase tracking-wider text-teal-700">
+                        Venue
+                      </span>
+                      <span className="block text-[11.5px] font-semibold text-ink-900 leading-tight">
+                        {event.venue.label}
+                      </span>
+                    </div>
+                  </li>
+
+                  {/* Attendance */}
+                  <li className="group flex items-center gap-2.5 p-2.5 transition-colors sm:p-3 hover:bg-sand-100/30 rounded-xl">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-ink-900/5 to-ink-900/10 text-ink-800 ring-1 ring-ink-900/20 shadow-xs transition-transform duration-200 group-hover:scale-105">
+                      <Ticket className="h-4 w-4" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-ink-700">
+                          Format
+                        </span>
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        </span>
+                      </div>
+                      <span className="block text-[11.5px] font-semibold text-ink-900 leading-tight">
+                        In person · registration required
+                      </span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              {/* GeekAI Portal Context & Attribution Callout */}
+              <div className="group relative overflow-hidden rounded-xl border border-sand-200/80 bg-gradient-to-br from-paper via-sand-50/60 to-sand-100/40 p-3.5 shadow-xs transition-all duration-200 hover:border-gold-500/35">
+                {/* Left accent bar */}
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-gold-500 via-teal-500 to-ink-900/40"
+                />
+
+                {/* Subtle ambient radial light */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-gradient-to-br from-gold-500/15 to-teal-500/10 blur-xl transition-opacity group-hover:opacity-100 opacity-50"
+                />
+
+                {/* Decorative Konark watermark */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -bottom-7 -right-7 text-gold-500/[0.08] transition-all duration-500 group-hover:scale-110 group-hover:text-gold-500/[0.13]"
+                >
+                  <KonarkMark className="h-28 w-28" strokeWidth={1} />
+                </div>
+
+                <div className="relative pl-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/10 px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-teal-800 ring-1 ring-teal-600/20 shadow-xs">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-75" />
+                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-teal-600" />
+                      </span>
+                      {platform.status}
+                    </span>
+                    <span className="text-[12.5px] font-bold text-ink-900 tracking-tight">
+                      {event.name}
+                    </span>
+                  </div>
+
+                  <p className="mt-1.5 text-[11.5px] leading-relaxed text-slate-600">
+                    Event details come from the event team;{' '}
+                    <span className="font-semibold text-ink-900">
+                      GeekAI operates this registration portal only.
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="lg:pr-7">
