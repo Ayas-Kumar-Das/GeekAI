@@ -11,8 +11,7 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
-    // Wrong role is a 403, not a redirect loop (§6.6).
-    return <Navigate to="/403" replace />
+    return <Navigate to="/" replace />
   }
 
   return children

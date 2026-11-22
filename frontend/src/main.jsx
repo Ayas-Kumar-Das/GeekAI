@@ -1,12 +1,21 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
-import queryClient from './lib/queryClient'
 import App from './App'
 import './index.css'
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 30000,
+    },
+  },
+})
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -19,14 +28,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             toastOptions={{
               duration: 4000,
               style: {
-                background: 'var(--color-ink-800)',
-                color: 'var(--color-ivory-50)',
+                background: '#1e3a5f',
+                color: '#fff',
               },
               success: {
-                style: { background: 'var(--color-teal-600)' },
+                style: { background: '#059669' },
               },
               error: {
-                style: { background: 'var(--color-red-600)' },
+                style: { background: '#dc2626' },
               },
             }}
           />

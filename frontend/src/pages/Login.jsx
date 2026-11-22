@@ -16,14 +16,9 @@ export default function Login() {
     e.preventDefault()
     try {
       const userData = await login(email, password)
-      // Prefer the location ProtectedRoute stored, then ?returnTo= from a
-      // session expiry, then the role home (§6.6).
-      const returnTo = new URLSearchParams(location.search).get('returnTo')
-      const from = location.state?.from
-      if (from?.pathname) {
-        navigate(`${from.pathname}${from.search ?? ''}`, { replace: true })
-      } else if (returnTo && returnTo.startsWith('/')) {
-        navigate(returnTo, { replace: true })
+      const from = location.state?.from?.pathname
+      if (from) {
+        navigate(from, { replace: true })
       } else if (userData.role === 'ADMIN') {
         navigate('/admin', { replace: true })
       } else {

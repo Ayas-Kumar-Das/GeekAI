@@ -1,138 +1,58 @@
-import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle2,
-  Search,
-  ShieldCheck,
-  UserRound,
-  UserX,
-} from 'lucide-react'
-import client, { normalizeError } from '../../api/client'
-import { useDesk } from '../../hooks/useDesk'
-import { Badge } from '../../components/ui/Badge'
-import { Banner } from '../../components/ui/Banner'
-import { Button } from '../../components/ui/Button'
+import { Link } from 'react-router-dom'
+import client from '../../api/client'
+import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
-import Select from '../../components/ui/Select'
-import { Skeleton } from '../../components/ui/Skeleton'
-
-/**
- * ManualLookup — the fallback for lost passes, damaged prints and camera
- * failure (§7.5/§7.6).
- *
- * Entry mode hands the participant to the arrival desk: the volunteer still
- * confirms the person against a photo ID and records which ID was checked.
- * Session mode uses the live attendance endpoint and never claims more than
- * "attendance recorded".
- */
-
-const MODES = {
-  entry: {
-    title: 'Manual lookup',
-    body: 'Find the participant, then verify their photo ID at the arrival desk.',
-    cta: 'Use for arrival',
-  },
-  session: {
-    title: 'Manual check-in',
-    body: 'Find the participant and record session attendance. Entry check-in happens at the arrival desk.',
-    cta: 'Mark attendance',
-  },
-}
-
-function PersonPhoto({ participant }) {
-  const [failed, setFailed] = useState(false)
-  const src = participant?.photo_url
-  const usable = src && !failed
-  return (
-    <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-md bg-sand-200 text-sand-300">
-      {usable ? (
-        <img
-          src={src.startsWith('/') || src.startsWith('http') ? src : `/${src}`}
-          alt=""
-          className="h-full w-full object-cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <UserRound className="h-5 w-5" aria-hidden="true" />
-      )}
-    </span>
-  )
-}
+import Card from '../../components/ui/Card'
+import Badge from '../../components/ui/Badge'
+import { Search, ArrowLeft, CheckCircle, AlertTriangle } from 'lucide-react'
+import { getCategoryColor } from '../../utils/helpers'
+import toast from 'react-hot-toast'
 
 export default function ManualLookup() {
-  const [params] = useSearchParams()
-  const mode = params.get('mode') === 'session' ? 'session' : 'entry'
-  const copy = MODES[mode]
-  const { desk } = useDesk()
-
   const [search, setSearch] = useState('')
-  const [sessionId, setSessionId] = useState(params.get('session') ?? '')
+  const [sessionId, setSessionId] = useState('')
   const [markingId, setMarkingId] = useState(null)
-  const [result, setResult] = useState(null)
-  const [sessionError, setSessionError] = useState(null)
-
-  useEffect(() => {
-    setSessionId(params.get('session') ?? '')
-    setResult(null)
-  }, [params])
+  const [lastResult, setLastResult] = useState(null)
 
   const { data: sessions } = useQuery({
-    queryKey: ['volunteer', 'sessions'],
-    queryFn: () => client.get('/sessions/').then((response) => response.data),
-    enabled: mode === 'session',
-    retry: false,
+    queryKey: ['sessions'],
+    queryFn: () => client.get('/sessions/').then((r) => r.data),
   })
 
-  const { data, isLoading, isFetching, refetch, error } = useQuery({
-    queryKey: ['volunteer', 'participant-search', search],
-    queryFn: () =>
-      client
-        .get('/participants/', { params: { search: search.trim(), limit: 10 } })
-        .then((response) => response.data),
-    enabled: search.trim().length >= 2,
-    retry: false,
+  const { data: participants, isLoading, refetch } = useQuery({
+    queryKey: ['participant-search', search],
+    queryFn: () => client.get('/participants/', { params: { search, limit: 10 } }).then((r) => r.data),
+    enabled: search.length >= 2,
   })
-
-  const items = Array.isArray(data?.items) ? data.items : []
 
   const markAttendance = async (participant) => {
     if (!sessionId) {
-      setSessionError('Choose the session before marking attendance.')
+      toast.error('Please select a session first')
       return
     }
-    setSessionError(null)
     setMarkingId(participant.id)
-    setResult(null)
     try {
       await client.post('/attendance/', {
         participant_id: participant.id,
-        session_id: Number(sessionId),
+        session_id: parseInt(sessionId),
         method: 'MANUAL',
       })
-      setResult({
-        tone: 'success',
-        title: 'Attendance recorded',
-        body: `${participant.name} is marked for this session.`,
-        participant,
+      setLastResult({
+        status: 'success',
+        message: `Attendance marked for ${participant.name}`,
       })
-    } catch (attendanceError) {
-      if (attendanceError?.response?.status === 409) {
-        setResult({
-          tone: 'warning',
-          title: 'Already marked for this session',
-          body: `${participant.name} already has attendance for this session. No duplicate was written.`,
-          participant,
+      toast.success(`✅ ${participant.name} — attendance recorded`)
+    } catch (err) {
+      if (err.response?.status === 409) {
+        setLastResult({
+          status: 'duplicate',
+          message: `${participant.name} — already marked for this session`,
         })
+        toast.error(`Already marked: ${participant.name}`)
       } else {
-        setResult({
-          tone: 'error',
-          title: 'Attendance could not be recorded',
-          body: normalizeError(attendanceError).message,
-          participant: null,
-        })
+        toast.error('Failed to mark attendance')
       }
     } finally {
       setMarkingId(null)
@@ -140,209 +60,94 @@ export default function ManualLookup() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[760px] space-y-4">
-      <div className="flex items-center gap-2">
-        <Link
-          to="/volunteer/dashboard"
-          className="grid h-9 w-9 place-items-center rounded-sm text-ink-900 hover:bg-sand-100"
-          aria-label="Back to desk home"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+    <div className="max-w-lg mx-auto px-4 py-6">
+      <div className="flex items-center gap-3 mb-6">
+        <Link to="/volunteer">
+          <Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-[21px] font-semibold tracking-[-0.03em] text-ink-900">
-            {copy.title}
-          </h1>
-          <p className="text-[11px] text-muted">
-            {copy.body} {desk.label} · {desk.station}
-          </p>
-        </div>
-        <Badge tone={mode === 'session' ? 'teal' : 'neutral'} className="shrink-0">
-          {mode === 'session' ? 'Session' : 'Entry'}
-        </Badge>
+        <h1 className="text-xl font-bold text-gray-900">Manual Lookup</h1>
       </div>
 
-      <div
-        role="group"
-        aria-label="Lookup purpose"
-        className="grid grid-cols-2 gap-1 rounded-md border border-border bg-sand-100 p-1"
-      >
-        <Link
-          to="/volunteer/manual?mode=entry"
-          aria-current={mode === 'entry' ? 'page' : undefined}
-          className={
-            mode === 'entry'
-              ? 'flex min-h-10 items-center justify-center rounded-sm bg-paper text-sm font-semibold text-ink-900 shadow-sm'
-              : 'flex min-h-10 items-center justify-center rounded-sm text-sm font-medium text-muted hover:text-ink-900'
-          }
-        >
-          Entry / arrival
-        </Link>
-        <Link
-          to="/volunteer/manual?mode=session"
-          aria-current={mode === 'session' ? 'page' : undefined}
-          className={
-            mode === 'session'
-              ? 'flex min-h-10 items-center justify-center rounded-sm bg-paper text-sm font-semibold text-ink-900 shadow-sm'
-              : 'flex min-h-10 items-center justify-center rounded-sm text-sm font-medium text-muted hover:text-ink-900'
-          }
-        >
-          Session check-in
-        </Link>
-      </div>
-
-      {mode === 'session' && (
-        <Select
-          label="Session"
-          placeholder="Choose the session…"
+      {/* Session selector */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Select Session</label>
+        <select
           value={sessionId}
-          onChange={(event) => {
-            setSessionId(event.target.value)
-            setSessionError(null)
-            setResult(null)
-          }}
-          error={sessionError}
-          helper="Attendance is once per participant per session."
-          options={(sessions ?? []).map((session) => ({
-            value: String(session.id),
-            label: session.name,
-          }))}
-        />
-      )}
-
-      <div className="rounded-md border border-border bg-paper p-4 shadow-sm">
-        <Input
-          label="Search participants"
-          icon={Search}
-          placeholder="Name, email or participant ID (min 2 characters)"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value)
-            setResult(null)
-          }}
-        />
-        <p className="mt-2 flex items-start gap-1.5 text-[10.5px] text-muted">
-          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-600" aria-hidden="true" />
-          Manual fallback requires a photo ID check. Never mark someone on name alone.
-        </p>
+          onChange={(e) => setSessionId(e.target.value)}
+          className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        >
+          <option value="">Choose a session...</option>
+          {sessions?.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
       </div>
 
-      {result && (
-        <Banner
-          tone={result.tone}
-          title={result.title}
-          action={
-            result.participant ? (
-              <Badge tone={result.tone === 'success' ? 'teal' : 'amber'}>
-                {result.participant.name}
-              </Badge>
-            ) : null
-          }
-        >
-          {result.body}
-        </Banner>
+      {/* Search */}
+      <div className="mb-4">
+        <Input
+          icon={Search}
+          placeholder="Search by name or email (min 2 chars)..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setLastResult(null) }}
+        />
+      </div>
+
+      {/* Last result message */}
+      {lastResult && (
+        <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-sm ${
+          lastResult.status === 'success' ? 'bg-green-50 text-green-800' : 'bg-yellow-50 text-yellow-800'
+        }`}>
+          {lastResult.status === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+          {lastResult.message}
+        </div>
       )}
 
-      {search.trim().length > 0 && search.trim().length < 2 && (
-        <p className="text-center text-[11.5px] text-muted">
-          Type at least 2 characters to search.
-        </p>
-      )}
-
-      {search.trim().length >= 2 && (
-        <section className="overflow-hidden rounded-md border border-border bg-paper shadow-sm">
-          <div className="flex min-h-10 items-center justify-between gap-2 border-b border-border px-4">
-            <h2 className="text-[12px] font-semibold text-ink-900">
-              Results{items.length > 0 ? ` · ${items.length}` : ''}
-            </h2>
-            {isFetching && (
-              <span className="text-[10px] text-muted" role="status">
-                Searching…
-              </span>
-            )}
-          </div>
-
+      {/* Results */}
+      {search.length >= 2 && (
+        <div className="space-y-2">
           {isLoading ? (
-            <div className="space-y-2 p-3">
-              <Skeleton variant="card" className="h-16" />
-              <Skeleton variant="card" className="h-16" />
-            </div>
-          ) : error ? (
-            <div className="p-4">
-              <Banner
-                tone="error"
-                title="Search failed"
-                action={
-                  <Button variant="secondary" size="sm" onClick={() => refetch()}>
-                    Retry
-                  </Button>
-                }
-              >
-                {normalizeError(error).message}
-              </Banner>
-            </div>
-          ) : items.length === 0 ? (
-            <div className="px-4 py-8 text-center">
-              <UserX className="mx-auto h-7 w-7 text-sand-300" aria-hidden="true" />
-              <p className="mt-2 text-sm font-semibold text-ink-900">No participant found</p>
-              <p className="mt-1 text-[11.5px] text-muted">
-                Try a different spelling, the email on the registration, or the participant ID.
-              </p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {items.map((participant) => (
-                <li
-                  key={participant.id}
-                  className="flex flex-wrap items-center gap-3 px-3 py-3 sm:flex-nowrap"
-                >
-                  <PersonPhoto participant={participant} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13.5px] font-semibold text-ink-900">
-                      {participant.name}
-                    </p>
-                    <p className="truncate text-[11px] text-muted">
-                      #{participant.id} · {participant.institution || participant.email}
-                    </p>
-                    {participant.category && (
-                      <Badge tone="neutral" className="mt-1 text-[9.5px]">
-                        {participant.category}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {mode === 'entry' ? (
-                    <Link
-                      to={`/volunteer/arrival?participant=${participant.id}`}
-                      className="inline-flex min-h-9 items-center justify-center rounded-sm border border-border-control px-3 text-[12px] font-semibold text-ink-900 hover:bg-sand-100"
-                    >
-                      {copy.cta}
-                    </Link>
+            <p className="text-sm text-gray-400 text-center py-4">Searching...</p>
+          ) : participants?.items?.length > 0 ? (
+            participants.items.map((p) => (
+              <Card key={p.id} className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {p.photo_url ? (
+                    <img
+                      src={`/${p.photo_url}`}
+                      alt={p.name}
+                      className="w-10 h-10 rounded-full object-cover border flex-shrink-0"
+                    />
                   ) : (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => markAttendance(participant)}
-                      loading={markingId === participant.id}
-                      disabled={!sessionId}
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      {copy.cta}
-                    </Button>
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-400 flex-shrink-0">
+                      {p.name?.charAt(0)}
+                    </div>
                   )}
-                </li>
-              ))}
-            </ul>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{p.institution || p.email}</p>
+                    <Badge className={`mt-0.5 ${getCategoryColor(p.category)}`}>
+                      {p.category}
+                    </Badge>
+                  </div>
+                </div>
+                <Button
+                  variant="accent"
+                  size="sm"
+                  loading={markingId === p.id}
+                  disabled={!sessionId}
+                  onClick={() => markAttendance(p)}
+                >
+                  Mark
+                </Button>
+              </Card>
+            ))
+          ) : (
+            <p className="text-sm text-gray-400 text-center py-4">No participants found</p>
           )}
-        </section>
-      )}
-
-      {mode === 'session' && !sessionId && (
-        <p className="flex items-start gap-1.5 text-[11px] text-amber-600">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          Choose a session to enable “Mark attendance”.
-        </p>
+        </div>
       )}
     </div>
   )
 }
+

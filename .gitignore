@@ -52,9 +52,6 @@ postgres_data/
 # Logs
 *.log
 
-# Local visual-QA screenshots (frontend/scripts/visual-qa.mjs output)
-.qa/
-
 # OS & IDE
 .DS_Store
 Thumbs.db
@@ -62,7 +59,3 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
-
-# Local completion-report PDF (not shared in GitHub)
-Frontend-Redesign-Completion.pdf
-Frontend-Redesign-Completation.pdf

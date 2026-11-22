@@ -1,74 +1,127 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import client from '../../api/client'
-import { Table } from '../../components/ui/Table'
-import { Button } from '../../components/ui/Button'
+import Table from '../../components/ui/Table'
+import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
-import { Dialog } from '../../components/ui/Dialog'
-import { Badge } from '../../components/ui/Badge'
-import { KpiCard } from '../../components/admin/KpiCard'
-import { UserPlus, UserCheck, UserX, Trash2, Search, ShieldCheck, Users, ClipboardCheck } from 'lucide-react'
+import Modal from '../../components/ui/Modal'
+import Badge from '../../components/ui/Badge'
+import Card from '../../components/ui/Card'
+import {
+  UserPlus,
+  Trash2,
+  Search,
+  Mail,
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  UserCheck,
+  UserX,
+  ShieldCheck,
+  ClipboardCheck,
+} from 'lucide-react'
+import { formatDate, formatShortDate } from '../../utils/helpers'
 import toast from 'react-hot-toast'
 
-const EMPTY = { name: '', email: '', password: '', confirmPassword: '' }
-
-function fmt(value) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' }).format(date)
+const emptyForm = {
+  name: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
 }
 
-/** Volunteers — staff accounts against the live /admin/volunteers contract. */
 export default function Volunteers() {
   const queryClient = useQueryClient()
-  const [formOpen, setFormOpen] = useState(false)
-  const [form, setForm] = useState(EMPTY)
-  const [formError, setFormError] = useState(null)
-  const [deleting, setDeleting] = useState(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [selectedVolunteer, setSelectedVolunteer] = useState(null)
   const [search, setSearch] = useState('')
+  const [form, setForm] = useState(emptyForm)
+  const [showPassword, setShowPassword] = useState(false)
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['admin', 'volunteers'],
+  // Fetch volunteers
+  const { data: volunteers, isLoading } = useQuery({
+    queryKey: ['admin-volunteers'],
     queryFn: () => client.get('/admin/volunteers').then((r) => r.data),
-    retry: false,
   })
-  const volunteers = Array.isArray(data) ? data : []
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin', 'volunteers'] })
-
+  // Create volunteer mutation
   const createMutation = useMutation({
-    mutationFn: (payload) => client.post('/admin/volunteers', payload),
+    mutationFn: (newVolunteer) => client.post('/admin/volunteers', newVolunteer),
     onSuccess: (res) => {
-      invalidate()
-      closeForm()
-      toast.success(`${res.data.name} can now log in.`)
+      queryClient.invalidateQueries({ queryKey: ['admin-volunteers'] })
+      toast.success(`Volunteer "${res.data.name}" added successfully! They can now log in.`)
+      closeModal()
     },
-    onError: (err) => setFormError(err.response?.data?.detail || 'The volunteer could not be added.'),
+    onError: (err) => {
+      const msg = err.response?.data?.detail || 'Failed to add volunteer'
+      toast.error(typeof msg === 'string' ? msg : 'Failed to add volunteer')
+    },
   })
 
+  // Toggle status mutation
   const toggleMutation = useMutation({
     mutationFn: (id) => client.patch(`/admin/volunteers/${id}/toggle-status`),
     onSuccess: (res) => {
-      invalidate()
-      toast.success(`${res.data.name} is now ${res.data.is_active ? 'active' : 'inactive'}.`)
+      queryClient.invalidateQueries({ queryKey: ['admin-volunteers'] })
+      const statusText = res.data.is_active ? 'activated' : 'deactivated'
+      toast.success(`Volunteer "${res.data.name}" has been ${statusText}.`)
     },
-    onError: (err) => toast.error(err.response?.data?.detail || 'The status could not be changed.'),
+    onError: (err) => {
+      toast.error(err.response?.data?.detail || 'Failed to update volunteer status')
+    },
   })
 
+  // Delete volunteer mutation
   const deleteMutation = useMutation({
     mutationFn: (id) => client.delete(`/admin/volunteers/${id}`),
-    onSuccess: () => { invalidate(); setDeleting(null); toast.success('Volunteer removed.') },
-    onError: (err) => toast.error(err.response?.data?.detail || 'The volunteer could not be removed.'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-volunteers'] })
+      toast.success('Volunteer removed successfully.')
+      setDeleteModalOpen(false)
+      setSelectedVolunteer(null)
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.detail || 'Failed to remove volunteer')
+    },
   })
 
-  const closeForm = () => { setFormOpen(false); setForm(EMPTY); setFormError(null) }
+  const openModal = () => {
+    setForm(emptyForm)
+    setShowPassword(false)
+    setModalOpen(true)
+  }
 
-  const submit = (e) => {
+  const closeModal = () => {
+    setModalOpen(false)
+    setForm(emptyForm)
+    setShowPassword(false)
+  }
+
+  const handleSubmit = (e) => {
     e.preventDefault()
-    setFormError(null)
-    if (form.password.length < 6) { setFormError('Password must be at least 6 characters.'); return }
-    if (form.password !== form.confirmPassword) { setFormError('Passwords do not match.'); return }
+
+    if (!form.name.trim()) {
+      toast.error('Please enter the volunteer name')
+      return
+    }
+
+    if (!form.email.trim()) {
+      toast.error('Please enter a valid email address')
+      return
+    }
+
+    if (form.password.length < 6) {
+      toast.error('Password must be at least 6 characters')
+      return
+    }
+
+    if (form.password !== form.confirmPassword) {
+      toast.error('Passwords do not match')
+      return
+    }
+
     createMutation.mutate({
       name: form.name.trim(),
       email: form.email.trim().toLowerCase(),
@@ -76,114 +129,254 @@ export default function Volunteers() {
     })
   }
 
-  const filtered = volunteers.filter((v) => {
-    const q = search.trim().toLowerCase()
-    return !q || v.name?.toLowerCase().includes(q) || v.email?.toLowerCase().includes(q)
+  const confirmDelete = (volunteer) => {
+    setSelectedVolunteer(volunteer)
+    setDeleteModalOpen(true)
+  }
+
+  // Filter volunteers by search query
+  const filteredVolunteers = (volunteers || []).filter((v) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return (
+      v.name?.toLowerCase().includes(q) ||
+      v.email?.toLowerCase().includes(q)
+    )
   })
-  const active = volunteers.filter((v) => v.is_active).length
-  const totalMarked = volunteers.reduce((sum, v) => sum + (v.attendance_count || 0), 0)
+
+  const totalVolunteers = volunteers?.length || 0
+  const activeVolunteers = volunteers?.filter((v) => v.is_active).length || 0
+  const totalAttendanceMarked =
+    volunteers?.reduce((sum, v) => sum + (v.attendance_count || 0), 0) || 0
 
   const columns = [
-    { key: 'name', label: 'Volunteer', primary: true, render: (v, row) => (
-      <div className="min-w-0">
-        <p className="truncate font-medium text-ink-900">{v}</p>
-        <p className="truncate text-[10px] text-muted">{row.email}</p>
-      </div>
-    ) },
-    { key: 'is_active', label: 'Status', status: true, render: (v) => (
-      <Badge tone={v ? 'teal' : 'grey'} dot className="text-[9.5px]">{v ? 'Active' : 'Inactive'}</Badge>
-    ) },
-    { key: 'attendance_count', label: 'Check-ins', render: (v) => v || 0 },
-    { key: 'created_at', label: 'Added', render: (v) => fmt(v) },
-    { key: 'actions', label: 'Actions', actions: true, render: (_, row) => (
-      <div className="flex gap-1">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); toggleMutation.mutate(row.id) }}
-          aria-label={row.is_active ? `Deactivate ${row.name}` : `Activate ${row.name}`}
-          className="grid h-9 w-9 place-items-center rounded-sm text-muted hover:bg-sand-100 hover:text-ink-900"
+    { key: 'id', label: 'ID' },
+    {
+      key: 'name',
+      label: 'Volunteer',
+      render: (v, row) => (
+        <div>
+          <p className="font-semibold text-gray-900">{v}</p>
+          <p className="text-xs text-gray-500">{row.email}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'is_active',
+      label: 'Status',
+      render: (v) => (
+        <Badge
+          className={
+            v ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-700'
+          }
         >
-          {row.is_active ? <UserX className="h-3.5 w-3.5" aria-hidden="true" /> : <UserCheck className="h-3.5 w-3.5" aria-hidden="true" />}
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setDeleting(row) }}
-          aria-label={`Remove ${row.name}`}
-          className="grid h-9 w-9 place-items-center rounded-sm text-muted hover:bg-red-100 hover:text-red-600"
-        >
-          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-      </div>
-    ) },
+          {v ? 'Active' : 'Inactive'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'attendance_count',
+      label: 'Check-ins Marked',
+      render: (v) => (
+        <span className="inline-flex items-center gap-1 font-medium text-gray-800">
+          <ClipboardCheck className="h-4 w-4 text-primary" />
+          {v || 0}
+        </span>
+      ),
+    },
+    {
+      key: 'created_at',
+      label: 'Added Date',
+      render: (v) => formatShortDate(v),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_, row) => (
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            title={row.is_active ? 'Deactivate volunteer' : 'Activate volunteer'}
+            onClick={() => toggleMutation.mutate(row.id)}
+            disabled={toggleMutation.isPending}
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              row.is_active
+                ? 'hover:bg-amber-50 text-amber-600'
+                : 'hover:bg-emerald-50 text-emerald-600'
+            }`}
+          >
+            {row.is_active ? (
+              <UserX className="h-4 w-4" />
+            ) : (
+              <UserCheck className="h-4 w-4" />
+            )}
+          </button>
+          <button
+            title="Remove volunteer"
+            onClick={() => confirmDelete(row)}
+            className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors cursor-pointer"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    },
   ]
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-[20px] font-semibold tracking-[-0.03em] text-ink-900">Volunteers</h2>
-          <p className="mt-0.5 text-[11px] text-muted">Desk accounts and their access status.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Volunteer Management</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Add volunteers with custom credentials so they can log in and record attendance.
+          </p>
         </div>
-        <Button size="sm" onClick={() => setFormOpen(true)}>
-          <UserPlus className="h-3.5 w-3.5" aria-hidden="true" /> Add volunteer
+        <Button onClick={openModal} variant="accent" className="self-start sm:self-auto">
+          <UserPlus className="h-4 w-4" /> Add Volunteer
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <KpiCard label="Volunteers" value={volunteers.length} tone="ink" icon={Users} />
-        <KpiCard label="Active" value={active} tone="teal" icon={ShieldCheck} />
-        <KpiCard label="Check-ins marked" value={totalMarked} tone="ink" icon={ClipboardCheck} />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card title="Total Volunteers" value={totalVolunteers} icon={User} />
+        <Card title="Active Volunteers" value={activeVolunteers} icon={ShieldCheck} />
+        <Card
+          title="Total Check-ins Logged"
+          value={totalAttendanceMarked}
+          icon={ClipboardCheck}
+        />
       </div>
 
-      <Input label="Search volunteers" icon={Search} placeholder="Name or email" value={search} onChange={(e) => setSearch(e.target.value)} />
-
-      {error && (
-        <div className="rounded-sm border border-red-600/25 bg-red-100 px-3 py-2 text-[11.5px] text-red-600">
-          Volunteers could not be loaded. <button type="button" onClick={() => refetch()} className="font-semibold underline">Retry</button>
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1">
+          <Input
+            icon={Search}
+            placeholder="Search volunteers by name or email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
-      )}
+      </div>
 
-      <section className="overflow-hidden rounded-md border border-border bg-paper shadow-sm">
-        <Table columns={columns} data={filtered} loading={isLoading} emptyMessage="No volunteers" emptyBody="Add a volunteer to give them desk access." showCount={false} />
-      </section>
-
-      <Dialog
-        open={formOpen}
-        onClose={closeForm}
-        title="Add a volunteer"
-        description="They receive these credentials and can log in at /volunteer/login."
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={closeForm}>Cancel</Button>
-            <Button type="submit" form="volunteer-form" loading={createMutation.isPending}>Add volunteer</Button>
-          </>
+      {/* Volunteers Table */}
+      <Table
+        columns={columns}
+        data={filteredVolunteers}
+        loading={isLoading}
+        emptyMessage={
+          search
+            ? 'No volunteers matching your search.'
+            : 'No volunteers registered yet. Click "Add Volunteer" to create one.'
         }
-      >
-        <form id="volunteer-form" onSubmit={submit} className="space-y-3">
-          {formError && <p className="rounded-sm bg-red-100 px-3 py-2 text-[11.5px] text-red-600">{formError}</p>}
-          <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-          <Input label="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
-          <Input label="Confirm password" type="password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} required />
+      />
+
+      {/* Add Volunteer Modal */}
+      <Modal isOpen={modalOpen} onClose={closeModal} title="Add New Volunteer" size="md">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-xs text-gray-500">
+            Set custom credentials for the volunteer. They will use this email and password
+            to log in to the volunteer attendance portal.
+          </p>
+
+          <Input
+            label="Full Name *"
+            icon={User}
+            placeholder="e.g. Priyadarshini Sahoo"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
+
+          <Input
+            label="Custom Email Address *"
+            type="email"
+            icon={Mail}
+            placeholder="e.g. volunteer.priya@geekai.in"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
+          />
+
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">Password *</label>
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                icon={Lock}
+                placeholder="At least 6 characters"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <Input
+            label="Confirm Password *"
+            type={showPassword ? 'text' : 'password'}
+            icon={Lock}
+            placeholder="Re-enter password"
+            value={form.confirmPassword}
+            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+            required
+          />
+
+          <div className="flex gap-3 justify-end pt-2">
+            <Button variant="secondary" onClick={closeModal} disabled={createMutation.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="accent" loading={createMutation.isPending}>
+              Create Volunteer
+            </Button>
+          </div>
         </form>
-      </Dialog>
+      </Modal>
 
-      <Dialog
-        open={Boolean(deleting)}
-        onClose={() => setDeleting(null)}
-        title="Remove this volunteer?"
-        description="Their desk access ends immediately."
+      {/* Confirm Delete Modal */}
+      <Modal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="Remove Volunteer"
         size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeleting(null)}>Keep volunteer</Button>
-            <Button variant="danger" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate(deleting.id)}>Remove</Button>
-          </>
-        }
       >
-        <p className="text-[12px] text-slate-700">{deleting?.name} will no longer be able to sign in. Attendance records they marked stay in the log.</p>
-      </Dialog>
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Are you sure you want to remove volunteer{' '}
+            <strong className="text-gray-900">{selectedVolunteer?.name}</strong> (
+            {selectedVolunteer?.email})?
+          </p>
+          <p className="text-xs text-red-600">
+            This will permanently remove their access to the volunteer portal.
+          </p>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setDeleteModalOpen(false)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              loading={deleteMutation.isPending}
+              onClick={() => selectedVolunteer && deleteMutation.mutate(selectedVolunteer.id)}
+            >
+              Confirm Remove
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
+

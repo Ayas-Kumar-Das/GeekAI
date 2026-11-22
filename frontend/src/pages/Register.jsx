@@ -1,157 +1,153 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { PageHero, PlaceholderBadge } from '../components/public/PageHero'
-import Banner from '../components/ui/Banner'
-import RegistrationForm from '../components/registration/RegistrationForm'
-import { event } from '../content/event'
+import { useState } from 'react'
+import { User, Mail, Phone, Building, Tag } from 'lucide-react'
+import client from '../api/client'
+import toast from 'react-hot-toast'
+import Input from '../components/ui/Input'
+import Button from '../components/ui/Button'
+import PhotoCapture from '../components/ui/PhotoCapture'
 
-/** Numbered three-step explainer (§7.2). */
-const steps = [
-  {
-    n: '1',
-    title: 'Submit the form',
-    body: 'Your details, a recent photo and your consent, on this site.',
-  },
-  {
-    n: '2',
-    title: 'The team reviews your registration',
-    body: 'We check the photo and details you submitted so the desk can match them on arrival.',
-  },
-  {
-    n: '3',
-    title: 'Your pass is issued at the arrival desk',
-    body: 'In person, on the day. No QR code is sent by email before the event.',
-  },
+const categories = [
+  { value: 'STUDENT', label: 'Student' },
+  { value: 'RESEARCHER', label: 'Researcher' },
+  { value: 'PROFESSIONAL', label: 'Professional' },
+  { value: 'SPEAKER', label: 'Speaker' },
+  { value: 'OTHER', label: 'Other' },
 ]
 
-const beforeYouStart = [
-  'Use the same email you can access on event day.',
-  'Have a recent photo ready — one clear face, plain background.',
-  'Read the privacy notice before giving consent.',
-]
-
-/**
- * Register — the in-site React form (§7.2). This page is a real form, not a
- * handoff. The page owns framing, offline detection and the closed state;
- * RegistrationForm owns validation, photo, submit, success and duplicate.
- */
 export default function Register() {
-  const [online, setOnline] = useState(
-    typeof navigator === 'undefined' ? true : navigator.onLine
-  )
+  const [form, setForm] = useState({
+    name: '', email: '', phone: '', institution: '', category: 'STUDENT',
+  })
+  const [photo, setPhoto] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
-    const up = () => setOnline(true)
-    const down = () => setOnline(false)
-    window.addEventListener('online', up)
-    window.addEventListener('offline', down)
-    return () => {
-      window.removeEventListener('online', up)
-      window.removeEventListener('offline', down)
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!photo) {
+      toast.error('Please capture or upload a photo')
+      return
     }
-  }, [])
 
-  const closed = event.registration.closed
+    setLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('name', form.name)
+      formData.append('email', form.email)
+      formData.append('phone', form.phone)
+      formData.append('institution', form.institution)
+      formData.append('category', form.category)
+      formData.append('photo', photo)
 
-  return (
-    <>
-      <PageHero
-        eyebrow="Registration · AIS 2026"
-        title="Register for the symposium."
-        lead="It takes about five minutes. Your pass is issued at the arrival desk after identity verification."
-        crumbs={[
-          { to: '/', label: 'Home' },
-          { label: 'Register' },
-        ]}
-      />
+      await client.post('/participants/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
 
-      <div className="container-prose pt-8 pb-16 md:pb-24">
-        {closed ? (
-          <section aria-labelledby="closed-heading">
-            <Banner tone="warning" title="Registration closed" className="mb-6">
-              Registration is closed for this event. Your pass is issued at the arrival desk,
-              not by email.
-            </Banner>
-            <h2 id="closed-heading" className="text-h3 font-semibold text-ink-900">
-              Registration is closed
-            </h2>
-            <p className="mt-3 max-w-prose text-sm leading-relaxed text-slate-700">
-              If you have already registered, check your status. For help, contact the host
-              office — contact details are to be announced.
-            </p>
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Link
-                to={event.links.status}
-                className="inline-flex h-11 items-center rounded-sm bg-ink-900 px-4 text-sm font-medium text-ivory-50"
-              >
-                Check your registration status
-              </Link>
-              <Link to="/faq" className="text-sm font-medium text-ink-900 underline underline-offset-4">
-                Contact the host office
-              </Link>
-            </div>
-          </section>
-        ) : (
-          <>
-            <RegistrationForm online={online} />
+      setSuccess(true)
+      toast.success('Registration successful!')
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Registration failed'
+      toast.error(typeof msg === 'string' ? msg : 'Registration failed')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-            <section aria-labelledby="steps-heading" className="mt-14 border-t border-border pt-8">
-              <h2 id="steps-heading" className="text-h3 font-semibold text-ink-900">
-                What happens after you submit
-              </h2>
-              <ol className="mt-5 border-t border-border">
-                {steps.map((step) => (
-                  <li
-                    key={step.n}
-                    className="grid grid-cols-[36px_1fr] gap-4 border-b border-border py-4"
-                  >
-                    <span className="font-mono text-sm font-semibold text-gold-700">{step.n}</span>
-                    <div>
-                      <h3 className="text-base font-semibold text-ink-900">{step.title}</h3>
-                      <p className="mt-1 text-sm leading-relaxed text-slate-700">{step.body}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </section>
-
-            <section
-              aria-labelledby="before-heading"
-              className="mt-10 rounded-lg border border-sand-200 bg-sand-100 p-5"
-            >
-              <h2 id="before-heading" className="text-h4 font-semibold text-ink-900">
-                Before you start
-              </h2>
-              <ul className="mt-3 space-y-2">
-                {beforeYouStart.map((item) => (
-                  <li
-                    key={item}
-                    className="flex items-start gap-2.5 text-sm leading-relaxed text-[#5A4D38]"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="mt-2 h-1 w-3.5 shrink-0 rounded-full bg-gold-600"
-                    />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section className="mt-10 border-t border-border pt-6">
-              <h2 className="text-h4 font-semibold text-ink-900">Need help?</h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-700">
-                Use <Link to="/register/assisted" className="font-medium underline underline-offset-4">/register/assisted</Link>{' '}
-                with a staff member. Your pass is issued at the arrival desk, not by email.
-              </p>
-            </section>
-          </>
-        )}
-
-        <div className="mt-8">
-          <PlaceholderBadge>Working copy — pending host approval</PlaceholderBadge>
+  if (success) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+          <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">🎉</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Complete!</h2>
+          <p className="text-gray-500 mb-4">
+            Your QR code has been sent to <strong>{form.email}</strong>.<br />
+            Please present it at the event for check-in.
+          </p>
+          <Button variant="accent" onClick={() => { setSuccess(false); setForm({ name: '', email: '', phone: '', institution: '', category: 'STUDENT' }); setPhoto(null) }}>
+            Register Another
+          </Button>
         </div>
       </div>
-    </>
+    )
+  }
+
+  return (
+    <div className="max-w-lg mx-auto px-4 py-10">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-primary">Participant Registration</h1>
+        <p className="text-gray-500 mt-1">Odisha AI Symposium 2026</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
+        <Input
+          label="Full Name *"
+          name="name"
+          icon={User}
+          placeholder="Your full name"
+          value={form.name}
+          onChange={handleChange}
+          required
+        />
+        <Input
+          label="Email *"
+          name="email"
+          type="email"
+          icon={Mail}
+          placeholder="your@email.com"
+          value={form.email}
+          onChange={handleChange}
+          required
+        />
+        <Input
+          label="Phone Number *"
+          name="phone"
+          type="tel"
+          icon={Phone}
+          placeholder="+91 98765 43210"
+          value={form.phone}
+          onChange={handleChange}
+          required
+        />
+        <Input
+          label="Institution *"
+          name="institution"
+          icon={Building}
+          placeholder="Your university or organization"
+          value={form.institution}
+          onChange={handleChange}
+          required
+        />
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+          <select
+            name="category"
+            value={form.category}
+            onChange={handleChange}
+            className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            {categories.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo *</label>
+          <PhotoCapture onCapture={setPhoto} />
+        </div>
+
+        <Button type="submit" loading={loading} className="w-full" size="lg" variant="accent">
+          Complete Registration
+        </Button>
+      </form>
+    </div>
   )
 }
+
