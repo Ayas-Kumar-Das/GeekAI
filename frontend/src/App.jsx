@@ -12,7 +12,6 @@ import RouteFallback from './components/RouteFallback'
 const Home = lazy(() => import('./pages/Home'))
 const Login = lazy(() => import('./pages/Login'))
 const Register = lazy(() => import('./pages/Register'))
-const Programme = lazy(() => import('./pages/Programme'))
 const VenuePage = lazy(() => import('./pages/Venue'))
 const FaqPage = lazy(() => import('./pages/Faq'))
 const Privacy = lazy(() => import('./pages/Privacy'))
@@ -56,7 +55,6 @@ export default function App() {
           {/* Public shell (§6.1): top strip, masthead, ink footer */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
-            <Route path="/programme" element={<Programme />} />
             <Route path="/venue" element={<VenuePage />} />
             <Route path="/faq" element={<FaqPage />} />
             <Route path="/register" element={<Register />} />

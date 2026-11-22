@@ -34,7 +34,6 @@ if (!executablePath) {
 
 const routes = [
   '/',
-  '/programme',
   '/venue',
   '/faq',
   '/register',

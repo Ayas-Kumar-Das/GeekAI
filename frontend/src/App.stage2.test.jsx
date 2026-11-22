@@ -38,7 +38,6 @@ function expectNoQrEmailedClaim() {
 
 const publicRoutes = [
   ['/', /Registration,/i],
-  ['/programme', /A programme in progress/i],
   ['/venue', /Find your way in/i],
   ['/faq', /Good to know/i],
   ['/privacy', /Privacy notice/i],
@@ -133,18 +132,11 @@ describe('Stage 2 in-site registration form', () => {
   })
 })
 
-describe('Stage 2 programme tabs', () => {
-  it('filters sessions by track', async () => {
-    const user = userEvent.setup()
-    renderAt('/programme')
-    await screen.findByRole('heading', { level: 1, name: /A programme in progress/i })
-
-    const tabs = screen.getByRole('tablist', { name: /Filter sessions by track/i })
-    expect(within(tabs).getAllByRole('tab')).toHaveLength(4)
-
-    await user.click(within(tabs).getByRole('tab', { name: 'Workshops' }))
-    expect(screen.getByText('Applied AI workshop')).toBeTruthy()
-    expect(screen.queryByText('Research and applications track')).toBeNull()
+describe('Featured work', () => {
+  it('shows the GeekAI-managed event and links to its official site', async () => {
+    renderAt('/')
+    await screen.findByRole('heading', { level: 2, name: /Featured work/i })
+    expect(screen.getAllByText(/Odisha AI Symposium 2026/i).length).toBeGreaterThan(0)
     expectNoQrEmailedClaim()
   })
 })

@@ -7,7 +7,6 @@ const columns = [
   {
     heading: 'Portal',
     links: [
-      { to: '/programme', label: 'Programme' },
       { to: '/venue', label: 'Venue' },
       { to: '/faq', label: 'FAQ' },
     ],

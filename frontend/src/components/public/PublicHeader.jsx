@@ -7,7 +7,6 @@ import { event, platform } from '../../content/event'
 import { cn } from '../../lib/cn'
 
 const navLinks = [
-  { to: '/programme', label: 'Programme' },
   { to: '/venue', label: 'Venue' },
   { to: '/faq', label: 'FAQ' },
 ]
@@ -36,15 +35,64 @@ export function PublicHeader() {
 
   return (
     <>
-      {/* Top strip — desktop only (§7.1 layout1) */}
-      <div className="hidden bg-ink-900 lg:block">
-        <div className="container-wide flex h-9 items-center justify-between text-[11px] tracking-[0.06em] text-ivory-100/72">
-          <span>
+      {/* Top strip — host / event logo links (reference layout) */}
+      <div className="bg-ink-900">
+        <div className="container-wide flex min-h-11 items-center justify-between gap-4 py-1.5 text-[10px] tracking-[0.06em] text-ivory-100/72">
+          <span className="hidden sm:block">
             A registration service by the <b className="font-semibold text-ivory-100">{platform.owner}</b>
           </span>
-          <span>
-            {platform.status} <b className="font-semibold text-ivory-100">{event.shortName}</b>
-          </span>
+          <span className="sm:hidden">Registration portal · {event.shortName}</span>
+
+          <div className="flex items-center gap-3 sm:gap-5">
+            {/* OAIS 2026 — event wordmark; no official logo file is published, so
+                the Konark mark + name are used, never a claimed official asset. */}
+            {event.hostLinks.official ? (
+              <a
+                href={event.hostLinks.official}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-2 rounded-sm px-1 py-1 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500"
+                aria-label={`Odisha AI Conference 2026 official website (opens in a new tab)`}
+              >
+                <img src="/oaic-logo.webp" alt="" className="h-8 w-auto shrink-0" />
+                <span className="hidden text-left leading-tight md:block">
+                  <span className="block text-[9px] font-bold uppercase tracking-[0.1em] text-ivory-50">
+                    OAIC 2026
+                  </span>
+                  <span className="block text-[8px] text-ivory-100/55">Official site</span>
+                </span>
+              </a>
+            ) : (
+              <span className="flex items-center gap-2 px-1 py-1" title="Official link to be announced">
+                <img src="/oaic-logo.webp" alt="" className="h-8 w-auto shrink-0" />
+                <span className="hidden text-left leading-tight md:block">
+                  <span className="block text-[9px] font-bold uppercase tracking-[0.1em] text-ivory-50">
+                    OAIC 2026
+                  </span>
+                  <span className="block text-[8px] text-ivory-100/55">Link to be announced</span>
+                </span>
+              </span>
+            )}
+
+            <span aria-hidden="true" className="hidden h-6 w-px bg-ivory-100/20 md:block" />
+
+            {/* SOA University — supplied official mark */}
+            <a
+              href={event.hostLinks.soa}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-sm px-1 py-1 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500"
+              aria-label="SOA University official website (opens in a new tab)"
+            >
+              <img src="/soa-logo.webp" alt="" className="h-7 w-auto shrink-0" />
+              <span className="hidden text-left leading-tight md:block">
+                <span className="block text-[9px] font-bold uppercase tracking-[0.1em] text-ivory-50">
+                  SOA University
+                </span>
+                <span className="block text-[8px] text-ivory-100/55">Official site</span>
+              </span>
+            </a>
+          </div>
         </div>
       </div>
 

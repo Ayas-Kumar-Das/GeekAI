@@ -239,7 +239,7 @@ function PrimaryAction({ kind, refresh }) {
     case 'retry':
       return <Button onClick={refresh}>Try again</Button>
     case 'details':
-      return <ActionLink to="/programme">View event details</ActionLink>
+      return <ActionLink to="/venue">View event details</ActionLink>
     case 'form':
       return <ActionLink to="/register">Open the form</ActionLink>
     case 'register':
@@ -421,7 +421,7 @@ function Aside() {
         </div>
         <p className="mt-1.5 text-xs font-semibold text-ink-900">{event.dateLabel}</p>
         <p className="mt-1 text-[11px] leading-[1.5] text-muted">
-          We'll email you as soon as the programme is published.
+          Check the venue page for event details as they are published.
         </p>
       </section>
     </aside>

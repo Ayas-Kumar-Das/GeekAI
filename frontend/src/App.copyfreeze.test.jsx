@@ -20,7 +20,7 @@ vi.mock('./api/client', async (importOriginal) => {
 })
 
 const ROUTES = [
-  '/', '/programme', '/venue', '/faq', '/register',
+  '/', '/venue', '/faq', '/register',
   '/registration/status', '/registration/status?token=demo', '/registration/status?token=demo-pass',
   '/ticket/demo', '/ticket/demo-pass', '/privacy', '/accessibility', '/code-of-conduct',
   '/volunteer/dashboard', '/volunteer/arrival', '/volunteer/scan',

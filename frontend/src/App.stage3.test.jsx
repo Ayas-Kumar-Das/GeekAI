@@ -151,7 +151,7 @@ describe('Stage 3 registration status — state matrix (§7.3)', () => {
     const first = renderAt('/registration/status?token=tok-confirmed')
     expect(await screen.findByRole('heading', { level: 1, name: /You're confirmed\./ })).toBeTruthy()
     const details = screen.getByRole('link', { name: /View event details/i })
-    expect(details.getAttribute('href')).toBe('/programme')
+    expect(details.getAttribute('href')).toBe('/venue')
     first.unmount()
 
     client.get.mockReset()

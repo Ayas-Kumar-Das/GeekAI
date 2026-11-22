@@ -4,7 +4,6 @@ import Drawer from '../ui/Drawer'
 import { cn } from '../../lib/cn'
 
 const links = [
-  { to: '/programme', label: 'Programme' },
   { to: '/venue', label: 'Venue' },
   { to: '/faq', label: 'FAQ' },
 ]

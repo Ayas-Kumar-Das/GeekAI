@@ -1,4 +1,3 @@
-import KonarkMark from './KonarkMark'
 import { event } from '../../content/event'
 
 /**
@@ -26,12 +25,13 @@ export function WheelCard() {
         {event.name}
       </span>
 
-      {/* Konark wheel — fully contained on the right */}
+      {/* Konark wheel — stone-carving image, no background, aligned right-center */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-end pr-1 md:pr-7">
-        <KonarkMark
-          className="h-[110px] w-[110px] text-gold-500 md:h-[230px] md:w-[230px]"
-          strokeWidth={1.1}
+        <img
+          src="/konark-wheel.webp"
+          alt=""
           aria-hidden="true"
+          className="h-[128px] w-[128px] object-contain opacity-95 drop-shadow-[0_0_22px_rgba(201,162,39,0.22)] md:h-[290px] md:w-[290px]"
         />
       </div>
 

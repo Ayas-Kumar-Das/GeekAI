@@ -2,15 +2,13 @@ import { useEffect, useState } from 'react'
 import { ArrowRight, CalendarDays, MapPin, Ticket } from 'lucide-react'
 import WheelCard from '../components/public/WheelCard'
 import HeroBackdrop from '../components/public/HeroBackdrop'
-import FactStrip from '../components/public/FactStrip'
-import SessionCard, { MiniRow } from '../components/public/SessionCard'
+import FeaturedWork from '../components/public/FeaturedWork'
 import FaqAccordion from '../components/public/FaqAccordion'
 import StepExplainer from '../components/public/StepExplainer'
 import VenueMap from '../components/public/VenueMap'
 import { SectionLabel, Eyebrow } from '../components/public/SectionLabel'
 import { ActionLink } from '../components/ui/ActionLink'
 import { Badge } from '../components/ui/Badge'
-import { sessions, programmeStatus } from '../content/programme'
 import { featuredFaqs, faqStatus } from '../content/faq'
 import { venue } from '../content/venue'
 import { event, platform } from '../content/event'
@@ -156,10 +154,6 @@ export default function Home() {
                 Register interest
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </ActionLink>
-              <ActionLink to="/programme" variant="link" size="lg" className="px-0">
-                Explore the programme
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </ActionLink>
             </div>
 
             {/* ----------------- Event Intelligence Deck (Unified Architectural Console) ----------------- */}
@@ -245,46 +239,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* --------------------------------------------------- Three facts */}
-      <FactStrip />
-
-      {/* ----------------------------------------------- Programme preview */}
-      <section className="container-wide py-10 md:py-13">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Eyebrow>Programme</Eyebrow>
-              <Badge tone="outline">{programmeStatus.pill}</Badge>
-            </div>
-            <h2 className="mt-1.5 text-h3 font-semibold tracking-[-0.025em] text-ink-900">
-              A programme in progress.
-            </h2>
-          </div>
-          <div className="flex flex-col items-start gap-2 md:items-end">
-            <span className="text-xs text-muted">
-              Full schedule to be announced
-            </span>
-            <ActionLink to="/programme" variant="link" size="sm" className="px-0 text-xs font-semibold">
-              View programme
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-            </ActionLink>
-          </div>
-        </div>
-
-        {/* Desktop: three cards (mockup 01) */}
-        <div className="mt-4 hidden gap-4 md:grid md:grid-cols-3">
-          {sessions.map((session) => (
-            <SessionCard key={session.id} session={session} />
-          ))}
-        </div>
-
-        {/* Mobile: two compact rows + view-all (§7.1 mobile) */}
-        <div className="mt-3 border-t border-border md:hidden">
-          {sessions.slice(0, 2).map((session) => (
-            <MiniRow key={session.id} session={session} />
-          ))}
-        </div>
-      </section>
+      {/* ------------------------------------------------ Featured work */}
+      <FeaturedWork />
 
       {/* --------------------------------------------------- How it works */}
       <section className="border-y border-border bg-paper">

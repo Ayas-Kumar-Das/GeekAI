@@ -56,6 +56,16 @@ export const event = {
   hostLine: 'Presented by SOA University & AIC for Innovation Center',
   locationLine: 'Bhubaneswar, Odisha · 2026',
 
+  // Official hosts' websites for the top-strip logo links (verified public URLs).
+  hostLinks: {
+    soa: 'https://www.soa.ac.in',
+    // The official Odisha AI Conference (OAIC) 2026 site is published.
+    official: env.VITE_OAIS_OFFICIAL_URL || 'https://www.oaic.in/',
+  },
+
+  // Alias used by the Featured Work card.
+  officialUrl: env.VITE_OAIS_OFFICIAL_URL || 'https://www.oaic.in/',
+
   registration: {
     // The in-site React form is the only intake. No external form URL.
     required: true,
