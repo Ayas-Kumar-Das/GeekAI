@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, CalendarDays, MapPin, Ticket } from 'lucide-react'
 import WheelCard from '../components/public/WheelCard'
+import HeroBackdrop from '../components/public/HeroBackdrop'
 import FactStrip from '../components/public/FactStrip'
 import SessionCard, { MiniRow } from '../components/public/SessionCard'
 import FaqAccordion from '../components/public/FaqAccordion'
@@ -76,158 +77,64 @@ export default function Home() {
   return (
     <>
       {/* ---------------------------------------------------------- Hero */}
-      <section
-        className="relative overflow-hidden"
-        style={{
-          background:
-            'radial-gradient(920px 520px at 75% 30%, rgba(201,162,39,.14), transparent 70%), linear-gradient(180deg, #F3ECE0 0%, #EAE0CE 100%)',
-        }}
-      >
-        {/* Diamond / Rhombus Grid Mesh Background (Image 1 & 2 inspired) */}
-        <svg
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full opacity-75"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            <pattern
-              id="diamond-lattice"
-              width="64"
-              height="64"
-              patternUnits="userSpaceOnUse"
-            >
-              {/* Center diamond fill with delicate warm tint */}
-              <polygon
-                points="32,0 64,32 32,64 0,32"
-                fill="rgba(11, 31, 58, 0.02)"
-              />
-              {/* Corner diamond fills for alternating argyle contrast */}
-              <polygon points="0,0 32,0 0,32" fill="rgba(201, 162, 39, 0.025)" />
-              <polygon points="64,0 32,0 64,32" fill="rgba(201, 162, 39, 0.025)" />
-              <polygon points="0,64 32,64 0,32" fill="rgba(201, 162, 39, 0.025)" />
-              <polygon points="64,64 32,64 64,32" fill="rgba(201, 162, 39, 0.025)" />
-
-              {/* Rhombus lattice outline strokes */}
-              <path
-                d="M32,0 L64,32 L32,64 L0,32 Z"
-                fill="none"
-                stroke="rgba(11, 31, 58, 0.08)"
-                strokeWidth="0.8"
-              />
-              {/* Corner strokes */}
-              <line x1="0" y1="0" x2="32" y2="0" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
-              <line x1="0" y1="32" x2="0" y2="0" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
-              <line x1="64" y1="0" x2="32" y2="0" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
-              <line x1="64" y1="32" x2="64" y2="0" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
-              <line x1="0" y1="64" x2="32" y2="64" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
-              <line x1="0" y1="32" x2="0" y2="64" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
-              <line x1="64" y1="64" x2="32" y2="64" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
-              <line x1="64" y1="32" x2="64" y2="64" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
-
-              {/* Vertical center grid lines through vertices */}
-              <line
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="64"
-                stroke="rgba(11, 31, 58, 0.05)"
-                strokeWidth="0.8"
-              />
-              <line
-                x1="32"
-                y1="0"
-                x2="32"
-                y2="64"
-                stroke="rgba(11, 31, 58, 0.05)"
-                strokeWidth="0.8"
-              />
-              <line
-                x1="64"
-                y1="0"
-                x2="64"
-                y2="64"
-                stroke="rgba(11, 31, 58, 0.05)"
-                strokeWidth="0.8"
-              />
-
-              {/* Continuous subtle diagonals */}
-              <line
-                x1="0"
-                y1="0"
-                x2="64"
-                y2="64"
-                stroke="rgba(201, 162, 39, 0.04)"
-                strokeWidth="0.6"
-              />
-              <line
-                x1="64"
-                y1="0"
-                x2="0"
-                y2="64"
-                stroke="rgba(201, 162, 39, 0.04)"
-                strokeWidth="0.6"
-              />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#diamond-lattice)" />
-        </svg>
-
-        {/* Golden Glitter and Sparkle Layer (Image 1 & 2 inspired) */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-          <svg className="absolute h-0 w-0">
-            <defs>
-              <radialGradient id="sparkle-gold-glow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#FFFFFF" />
-                <stop offset="35%" stopColor="#FFF8DB" />
-                <stop offset="70%" stopColor="#EAB308" />
-                <stop offset="100%" stopColor="#C9A227" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-          </svg>
-
-          {HERO_SPARKLES.map((s, idx) => (
-            <div
-              key={idx}
-              className={`absolute ${s.type === 'star' ? 'animate-sparkle-pulse' : 'animate-sparkle-twinkle'}`}
-              style={{
-                top: s.top,
-                left: s.left,
-                right: s.right,
-                animationDelay: s.delay,
-                animationDuration: s.duration,
-              }}
-            >
-              {s.type === 'star' ? (
-                <svg
-                  width={s.size}
-                  height={s.size}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  style={{
-                    filter:
-                      'drop-shadow(0 0 3px rgba(254, 240, 138, 0.95)) drop-shadow(0 0 8px rgba(201, 162, 39, 0.75))',
-                  }}
-                >
-                  <path
-                    d="M12 0C12 7.5 7.5 12 0 12C7.5 12 12 16.5 12 24C12 16.5 16.5 12 24 12C16.5 12 12 7.5 12 0Z"
-                    fill="url(#sparkle-gold-glow)"
+      <section className="relative overflow-hidden">
+        <HeroBackdrop>
+          {/* Golden glitter & sparkles */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+            <svg className="absolute h-0 w-0">
+              <defs>
+                <radialGradient id="sparkle-gold-glow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#FFFFFF" />
+                  <stop offset="35%" stopColor="#FFF8DB" />
+                  <stop offset="70%" stopColor="#EAB308" />
+                  <stop offset="100%" stopColor="#C9A227" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+            </svg>
+            {HERO_SPARKLES.map((s, idx) => (
+              <div
+                key={idx}
+                className={`absolute ${s.type === 'star' ? 'animate-sparkle-pulse' : 'animate-sparkle-twinkle'}`}
+                style={{
+                  top: s.top,
+                  left: s.left,
+                  right: s.right,
+                  animationDelay: s.delay,
+                  animationDuration: s.duration,
+                }}
+              >
+                {s.type === 'star' ? (
+                  <svg
+                    width={s.size}
+                    height={s.size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    style={{
+                      filter:
+                        'drop-shadow(0 0 3px rgba(254, 240, 138, 0.95)) drop-shadow(0 0 8px rgba(201, 162, 39, 0.75))',
+                    }}
+                  >
+                    <path
+                      d="M12 0C12 7.5 7.5 12 0 12C7.5 12 12 16.5 12 24C12 16.5 16.5 12 24 12C16.5 12 12 7.5 12 0Z"
+                      fill="url(#sparkle-gold-glow)"
+                    />
+                    <circle cx="12" cy="12" r="2" fill="#FFFFFF" />
+                  </svg>
+                ) : (
+                  <span
+                    className="block rounded-full bg-[#FFFFFF]"
+                    style={{
+                      width: s.size,
+                      height: s.size,
+                      boxShadow:
+                        '0 0 4px 1.5px rgba(255, 255, 255, 0.95), 0 0 10px 3px rgba(201, 162, 39, 0.85), 0 0 16px 5px rgba(234, 179, 8, 0.45)',
+                    }}
                   />
-                  <circle cx="12" cy="12" r="2" fill="#FFFFFF" />
-                </svg>
-              ) : (
-                <span
-                  className="block rounded-full bg-[#FFFFFF]"
-                  style={{
-                    width: s.size,
-                    height: s.size,
-                    boxShadow:
-                      '0 0 4px 1.5px rgba(255, 255, 255, 0.95), 0 0 10px 3px rgba(201, 162, 39, 0.85), 0 0 16px 5px rgba(234, 179, 8, 0.45)',
-                  }}
-                />
-              )}
-            </div>
-          ))}
-        </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </HeroBackdrop>
 
         <div className="container-wide relative grid items-center gap-10 py-9 md:py-14 lg:grid-cols-[1.03fr_.97fr] lg:gap-[70px] lg:items-start lg:py-16">
           <div className="lg:pb-1">
@@ -300,8 +207,8 @@ export default function Home() {
                         Access
                       </span>
                     </div>
-                    <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-700 bg-emerald-500/10 px-1.5 py-0.5 rounded-full ring-1 ring-emerald-500/20">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-teal-600 bg-teal-100 px-1.5 py-0.5 rounded-full ring-1 ring-teal-500/20">
+                      <span className="h-1.5 w-1.5 rounded-full bg-teal-500 animate-pulse" />
                       Live
                     </span>
                   </div>
