@@ -12,6 +12,8 @@ services:
       - "5438:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - geekai-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-geekai} -d ${POSTGRES_DB:-geekai}"]
       interval: 5s
@@ -38,6 +40,14 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/uploads:/app/uploads
+    networks:
+      - geekai-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,8 +59,16 @@ services:
     container_name: geekai-frontend
     ports:
       - "5173:80"
+    networks:
+      - geekai-network
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+
+networks:
+  geekai-network:
+    driver: bridge
+    name: geekai-network
 
 volumes:
   postgres_data:
