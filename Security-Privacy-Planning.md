@@ -1,7 +1,7 @@
 # GeekAI — Security & Privacy Planning
 
 **Odisha AI Symposium 2026** · Companion to [WorkFlow.md](WorkFlow.md), [Backend-Planning.md](Backend-Planning.md) and [Infrastructure-Planning.md](Infrastructure-Planning.md)
-**Status:** Plan only · 20 November 2026
+**Status:** Plan only · 20 November 2026 · Execution order: [Backend-Implementation-Plan.md](Backend-Implementation-Plan.md)
 **Gate:** G1 — must pass before any real participant photo, email or biometric data is collected.
 
 ---
@@ -28,6 +28,7 @@ Close the critical security and data-integrity gaps in the current backend befor
 | 8 | Frontend served over HTTP in Compose | `docker-compose.yml` | High (camera access) |
 | 9 | No S3 policy, secrets management, consent text or retention policy | repo-wide | High |
 | 10 | No rate limits or audit log | repo-wide | Medium |
+| 11 | Photos and legacy QR PNGs served as public static files | `backend/app/main.py` → `/uploads` `StaticFiles` mount | Critical |
 
 The delivered frontend already refuses unsigned QR JSON, never constructs a payload, and keeps flag-gated writes safe — but the server must still enforce these controls; UI checks are not security controls.
 
@@ -47,6 +48,7 @@ The delivered frontend already refuses unsigned QR JSON, never constructs a payl
 | P0-8 | Attendance undo with reason + soft-delete guards | Backend-Planning.md §2.1 | Void requires reason; delete preserves history |
 | P0-9 | CI with pytest, lint, migration check, dependency audit | Backend-Planning.md §5 | Green build required to merge |
 | P0-10 | PII redaction in logs and error tracking | Infrastructure-Planning.md §5 | Log scan finds no email/phone/token |
+| P0-11 | Remove the public `/uploads` static mount; serve photos through an authenticated route or presigned URL | Backend-Planning.md §4 | Anonymous `/uploads/*` request → 404; photo requires a principal |
 
 ---
 

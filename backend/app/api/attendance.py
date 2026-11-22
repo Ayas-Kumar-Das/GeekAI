@@ -1,20 +1,32 @@
-"""Attendance API — record, query, validate QR."""
+"""Attendance API — record, query, validate QR (disabled), face match.
+
+Stage S1 protects every read with a staff principal and event scope, and
+disables the legacy unsigned `validate-qr` path with 410. Response shapes
+are unchanged.
+"""
 
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 from typing import Optional
 
 import numpy as np
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.deps import get_current_user, get_db
-from app.models.models import Attendance, AttendanceMethod, FaceEmbedding, Participant, Session, User
+from app.core.config import settings
+from app.core.deps import get_current_staff, get_db, require_event_scope
+from app.models.models import (
+    Attendance,
+    AttendanceMethod,
+    FaceEmbedding,
+    Participant,
+    Session,
+    User,
+)
 from app.schemas.schemas import (
     AttendanceCreate,
     AttendanceOut,
@@ -24,31 +36,56 @@ from app.schemas.schemas import (
     QRValidateRequest,
     QRValidateResponse,
 )
+from app.services.audit import audit_log
 from app.services.embedding_service import generate_embedding
+from app.services.events import get_active_event_id
 
 router = APIRouter(prefix="/api/attendance", tags=["attendance"])
+
+_staff_event = require_event_scope(settings.ACTIVE_EVENT_CODE)
+
+
+async def _audit(
+    db: AsyncSession,
+    request: Request,
+    action: str,
+    actor: User,
+    entity: str = "attendance",
+    entity_id: str | None = None,
+    after: dict | None = None,
+) -> None:
+    await audit_log(
+        db,
+        action=action,
+        actor_id=actor.id,
+        actor_role=actor.role.value if hasattr(actor.role, "value") else actor.role,
+        entity=entity,
+        entity_id=entity_id,
+        after=after,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        request_id=getattr(request.state, "request_id", None),
+    )
 
 
 @router.post("/", response_model=AttendanceOut, status_code=status.HTTP_201_CREATED)
 async def record_attendance(
     body: AttendanceCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_staff_event),
 ):
     """Record attendance for a participant. Prevents duplicates."""
-    # Verify participant exists
     p_result = await db.execute(select(Participant).where(Participant.id == body.participant_id))
     participant = p_result.scalar_one_or_none()
     if not participant:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participant not found")
 
-    # Verify session exists (if provided)
     if body.session_id is not None:
         s_result = await db.execute(select(Session).where(Session.id == body.session_id))
         if not s_result.scalar_one_or_none():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
-    # Check for duplicate
     if body.session_id is not None:
         dup_query = select(Attendance).where(
             and_(
@@ -78,11 +115,24 @@ async def record_attendance(
         session_id=body.session_id,
         method=body.method,
         marked_by=current_user.id,
+        event_id=await get_active_event_id(db),
     )
     db.add(attendance)
     await db.flush()
     await db.refresh(attendance)
 
+    await _audit(
+        db,
+        request,
+        "ATTENDANCE_RECORDED",
+        current_user,
+        entity_id=str(attendance.id),
+        after={
+            "participant_id": body.participant_id,
+            "session_id": body.session_id,
+            "method": body.method.value,
+        },
+    )
     return AttendanceOut(
         id=attendance.id,
         participant_id=attendance.participant_id,
@@ -95,7 +145,11 @@ async def record_attendance(
 
 
 @router.get("/event", response_model=list[AttendanceOut])
-async def event_attendance(db: AsyncSession = Depends(get_db)):
+async def event_attendance(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _staff: User = Depends(_staff_event),
+):
     """List all event-level attendance (session_id IS NULL)."""
     result = await db.execute(
         select(Attendance, Participant.name)
@@ -104,6 +158,7 @@ async def event_attendance(db: AsyncSession = Depends(get_db)):
         .order_by(Attendance.marked_at.desc())
     )
     rows = result.all()
+    await _audit(db, request, "ATTENDANCE_LIST_READ", _staff, after={"scope": "event", "count": len(rows)})
     return [
         AttendanceOut(
             id=a.id,
@@ -119,9 +174,13 @@ async def event_attendance(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/session/{session_id}", response_model=list[AttendanceOut])
-async def session_attendance(session_id: int, db: AsyncSession = Depends(get_db)):
+async def session_attendance(
+    session_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _staff: User = Depends(_staff_event),
+):
     """List all attendance records for a specific session."""
-    # Verify session
     s_result = await db.execute(select(Session).where(Session.id == session_id))
     if not s_result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
@@ -134,6 +193,14 @@ async def session_attendance(session_id: int, db: AsyncSession = Depends(get_db)
         .order_by(Attendance.marked_at.desc())
     )
     rows = result.all()
+    await _audit(
+        db,
+        request,
+        "ATTENDANCE_SESSION_READ",
+        _staff,
+        entity_id=str(session_id),
+        after={"count": len(rows)},
+    )
     return [
         AttendanceOut(
             id=a.id,
@@ -150,7 +217,11 @@ async def session_attendance(session_id: int, db: AsyncSession = Depends(get_db)
 
 
 @router.get("/stats", response_model=AttendanceStats)
-async def attendance_stats(db: AsyncSession = Depends(get_db)):
+async def attendance_stats(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _staff: User = Depends(_staff_event),
+):
     """Overall attendance statistics."""
     total_p = (await db.execute(select(func.count()).select_from(Participant))).scalar()
     total_checked = (
@@ -160,14 +231,12 @@ async def attendance_stats(db: AsyncSession = Depends(get_db)):
     ).scalar()
     total_sessions = (await db.execute(select(func.count()).select_from(Session))).scalar()
 
-    # By method
     method_result = await db.execute(
         select(Attendance.method, func.count())
         .group_by(Attendance.method)
     )
     by_method = {row[0].value: row[1] for row in method_result.all()}
 
-    # By session
     session_result = await db.execute(
         select(Session.id, Session.name, func.count(Attendance.id))
         .outerjoin(Attendance, Attendance.session_id == Session.id)
@@ -179,6 +248,7 @@ async def attendance_stats(db: AsyncSession = Depends(get_db)):
         for sid, sname, cnt in session_result.all()
     ]
 
+    await _audit(db, request, "ATTENDANCE_STATS_READ", _staff, after={"scope": "aggregate"})
     return AttendanceStats(
         total_participants=total_p,
         total_checked_in=total_checked,
@@ -189,36 +259,42 @@ async def attendance_stats(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/validate-qr", response_model=QRValidateResponse)
-async def validate_qr(body: QRValidateRequest, db: AsyncSession = Depends(get_db)):
-    """Validate a participant from scanned QR code data."""
-    result = await db.execute(select(Participant).where(Participant.id == body.participant_id))
-    participant = result.scalar_one_or_none()
+async def validate_qr(
+    body: QRValidateRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _staff: User = Depends(_staff_event),
+):
+    """Legacy unsigned QR validation is disabled in S1.
 
-    if not participant:
-        return QRValidateResponse(valid=False, message="Participant not found")
-
-    if participant.name != body.name:
-        return QRValidateResponse(valid=False, message="QR data does not match records")
-
-    return QRValidateResponse(
-        valid=True,
-        participant=ParticipantOut.model_validate(participant),
-        message="Participant verified successfully",
+    Returns 410 `LEGACY_QR_DISABLED` and writes an audit row. The delivered
+    scanner already refuses this path; there is no fallback.
+    """
+    await _audit(
+        db,
+        request,
+        "LEGACY_QR_REJECTED",
+        _staff,
+        entity="qr",
+        after={"result": "410", "code": "LEGACY_QR_DISABLED"},
+    )
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail={
+            "code": "LEGACY_QR_DISABLED",
+            "message": "Legacy unsigned QR validation is disabled. Use /api/qr/verify (stage S5).",
+        },
     )
 
 
 @router.post("/face-match", response_model=FaceMatchResponse)
 async def match_face(
+    request: Request,
     photo: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_staff_event),
 ):
-    """Identify a participant from an uploaded face snapshot and check attendance status.
-
-    Reuses the InsightFace embedding generator and cosine similarity matching.
-    Returns matched participant info, similarity score, and whether event attendance
-    has already been marked.
-    """
+    """Identify a participant from an uploaded face snapshot."""
     # Save uploaded photo to a temporary file
     suffix = os.path.splitext(photo.filename or "")[1] or ".jpg"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -240,10 +316,8 @@ async def match_face(
             message="No face detected in the photo. Please ensure face is centered and clearly lit.",
         )
 
-    # Normalize query vector
     query_unit = query_arr / query_norm
 
-    # Load stored embeddings with participant details
     result = await db.execute(
         select(FaceEmbedding).options(selectinload(FaceEmbedding.participant))
     )
@@ -280,7 +354,6 @@ async def match_face(
 
     participant = best_match.participant
 
-    # Check if event-level attendance is already recorded
     att_res = await db.execute(
         select(Attendance).where(
             and_(
@@ -291,6 +364,15 @@ async def match_face(
     )
     existing_att = att_res.scalar_one_or_none()
 
+    await _audit(
+        db,
+        request,
+        "FACE_MATCH_ATTEMPTED",
+        current_user,
+        entity="participant",
+        entity_id=str(participant.id),
+        after={"matched": True, "similarity": round(best_sim, 4)},
+    )
     return FaceMatchResponse(
         matched=True,
         participant=ParticipantOut.model_validate(participant),
@@ -298,4 +380,3 @@ async def match_face(
         already_checked_in=existing_att is not None,
         message=f"Participant identified: {participant.name}",
     )
-

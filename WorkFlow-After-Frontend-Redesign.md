@@ -26,6 +26,7 @@ This document records the verified state of the project after the frontend redes
 | [React-Registration-Planning.md](React-Registration-Planning.md) | In-site React form submission → validation → S3 → embeddings pipeline |
 | [Local-Hub-Planning.md](Local-Hub-Planning.md) | On-site hub, stations, offline outbox, cloud sync |
 | [Security-Privacy-Planning.md](Security-Privacy-Planning.md) | P0 hardening before any real PII is collected |
+| [Backend-Implementation-Plan.md](Backend-Implementation-Plan.md) | **Execution order:** stages S0–S10, dependencies, exit evidence and the first five working days |
 
 ### 1.2 Source threads (reference material)
 
@@ -162,6 +163,8 @@ From `frontend/src/content/flags.js`. Production defaults are OFF unless set exp
 
 ## 5. Recommended delivery order
 
+> **Execution detail:** [Backend-Implementation-Plan.md](Backend-Implementation-Plan.md) turns the order below into stages S0–S10 with work items, dependencies, exit evidence and a week-by-week shape. Use this section for the rationale and that document for the day-to-day sequence.
+
 1. **Security foundation (G1)** — do this before touching real data; it changes auth dependencies used by every later endpoint.
 2. **Database migrations (G3 prerequisites)** — add `events`, provenance fields, QR/arrival/outbox/audit tables; keep legacy tables readable during transition.
 3. **Infrastructure (G2)** — provision S3/RDS/SES/Cloudflare; wire configuration and secrets.
@@ -257,4 +260,4 @@ Each document ends with exit criteria. A document's work is done only when its e
 - Hardware sign-off (printer, scanner, assistive technology, Lighthouse) recorded.
 - Post-event exports, certificates, reconciliation and retention purge completed.
 
-**Current position:** frontend done and verified, including the in-site registration redesign (`7ded722`); gates G1–G6 open; next action is the G1 security foundation in parallel with G2 infrastructure provisioning and the G3 backend for `POST /api/register`.
+**Current position:** frontend done and verified, including the in-site registration redesign (`7ded722`); gates G1–G6 open; next action is **Stage S0 (contract freeze, decisions and backend test/CI baseline)**, then **S1 — the G1 security foundation**, with **the infrastructure stage (S3) started in parallel on day one** because SES approval is long-lead. The exact sequence is in [Backend-Implementation-Plan.md](Backend-Implementation-Plan.md) §11.
