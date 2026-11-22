@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import Layout from './components/Layout'
 import AdminLayout from './components/AdminLayout'
 import VolunteerLayout from './components/volunteer/VolunteerLayout'
 import PublicLayout from './components/public/PublicLayout'
@@ -13,8 +12,6 @@ import RouteFallback from './components/RouteFallback'
 const Home = lazy(() => import('./pages/Home'))
 const Login = lazy(() => import('./pages/Login'))
 const Register = lazy(() => import('./pages/Register'))
-const Programme = lazy(() => import('./pages/Programme'))
-const Speakers = lazy(() => import('./pages/Speakers'))
 const VenuePage = lazy(() => import('./pages/Venue'))
 const FaqPage = lazy(() => import('./pages/Faq'))
 const Privacy = lazy(() => import('./pages/Privacy'))
@@ -58,8 +55,6 @@ export default function App() {
           {/* Public shell (§6.1): top strip, masthead, ink footer */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
-            <Route path="/programme" element={<Programme />} />
-            <Route path="/speakers" element={<Speakers />} />
             <Route path="/venue" element={<VenuePage />} />
             <Route path="/faq" element={<FaqPage />} />
             <Route path="/register" element={<Register />} />
@@ -85,12 +80,10 @@ export default function App() {
           {/* Dev-only token/primitive reference (Phase 0 exit criterion). */}
           {import.meta.env.DEV && <Route path="/design" element={<DesignSystem />} />}
 
-          {/* Staff sign-in (legacy shell until Stage 4) */}
-          <Route element={<Layout />}>
-            <Route path="/login" element={<Login />} />
-            <Route path="/admin/login" element={<Login />} />
-            <Route path="/volunteer/login" element={<Login />} />
-          </Route>
+          {/* Staff sign-in — dedicated design-system shell */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/admin/login" element={<Login />} />
+          <Route path="/volunteer/login" element={<Login />} />
 
           {/* Admin routes */}
           <Route

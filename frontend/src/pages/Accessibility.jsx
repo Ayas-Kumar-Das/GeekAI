@@ -11,7 +11,7 @@ export default function Accessibility() {
     <>
       <PageHero
         eyebrow="Practical · Accessibility"
-        title="Accessibility at the symposium."
+        title="Accessibility of this portal."
         lead="Access notes, arrival support and contact details will be published before the event."
         crumbs={[
           { to: '/', label: 'Home' },
@@ -46,7 +46,7 @@ export default function Accessibility() {
           <section>
             <h2 className="text-h4 font-semibold text-ink-900">Getting help on the day</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-700">
-              Tell any volunteer at the arrival desk what you need, or contact the host office
+              Tell any volunteer at the arrival desk what you need, or contact the event team
               before the event. Contact details to be announced.
             </p>
           </section>

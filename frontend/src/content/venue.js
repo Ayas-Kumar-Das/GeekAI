@@ -10,7 +10,7 @@ export const venue = {
   rows: [
     {
       key: 'Venue',
-      title: 'SOA University',
+      title: 'ITER, SOA University',
       body: 'Bhubaneswar, Odisha',
     },
     {
@@ -30,7 +30,7 @@ export const venue = {
   accessNote:
     'Accessibility notes, arrival support and contact details will be published before the event.',
   map: {
-    pinLabel: 'SOA University',
+    pinLabel: 'ITER, SOA University',
     deskLabel: 'Arrival desk',
     scaleLabel: 'Bhubaneswar · not to scale',
   },

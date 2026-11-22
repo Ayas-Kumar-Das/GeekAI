@@ -37,16 +37,14 @@ function expectNoQrEmailedClaim() {
 }
 
 const publicRoutes = [
-  ['/', /Intelligence,/i],
-  ['/programme', /A programme in progress/i],
-  ['/speakers', /Voices to be announced/i],
+  ['/', /Registration,/i],
   ['/venue', /Find your way in/i],
   ['/faq', /Good to know/i],
   ['/privacy', /Privacy notice/i],
-  ['/accessibility', /Accessibility at the symposium/i],
+  ['/accessibility', /Accessibility of this portal/i],
   ['/code-of-conduct', /Code of conduct/i],
   ['/registration/status', /Check your registration status/i],
-  ['/register', /Register for the symposium/i],
+  ['/register', /Register for the event/i],
 ]
 
 describe('Stage 2 public routes', () => {
@@ -70,27 +68,37 @@ describe('Stage 2 public routes', () => {
 
   it('offers a one-click path from the landing hero to registration', async () => {
     renderAt('/')
-    await screen.findByRole('heading', { level: 1, name: /Intelligence,/i })
+    await screen.findByRole('heading', { level: 1, name: /Registration,/i })
     const links = screen.getAllByRole('link', { name: /Register interest/i })
     expect(links.length).toBeGreaterThan(0)
     expect(links.some((a) => a.getAttribute('href') === '/register')).toBe(true)
   })
 
+  it('presents itself as the GeekAI portal currently serving the event', async () => {
+    renderAt('/')
+    await screen.findByRole('heading', { level: 1, name: /Registration,/i })
+    const text = document.body.textContent ?? ''
+    expect(text).toMatch(/GeekAI Developer Team/i)
+    expect(text).toMatch(/Odisha AI Symposium 2026/i)
+    expect(text).toMatch(/currently serving/i)
+    expect(text).not.toMatch(/can be reused for future events/i)
+    expect(screen.queryByRole('link', { name: /speakers/i })).toBeNull()
+  })
+
   it('shows honest placeholders on the landing page', async () => {
     renderAt('/')
-    await screen.findByRole('heading', { level: 1, name: /Intelligence,/i })
+    await screen.findByRole('heading', { level: 1, name: /Registration,/i })
     expect(screen.getAllByText('Date to be announced').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Speaker to be announced').length).toBeGreaterThan(0)
     expect(screen.getAllByText(/registration required/i).length).toBeGreaterThan(0)
-    // working copy label for the hero line
-    expect(screen.getByText(/pending host approval/i)).toBeTruthy()
+    // portal/event attribution instead of the old working-copy label
+    expect(screen.getByText(/operates this registration portal only/i)).toBeTruthy()
   })
 })
 
 describe('Stage 2 in-site registration form', () => {
   it('renders the real form with all required fields and no external handoff', async () => {
     renderAt('/register')
-    await screen.findByRole('heading', { level: 1, name: /Register for the symposium/i })
+    await screen.findByRole('heading', { level: 1, name: /Register for the event/i })
     expect(screen.getByRole('textbox', { name: /Full name/i })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: /Email/i })).toBeTruthy()
     expect(screen.getByRole('combobox', { name: /Category/i })).toBeTruthy()
@@ -113,7 +121,7 @@ describe('Stage 2 in-site registration form', () => {
 
   it('links already-registered participants to status in one click', async () => {
     renderAt('/register')
-    await screen.findByRole('heading', { level: 1, name: /Register for the symposium/i })
+    await screen.findByRole('heading', { level: 1, name: /Register for the event/i })
     const statusLink = screen.getByRole('link', { name: /Already registered\? Check status/i })
     expect(statusLink.getAttribute('href')).toBe('/registration/status')
   })
@@ -124,18 +132,11 @@ describe('Stage 2 in-site registration form', () => {
   })
 })
 
-describe('Stage 2 programme tabs', () => {
-  it('filters sessions by track', async () => {
-    const user = userEvent.setup()
-    renderAt('/programme')
-    await screen.findByRole('heading', { level: 1, name: /A programme in progress/i })
-
-    const tabs = screen.getByRole('tablist', { name: /Filter sessions by track/i })
-    expect(within(tabs).getAllByRole('tab')).toHaveLength(4)
-
-    await user.click(within(tabs).getByRole('tab', { name: 'Workshops' }))
-    expect(screen.getByText('Applied AI workshop')).toBeTruthy()
-    expect(screen.queryByText('Research and applications track')).toBeNull()
+describe('Featured work', () => {
+  it('shows the GeekAI-managed event and links to its official site', async () => {
+    renderAt('/')
+    await screen.findByRole('heading', { level: 2, name: /Featured work/i })
+    expect(screen.getAllByText(/Odisha AI Symposium 2026/i).length).toBeGreaterThan(0)
     expectNoQrEmailedClaim()
   })
 })

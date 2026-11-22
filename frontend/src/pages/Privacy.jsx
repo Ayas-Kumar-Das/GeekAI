@@ -12,7 +12,7 @@ export default function Privacy() {
       <PageHero
         eyebrow="Legal · Privacy"
         title="Privacy notice."
-        lead="How registration details and photos are handled for the Odisha AI Symposium."
+        lead="How the GeekAI registration portal handles your details and photo for the event you are registering for."
         crumbs={[
           { to: '/', label: 'Home' },
           { label: 'Privacy' },
@@ -55,7 +55,7 @@ export default function Privacy() {
             <h2 className="text-h4 font-semibold text-ink-900">Your choices</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-700">
               You can ask what is held about you, request a correction, or withdraw your
-              registration by contacting the host office. Contact details to be announced.
+              registration by contacting the event team. Contact details to be announced.
             </p>
           </section>
         </div>

@@ -83,9 +83,11 @@ Accessible primitives were rebuilt with hover, focus, active, disabled, loading,
 
 ### 4.2 Stage 2 — Public site
 
-The public shell provides the top strip, masthead, mobile sheet and footer with the SOA University and AIC for Innovation Center lockups. The landing page carries the hero, fact row, programme preview, speaker placeholders, venue, arrival section, FAQ and a sticky registration CTA on phones. As delivered in Stage 2, registration was a Google Form handoff; the post-Stage 5 registration redesign (section 4.6) replaced it with the first-party React form on `/register` and removed the handoff flag, the form URL config and the legacy second intake path.
+The public shell provides the top strip, masthead, mobile sheet and footer. The landing page carries the hero, fact row, programme preview, venue, arrival section, FAQ and a sticky registration CTA on phones. As delivered in Stage 2, registration was a Google Form handoff; the post-Stage 5 registration redesign (section 4.6) replaced it with the first-party React form on `/register` and removed the handoff flag, the form URL config and the legacy second intake path.
 
-The programme, speakers, venue, FAQ, privacy, accessibility and code-of-conduct pages were added with shared content files. Every unconfirmed fact is labelled "to be announced" or "TBA". No speaker names, dates, sponsors or attendance numbers were invented.
+The programme, venue, FAQ, privacy, accessibility and code-of-conduct pages use shared content files. Every unconfirmed fact is labelled "to be announced" or "TBA". No speaker names, dates, sponsors or attendance numbers were invented. The Speakers page was subsequently removed: this is a registration portal, not the event's official website, so there is no speaker lineup to showcase.
+
+**Content repositioning (November 2026):** the copy now presents the site as the GeekAI Registration Portal — built and operated by the GeekAI Developer Team — which currently serves Odisha AI Symposium 2026 and can be reused for future events. The UI, colour system and layout are unchanged; only content, navigation links and metadata were updated to remove the impression that this is the symposium's official site.
 
 ### 4.3 Stage 3 — Participant and volunteer
 
@@ -157,7 +159,6 @@ No login is required for any of these pages.
 |---|---|---|
 | Home | `http://localhost:4173/` | Hero, fact row, programme preview, speaker placeholders, registration CTA, Konark wheel as geometry |
 | Programme | `http://localhost:4173/programme` | Session placeholders, track filters, no invented titles or times |
-| Speakers | `http://localhost:4173/speakers` | Eight "Speaker to be announced" placeholders |
 | Venue | `http://localhost:4173/venue` | Location wording, directions, no invented address |
 | FAQ | `http://localhost:4173/faq` | Accordion disclosure behaviour |
 | Register | `http://localhost:4173/register` | First-party 10-field form, photo picker/camera, versioned consent, pass issued at arrival explanation |

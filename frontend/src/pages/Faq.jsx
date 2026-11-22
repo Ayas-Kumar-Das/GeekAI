@@ -6,13 +6,13 @@ import { faqs, faqStatus } from '../content/faq'
 
 /**
  * FAQ — every published question (§7.1 FAQ): accordion plus a contact path
- * back to the host office. Answers only state what the platform confirms.
+ * back to the event team. Answers only state what the platform confirms.
  */
 export default function Faq() {
   return (
     <>
       <PageHero
-        eyebrow="05 — FAQ"
+        eyebrow="03 - FAQ"
         title={faqStatus.heading}
         lead={faqStatus.body}
         crumbs={[
@@ -26,7 +26,7 @@ export default function Faq() {
 
         <div className="mt-8 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-paper p-5">
           <p className="min-w-0 flex-1 text-sm text-slate-700">
-            Still unsure? The host office can help with registration, accessibility and
+            Still unsure? The event team can help with registration, accessibility and
             attendance. Contact details to be announced.
           </p>
           <ActionLink to="/register" variant="secondary" size="sm">

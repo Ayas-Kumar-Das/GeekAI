@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { PageHero, PlaceholderBadge } from '../components/public/PageHero'
+import { PageHero } from '../components/public/PageHero'
 import Banner from '../components/ui/Banner'
 import RegistrationForm from '../components/registration/RegistrationForm'
-import { event } from '../content/event'
+import { event, platform } from '../content/event'
 
 /** Numbered three-step explainer (§7.2). */
 const steps = [
@@ -56,9 +56,9 @@ export default function Register() {
   return (
     <>
       <PageHero
-        eyebrow="Registration · AIS 2026"
-        title="Register for the symposium."
-        lead="It takes about five minutes. Your pass is issued at the arrival desk after identity verification."
+        eyebrow="GeekAI · Registration portal"
+        title="Register for the event."
+        lead={`It takes about five minutes. This portal is run by the ${platform.owner} and currently serves ${event.name}. Your pass is issued at the arrival desk after identity verification.`}
         crumbs={[
           { to: '/', label: 'Home' },
           { label: 'Register' },
@@ -148,9 +148,6 @@ export default function Register() {
           </>
         )}
 
-        <div className="mt-8">
-          <PlaceholderBadge>Working copy — pending host approval</PlaceholderBadge>
-        </div>
       </div>
     </>
   )

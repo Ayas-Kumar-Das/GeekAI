@@ -31,7 +31,7 @@ export default function AssistedRegistration() {
         <RegistrationForm assisted />
 
         <div className="mt-6">
-          <PlaceholderBadge>Walk-in flow — confirm copy with the host office</PlaceholderBadge>
+          <PlaceholderBadge>Walk-in flow — confirm copy with the event team</PlaceholderBadge>
         </div>
       </div>
     </>
