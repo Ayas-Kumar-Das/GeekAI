@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, CalendarDays, MapPin, Ticket } from 'lucide-react'
 import WheelCard from '../components/public/WheelCard'
-import KonarkMark from '../components/public/KonarkMark'
 import FactStrip from '../components/public/FactStrip'
 import SessionCard, { MiniRow } from '../components/public/SessionCard'
 import FaqAccordion from '../components/public/FaqAccordion'
@@ -14,6 +13,31 @@ import { sessions, programmeStatus } from '../content/programme'
 import { featuredFaqs, faqStatus } from '../content/faq'
 import { venue } from '../content/venue'
 import { event, platform } from '../content/event'
+
+/** Curated golden & white glitter particles across the hero (matching user image 1 & 2). */
+const HERO_SPARKLES = [
+  // Top-left area (prominent sparkle star like Image 2)
+  { top: '10%', left: '6%', size: 16, type: 'star', delay: '0s', duration: '3.2s' },
+  { top: '15%', left: '11%', size: 4, type: 'dot', delay: '0.8s', duration: '2.6s' },
+  // Upper mid
+  { top: '8%', left: '42%', size: 4, type: 'dot', delay: '1.4s', duration: '3.8s' },
+  { top: '22%', left: '38%', size: 12, type: 'star', delay: '2.1s', duration: '4s' },
+  // Upper-right (above wheel card)
+  { top: '9%', right: '12%', size: 14, type: 'star', delay: '0.4s', duration: '3.5s' },
+  { top: '14%', right: '17%', size: 4, type: 'dot', delay: '1.9s', duration: '2.8s' },
+  // Center-left (beside hero heading)
+  { top: '38%', left: '3%', size: 5, type: 'dot', delay: '2.7s', duration: '3.1s' },
+  { top: '48%', left: '46%', size: 11, type: 'star', delay: '1.1s', duration: '3.7s' },
+  // Center-right
+  { top: '50%', right: '7%', size: 5, type: 'dot', delay: '0.2s', duration: '4.2s' },
+  { top: '62%', right: '24%', size: 13, type: 'star', delay: '2.4s', duration: '3.4s' },
+  // Bottom-left area (near event card)
+  { top: '74%', left: '4%', size: 12, type: 'star', delay: '1.7s', duration: '3.6s' },
+  { top: '84%', left: '44%', size: 4, type: 'dot', delay: '0.6s', duration: '2.9s' },
+  // Bottom-right
+  { top: '86%', right: '14%', size: 4, type: 'dot', delay: '3.0s', duration: '3.3s' },
+  { top: '91%', right: '35%', size: 10, type: 'star', delay: '1.5s', duration: '3.9s' },
+]
 
 /** Sticky bottom bar — mobile only, 78px + safe area (§7.1 mobile, mockup 03). */
 function MobileStickyCta() {
@@ -56,21 +80,154 @@ export default function Home() {
         className="relative overflow-hidden"
         style={{
           background:
-            'radial-gradient(760px 420px at 77% 34%, rgba(201,162,39,.10), transparent 64%), linear-gradient(180deg, #FBF8F1 0%, #F7F3EA 100%)',
+            'radial-gradient(920px 520px at 75% 30%, rgba(201,162,39,.14), transparent 70%), linear-gradient(180deg, #F3ECE0 0%, #EAE0CE 100%)',
         }}
       >
-        {/* Faint 12-column rule (§7.1 hero), masked to the right side */}
-        <div
+        {/* Diamond / Rhombus Grid Mesh Background (Image 1 & 2 inspired) */}
+        <svg
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, rgba(11,31,58,.045) 1px, transparent 1px)',
-            backgroundSize: '96px 100%',
-            maskImage: 'linear-gradient(to right, transparent 0, #000 42%, #000 100%)',
-            WebkitMaskImage: 'linear-gradient(to right, transparent 0, #000 42%, #000 100%)',
-          }}
-        />
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-75"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <pattern
+              id="diamond-lattice"
+              width="64"
+              height="64"
+              patternUnits="userSpaceOnUse"
+            >
+              {/* Center diamond fill with delicate warm tint */}
+              <polygon
+                points="32,0 64,32 32,64 0,32"
+                fill="rgba(11, 31, 58, 0.02)"
+              />
+              {/* Corner diamond fills for alternating argyle contrast */}
+              <polygon points="0,0 32,0 0,32" fill="rgba(201, 162, 39, 0.025)" />
+              <polygon points="64,0 32,0 64,32" fill="rgba(201, 162, 39, 0.025)" />
+              <polygon points="0,64 32,64 0,32" fill="rgba(201, 162, 39, 0.025)" />
+              <polygon points="64,64 32,64 64,32" fill="rgba(201, 162, 39, 0.025)" />
+
+              {/* Rhombus lattice outline strokes */}
+              <path
+                d="M32,0 L64,32 L32,64 L0,32 Z"
+                fill="none"
+                stroke="rgba(11, 31, 58, 0.08)"
+                strokeWidth="0.8"
+              />
+              {/* Corner strokes */}
+              <line x1="0" y1="0" x2="32" y2="0" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
+              <line x1="0" y1="32" x2="0" y2="0" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
+              <line x1="64" y1="0" x2="32" y2="0" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
+              <line x1="64" y1="32" x2="64" y2="0" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
+              <line x1="0" y1="64" x2="32" y2="64" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
+              <line x1="0" y1="32" x2="0" y2="64" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
+              <line x1="64" y1="64" x2="32" y2="64" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
+              <line x1="64" y1="32" x2="64" y2="64" stroke="rgba(11, 31, 58, 0.08)" strokeWidth="0.8" />
+
+              {/* Vertical center grid lines through vertices */}
+              <line
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="64"
+                stroke="rgba(11, 31, 58, 0.05)"
+                strokeWidth="0.8"
+              />
+              <line
+                x1="32"
+                y1="0"
+                x2="32"
+                y2="64"
+                stroke="rgba(11, 31, 58, 0.05)"
+                strokeWidth="0.8"
+              />
+              <line
+                x1="64"
+                y1="0"
+                x2="64"
+                y2="64"
+                stroke="rgba(11, 31, 58, 0.05)"
+                strokeWidth="0.8"
+              />
+
+              {/* Continuous subtle diagonals */}
+              <line
+                x1="0"
+                y1="0"
+                x2="64"
+                y2="64"
+                stroke="rgba(201, 162, 39, 0.04)"
+                strokeWidth="0.6"
+              />
+              <line
+                x1="64"
+                y1="0"
+                x2="0"
+                y2="64"
+                stroke="rgba(201, 162, 39, 0.04)"
+                strokeWidth="0.6"
+              />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#diamond-lattice)" />
+        </svg>
+
+        {/* Golden Glitter and Sparkle Layer (Image 1 & 2 inspired) */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+          <svg className="absolute h-0 w-0">
+            <defs>
+              <radialGradient id="sparkle-gold-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#FFFFFF" />
+                <stop offset="35%" stopColor="#FFF8DB" />
+                <stop offset="70%" stopColor="#EAB308" />
+                <stop offset="100%" stopColor="#C9A227" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+          </svg>
+
+          {HERO_SPARKLES.map((s, idx) => (
+            <div
+              key={idx}
+              className={`absolute ${s.type === 'star' ? 'animate-sparkle-pulse' : 'animate-sparkle-twinkle'}`}
+              style={{
+                top: s.top,
+                left: s.left,
+                right: s.right,
+                animationDelay: s.delay,
+                animationDuration: s.duration,
+              }}
+            >
+              {s.type === 'star' ? (
+                <svg
+                  width={s.size}
+                  height={s.size}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  style={{
+                    filter:
+                      'drop-shadow(0 0 3px rgba(254, 240, 138, 0.95)) drop-shadow(0 0 8px rgba(201, 162, 39, 0.75))',
+                  }}
+                >
+                  <path
+                    d="M12 0C12 7.5 7.5 12 0 12C7.5 12 12 16.5 12 24C12 16.5 16.5 12 24 12C16.5 12 12 7.5 12 0Z"
+                    fill="url(#sparkle-gold-glow)"
+                  />
+                  <circle cx="12" cy="12" r="2" fill="#FFFFFF" />
+                </svg>
+              ) : (
+                <span
+                  className="block rounded-full bg-[#FFFFFF]"
+                  style={{
+                    width: s.size,
+                    height: s.size,
+                    boxShadow:
+                      '0 0 4px 1.5px rgba(255, 255, 255, 0.95), 0 0 10px 3px rgba(201, 162, 39, 0.85), 0 0 16px 5px rgba(234, 179, 8, 0.45)',
+                  }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
 
         <div className="container-wide relative grid items-center gap-10 py-9 md:py-14 lg:grid-cols-[1.03fr_.97fr] lg:gap-[70px] lg:items-start lg:py-16">
           <div className="lg:pb-1">
@@ -98,113 +255,79 @@ export default function Home() {
               </ActionLink>
             </div>
 
-            {/* ----------------- Event Quick-Facts & Status Strip ----------------- */}
-            <div className="mt-8 space-y-3.5 max-w-xl">
-              {/* Event highlight capsule bar */}
-              <div className="relative overflow-hidden rounded-2xl border border-sand-200/90 bg-paper/95 p-1.5 shadow-[0_4px_16px_-4px_rgba(11,31,58,0.06)] backdrop-blur-md transition-all duration-300 hover:border-gold-500/30 hover:shadow-[0_6px_20px_-4px_rgba(11,31,58,0.09)]">
-                {/* Ambient top gold/teal sheen line */}
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-gold-500/50 via-teal-500/40 to-ink-900/30"
-                />
+            {/* ----------------- Event Intelligence Deck (Unified Architectural Console) ----------------- */}
+            <div className="mt-8 max-w-xl overflow-hidden rounded-xl border border-sand-300/80 bg-paper/95 shadow-[0_4px_20px_-4px_rgba(11,31,58,0.06)] backdrop-blur-md transition-all duration-300 hover:border-gold-500/40 hover:shadow-[0_8px_24px_-4px_rgba(11,31,58,0.09)]">
+              {/* Top ambient gold accent line */}
+              <div
+                aria-hidden="true"
+                className="h-[1.5px] w-full bg-gradient-to-r from-gold-500/60 via-gold-500/30 to-teal-500/40"
+              />
 
-                <ul className="grid grid-cols-1 divide-y divide-sand-200/70 sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
-                  {/* Date */}
-                  <li className="group flex items-center gap-2.5 p-2.5 transition-colors sm:p-3 hover:bg-sand-100/30 rounded-xl">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/10 to-gold-500/20 text-gold-700 ring-1 ring-gold-500/30 shadow-xs transition-transform duration-200 group-hover:scale-105">
-                      <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="block font-mono text-[9px] font-semibold uppercase tracking-wider text-gold-700">
-                        Date
-                      </span>
-                      <span className="block text-[11.5px] font-semibold text-ink-900 leading-tight">
-                        {event.dateLabel}
-                      </span>
-                    </div>
-                  </li>
-
-                  {/* Venue */}
-                  <li className="group flex items-center gap-2.5 p-2.5 transition-colors sm:p-3 hover:bg-sand-100/30 rounded-xl">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500/10 to-teal-500/20 text-teal-700 ring-1 ring-teal-500/30 shadow-xs transition-transform duration-200 group-hover:scale-105">
-                      <MapPin className="h-4 w-4" aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="block font-mono text-[9px] font-semibold uppercase tracking-wider text-teal-700">
-                        Venue
-                      </span>
-                      <span className="block text-[11.5px] font-semibold text-ink-900 leading-tight">
-                        {event.venue.label}
-                      </span>
-                    </div>
-                  </li>
-
-                  {/* Attendance */}
-                  <li className="group flex items-center gap-2.5 p-2.5 transition-colors sm:p-3 hover:bg-sand-100/30 rounded-xl">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-ink-900/5 to-ink-900/10 text-ink-800 ring-1 ring-ink-900/20 shadow-xs transition-transform duration-200 group-hover:scale-105">
-                      <Ticket className="h-4 w-4" aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-ink-700">
-                          Format
-                        </span>
-                        <span className="relative flex h-1.5 w-1.5">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        </span>
-                      </div>
-                      <span className="block text-[11.5px] font-semibold text-ink-900 leading-tight">
-                        In person · registration required
-                      </span>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-
-              {/* GeekAI Portal Context & Attribution Callout */}
-              <div className="group relative overflow-hidden rounded-xl border border-sand-200/80 bg-gradient-to-br from-paper via-sand-50/60 to-sand-100/40 p-3.5 shadow-xs transition-all duration-200 hover:border-gold-500/35">
-                {/* Left accent bar */}
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-gold-500 via-teal-500 to-ink-900/40"
-                />
-
-                {/* Subtle ambient radial light */}
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-gradient-to-br from-gold-500/15 to-teal-500/10 blur-xl transition-opacity group-hover:opacity-100 opacity-50"
-                />
-
-                {/* Decorative Konark watermark */}
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -bottom-7 -right-7 text-gold-500/[0.08] transition-all duration-500 group-hover:scale-110 group-hover:text-gold-500/[0.13]"
-                >
-                  <KonarkMark className="h-28 w-28" strokeWidth={1} />
-                </div>
-
-                <div className="relative pl-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/10 px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-teal-800 ring-1 ring-teal-600/20 shadow-xs">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-75" />
-                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-teal-600" />
-                      </span>
-                      {platform.status}
-                    </span>
-                    <span className="text-[12.5px] font-bold text-ink-900 tracking-tight">
-                      {event.name}
+              {/* Three Event Facts */}
+              <ul className="grid grid-cols-1 divide-y divide-sand-200/80 sm:grid-cols-3 sm:divide-y-0 sm:divide-x">
+                {/* Schedule */}
+                <li className="flex flex-col justify-between p-3.5 transition-colors hover:bg-sand-50/50">
+                  <div className="flex items-center gap-1.5 text-gold-700">
+                    <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-muted">
+                      Schedule
                     </span>
                   </div>
-
-                  <p className="mt-1.5 text-[11.5px] leading-relaxed text-slate-600">
-                    Event details come from the event team;{' '}
-                    <span className="font-semibold text-ink-900">
-                      GeekAI operates this registration portal only.
-                    </span>
+                  <p className="mt-2 text-[12px] font-semibold text-ink-900 leading-snug">
+                    {event.dateLabel}
                   </p>
+                </li>
+
+                {/* Venue */}
+                <li className="flex flex-col justify-between p-3.5 transition-colors hover:bg-sand-50/50">
+                  <div className="flex items-center gap-1.5 text-teal-700">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-muted">
+                      Venue
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[12px] font-semibold text-ink-900 leading-snug line-clamp-2">
+                    {event.venue.label}
+                  </p>
+                </li>
+
+                {/* Admission */}
+                <li className="flex flex-col justify-between p-3.5 transition-colors hover:bg-sand-50/50">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 text-ink-800">
+                      <Ticket className="h-3.5 w-3.5 shrink-0 text-gold-600" aria-hidden="true" />
+                      <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-muted">
+                        Access
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-700 bg-emerald-500/10 px-1.5 py-0.5 rounded-full ring-1 ring-emerald-500/20">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[12px] font-semibold text-ink-900 leading-snug">
+                    In person · registration required
+                  </p>
+                </li>
+              </ul>
+
+              {/* Bottom Integrated Portal Dispatch Notice */}
+              <div className="border-t border-sand-200/80 bg-gradient-to-r from-sand-100/70 via-sand-50/50 to-sand-100/60 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <span className="inline-flex items-center gap-1.5 rounded-md bg-ink-900/5 px-2 py-0.5 font-mono text-[9.5px] font-semibold uppercase tracking-wider text-ink-800 ring-1 ring-ink-900/10">
+                    <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+                    {platform.status}
+                  </span>
+                  <span className="text-[12.5px] font-bold text-ink-900">
+                    {event.name}
+                  </span>
                 </div>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
+                  Event details come from the event team;{' '}
+                  <span className="font-medium text-ink-900">
+                    GeekAI operates this registration portal only.
+                  </span>
+                </p>
               </div>
             </div>
           </div>
