@@ -9,7 +9,6 @@ export const oaicLogos = [
   ['a8fc0782-f747-40ff-ae43-22f608d74703_20261123_213525_0000.png', 'IEEE 5G/6G Innovation Testbed', 219, 128],
   ['5ad8b512-0e47-4665-976b-b739448e951b_20261123_213126_0000.png', 'Odisha Society of UK', 250, 128],
   ['33a5fad1-9414-476f-aeeb-676a41e0848a_20261123_213416_0000.png', 'Odisha, Canada and United States partner marks', 260, 90],
-  ['GFG.png', 'GeeksforGeeks Campus Body ITER', 186, 128],
 ].map(([filename, alt, width, height]) => ({ filename, alt, width, height, src: directory + filename }))
 
-export const oaicOrganizerLogos = oaicLogos.filter(({ filename }) => !filename.toLowerCase().includes('gfg'))
+export const oaicOrganizerLogos = oaicLogos

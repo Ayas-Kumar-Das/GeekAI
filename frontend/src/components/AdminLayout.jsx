@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   Download,
   LogOut,
-  Brain,
   UserCheck,
   Tag,
   Shield,
@@ -38,8 +37,12 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside className="hidden lg:flex lg:flex-col w-64 bg-primary text-white">
         <div className="p-5 border-b border-white/10">
-          <div className="flex items-center gap-2 font-bold text-xl">
-            <Brain className="h-7 w-7 text-accent" />
+          <div className="flex items-center gap-2.5 font-bold text-xl">
+            <img
+              src={`${import.meta.env.BASE_URL}icons/geekai.svg`}
+              alt="GeekAI Logo"
+              className="h-8 w-8 object-contain rounded-md shadow-xs"
+            />
             GeekAI Admin
           </div>
           {user?.event_name && (
@@ -85,7 +88,11 @@ export default function AdminLayout() {
         <header className="lg:hidden bg-primary text-white px-4 py-3 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 font-bold">
-              <Brain className="h-6 w-6 text-accent" />
+              <img
+                src={`${import.meta.env.BASE_URL}icons/geekai.svg`}
+                alt="GeekAI Logo"
+                className="h-6 w-6 object-contain rounded-md shadow-xs"
+              />
               GeekAI Admin
             </div>
             {user?.event_name && (
