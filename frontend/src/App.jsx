@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import EventRegister from './pages/EventRegister'
+import EventSuccess from './pages/EventSuccess'
 import Dashboard from './pages/admin/Dashboard'
 import Participants from './pages/admin/Participants'
 import ParticipantDetail from './pages/admin/ParticipantDetail'
@@ -26,6 +27,9 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/register" element={<Register />} />
         <Route path="/events/:eventSlug/register" element={<EventRegister />} />
+        <Route path="/events/:eventSlug/success" element={<EventSuccess />} />
+      </Route>
+      <Route element={<Layout login />}>
         <Route path="/login" element={<Login />} />
         <Route path="/admin/login" element={<Login />} />
         <Route path="/volunteer/login" element={<Login />} />
