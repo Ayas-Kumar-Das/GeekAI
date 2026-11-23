@@ -1,13 +1,12 @@
 import { useState } from 'react'
-import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ScanLine } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { Brain, Mail, Lock, Shield, ArrowRight } from 'lucide-react'
-import Input from '../components/ui/Input'
-import Button from '../components/ui/Button'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const { login, loading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -30,42 +29,49 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Brain className="h-12 w-12 text-primary mx-auto mb-3" />
-          <h1 className="text-2xl font-bold text-gray-900">Event Operator Login</h1>
-          <p className="text-gray-500 mt-1">Admin &amp; Volunteer Portal</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-          <Input
-            label="Email"
-            type="email"
-            icon={Mail}
-            placeholder="your@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <Input
-            label="Password"
-            type="password"
-            icon={Lock}
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <Button type="submit" loading={loading} className="w-full" size="lg">
-            Sign In
-          </Button>
-
-          <div className="pt-2 text-center text-xs text-gray-400">
-            Sign in with your event-specific admin or volunteer credentials to access your event dashboard.
+    <div className="login-frame">
+      <Link to="/" className="login-back"><ArrowLeft size={16} aria-hidden="true" /> Back to Home</Link>
+      <section className="login-card" aria-labelledby="login-title">
+        <header className="login-card-header">
+          <div className="login-card-brand">
+            <ScanLine size={25} strokeWidth={2.1} aria-hidden="true" />
+            <span>Authorized Staff Only</span>
           </div>
+          <h1 id="login-title">Organizer Login</h1>
+          <p>Event Admin &amp; Check-In Volunteer Portal</p>
+        </header>
+        <form onSubmit={handleSubmit}>
+          <div className="login-field">
+            <label htmlFor="organizer-email">Email</label>
+            <div className="login-input">
+              <Mail className="login-input-icon" size={17} aria-hidden="true" />
+              <input id="organizer-email" name="email" type="email" autoComplete="username"
+                placeholder="organizer@geekai.in" value={email}
+                onChange={event => setEmail(event.target.value)} required />
+            </div>
+          </div>
+          <div className="login-field">
+            <label htmlFor="organizer-password">Password</label>
+            <div className="login-input">
+              <LockKeyhole className="login-input-icon" size={17} aria-hidden="true" />
+              <input id="organizer-password" name="password" type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password" value={password}
+                onChange={event => setPassword(event.target.value)} required />
+              <button type="button" className="login-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-controls="organizer-password" onClick={() => setShowPassword(visible => !visible)}>
+                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+              </button>
+            </div>
+          </div>
+          <button className="public-button login-submit" type="submit" disabled={loading}>
+            {loading ? 'Signing in…' : <>Sign In to Dashboard <ArrowRight size={16} aria-hidden="true" /></>}
+          </button>
         </form>
-      </div>
+        <div className="login-card-note">
+          <span>Role-based access{window.location.protocol === 'https:' && ' · Encrypted session'}</span>
+          <span>Need access? <a href="mailto:info@oaic.in">info@oaic.in</a></span>
+        </div>
+      </section>
     </div>
   )
 }

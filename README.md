@@ -75,7 +75,7 @@ This will:
 |-----|-------------|
 | http://localhost:5173 | GeekAI homepage + event discovery |
 | http://localhost:5173/events/oaic/register | OAIC registration form |
-| http://localhost:5173/login | Event Operator Login (admin/volunteer) |
+| http://localhost:5173/login | Organizer Login (admin/volunteer) |
 | http://localhost:8000/docs | FastAPI Swagger docs |
 
 ### Default credentials (auto-seeded)
@@ -128,7 +128,7 @@ GeekAI/
 │   │   ├── pages/
 │   │   │   ├── Home.jsx          # GeekAI homepage + event cards
 │   │   │   ├── EventRegister.jsx # Reusable event registration
-│   │   │   ├── Login.jsx         # Event Operator Login
+│   │   │   ├── Login.jsx         # Organizer Login
 │   │   │   ├── Register.jsx      # Legacy (preserved)
 │   │   │   ├── admin/            # Admin dashboard pages
 │   │   │   └── volunteer/        # Volunteer dashboard pages

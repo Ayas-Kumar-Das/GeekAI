@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 @theme {
+  --color-paper: #f6f5f2;
+  --color-sand: #efece6;
+  --color-obsidian: #111315;
+  --color-event-emerald: #0e9f6e;
   --color-primary: #1e3a5f;
   --color-primary-light: #2a5080;
   --color-primary-dark: #142842;
@@ -12,12 +16,6 @@
 body {
   @apply bg-gray-50 text-gray-900 antialiased;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-}
-
-/* Logo carousel animation */
-@keyframes logoScroll {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-33.333%); }
 }
 
 /* Custom scrollbar */
