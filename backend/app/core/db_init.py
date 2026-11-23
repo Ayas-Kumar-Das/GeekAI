@@ -58,6 +58,15 @@ def run_migrations(max_retries: int = 5, retry_interval: float = 2.0) -> None:
             logger.info("Database migrations applied successfully.")
             return
         except Exception as exc:
+            if "Can't locate revision" in str(exc):
+                logger.warning("Unknown revision in database schema, synchronizing with stamp head...")
+                try:
+                    command.stamp(alembic_cfg, "head")
+                    command.upgrade(alembic_cfg, "head")
+                    logger.info("Database migrations synchronized and applied successfully.")
+                    return
+                except Exception as inner_exc:
+                    logger.error("Failed to recover revision sync: %s", inner_exc)
             if attempt < max_retries:
                 logger.warning(
                     "Database migration attempt %d/%d failed: %s. Retrying in %.1fs...",

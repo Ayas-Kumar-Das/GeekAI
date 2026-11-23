@@ -7,13 +7,18 @@ import uuid
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.deps import get_db
+from app.models.models import Participant
 from app.schemas.schemas import (
     CreateOrderRequest,
     CreateOrderResponse,
+    ParticipantOut,
+    ReconcilePaymentRequest,
+    ReconcilePaymentResponse,
     VerifyPaymentRequest,
     VerifyPaymentResponse,
 )
@@ -106,6 +111,82 @@ async def verify_payment(body: VerifyPaymentRequest):
         order_status=order_status,
         paid=paid,
         amount=int((data.get("order_amount", 0)) * 100),  # convert back to paise
+    )
+
+
+async def check_cashfree_order_paid(order_id: str) -> tuple[bool, dict]:
+    """Helper to check if a Cashfree order has been paid."""
+    if not settings.cashfree_configured:
+        return False, {}
+    headers = {
+        "x-api-version": "2023-08-01",
+        "x-client-id": settings.CASHFREE_APP_ID,
+        "x-client-secret": settings.CASHFREE_SECRET_KEY,
+    }
+    base_url = get_cashfree_base_url()
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{base_url}/orders/{order_id}", headers=headers)
+        if response.status_code != 200:
+            return False, {}
+        data = response.json()
+        return (data.get("order_status") == "PAID", data)
+    except Exception as exc:
+        logger.warning(f"Error checking Cashfree order {order_id}: {exc}")
+        return False, {}
+
+
+@router.post("/reconcile", response_model=ReconcilePaymentResponse)
+async def reconcile_payment(
+    body: ReconcilePaymentRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reconcile a paid Cashfree order with an existing or pending participant."""
+    paid, data = await check_cashfree_order_paid(body.order_id)
+    if not paid:
+        return ReconcilePaymentResponse(
+            reconciled=False,
+            message="Payment order has not been completed on Cashfree.",
+            order_id=body.order_id,
+            paid=False,
+            participant=None,
+        )
+
+    # Order is PAID. Check if a participant is already linked to this order_id
+    stmt = select(Participant).where(Participant.payment_order_id == body.order_id)
+    res = await db.execute(stmt)
+    p = res.scalar_one_or_none()
+
+    if not p and body.email:
+        stmt2 = select(Participant).where(Participant.email == body.email)
+        res2 = await db.execute(stmt2)
+        p = res2.scalar_one_or_none()
+
+    if not p and data.get("customer_details", {}).get("customer_email"):
+        cust_email = data["customer_details"]["customer_email"]
+        stmt3 = select(Participant).where(Participant.email == cust_email)
+        res3 = await db.execute(stmt3)
+        p = res3.scalar_one_or_none()
+
+    if p:
+        p.payment_status = "SUCCESS"
+        p.payment_order_id = body.order_id
+        await db.commit()
+        await db.refresh(p)
+        return ReconcilePaymentResponse(
+            reconciled=True,
+            message="Participant payment successfully reconciled and confirmed.",
+            order_id=body.order_id,
+            paid=True,
+            participant=ParticipantOut.model_validate(p),
+        )
+
+    return ReconcilePaymentResponse(
+        reconciled=False,
+        message="Order is paid, but participant details were not yet saved. You can complete registration with this Order ID without paying again.",
+        order_id=body.order_id,
+        paid=True,
+        participant=None,
     )
 
 

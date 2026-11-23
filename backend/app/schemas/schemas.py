@@ -123,6 +123,8 @@ class ParticipantOut(BaseModel):
     qr_code_url: Optional[str] = None
     registered_at: datetime
     event_id: Optional[int] = None
+    source: Optional[str] = "ONLINE"
+    status: Optional[str] = "CONFIRMED"
     payment_status: Optional[str] = None
     coupon_code: Optional[str] = None
 
@@ -140,6 +142,16 @@ class ParticipantDetail(ParticipantOut):
 class ParticipantList(BaseModel):
     total: int
     items: List[ParticipantOut]
+
+
+class ParticipantUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    institution: Optional[str] = None
+    category: Optional[ParticipantCategory] = None
+    payment_status: Optional[str] = None
+    status: Optional[str] = None
 
 
 # ===== Sessions =============================================================
@@ -293,6 +305,19 @@ class VerifyPaymentResponse(BaseModel):
     order_status: str
     paid: bool
     amount: int  # in paise
+
+
+class ReconcilePaymentRequest(BaseModel):
+    order_id: str
+    email: Optional[EmailStr] = None
+
+
+class ReconcilePaymentResponse(BaseModel):
+    reconciled: bool
+    message: str
+    order_id: str
+    paid: bool
+    participant: Optional[ParticipantOut] = None
 
 
 # ===== Coupons ===============================================================

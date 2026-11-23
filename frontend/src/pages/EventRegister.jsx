@@ -45,10 +45,35 @@ export default function EventRegister() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
 
+  // Payment recovery state
+  const [paidOrderId, setPaidOrderId] = useState(null)
+  const [recoverableOrder, setRecoverableOrder] = useState(null)
+  const [manualOrderId, setManualOrderId] = useState('')
+  const [verifyingManualOrder, setVerifyingManualOrder] = useState(false)
+  const [showManualOrderInput, setShowManualOrderInput] = useState(false)
+
   // Coupon state
   const [couponCode, setCouponCode] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState(null)
   const [validatingCoupon, setValidatingCoupon] = useState(false)
+
+  /* ── Check for uncompleted paid order in localStorage ── */
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`geekai_paid_order_${eventSlug}`)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        // Keep recoverable if within 24 hours
+        if (parsed.order_id && parsed.timestamp && Date.now() - parsed.timestamp < 24 * 3600 * 1000) {
+          setRecoverableOrder(parsed)
+        } else {
+          localStorage.removeItem(`geekai_paid_order_${eventSlug}`)
+        }
+      }
+    } catch (e) {
+      // ignore JSON errors
+    }
+  }, [eventSlug])
 
   /* ── Fetch event + sessions ── */
   useEffect(() => {
@@ -117,6 +142,7 @@ export default function EventRegister() {
     if (form.institution) fd.append('institution', form.institution)
     fd.append('category', form.category)
     fd.append('photo', photo)
+    fd.append('source', 'ONLINE')
     if (event?.id) fd.append('event_id', String(event.id))
 
     if (appliedCoupon) {
@@ -130,8 +156,54 @@ export default function EventRegister() {
     await client.post('/participants/', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
+
+    // Registration succeeded: clean up any stored recovery order
+    try {
+      localStorage.removeItem(`geekai_paid_order_${eventSlug}`)
+    } catch (e) {}
+    setPaidOrderId(null)
+    setRecoverableOrder(null)
     setSuccess(true)
     toast.success('Registration successful! Check your email for the QR code.')
+  }
+
+  const handleUseRecoverableOrder = (rec) => {
+    setPaidOrderId(rec.order_id)
+    if (rec.email && !form.email) setForm(prev => ({ ...prev, email: rec.email }))
+    if (rec.name && !form.name) setForm(prev => ({ ...prev, name: rec.name }))
+    toast.success(`Attached verified payment order ${rec.order_id}`)
+  }
+
+  const handleDismissRecoverableOrder = () => {
+    try {
+      localStorage.removeItem(`geekai_paid_order_${eventSlug}`)
+    } catch (e) {}
+    setRecoverableOrder(null)
+  }
+
+  const handleVerifyManualOrder = async () => {
+    if (!manualOrderId.trim()) {
+      toast.error('Please enter an order ID')
+      return
+    }
+    setVerifyingManualOrder(true)
+    try {
+      const res = await client.post('/payments/verify', {
+        order_id: manualOrderId.trim(),
+      })
+      if (res.data.paid) {
+        setPaidOrderId(manualOrderId.trim())
+        setShowManualOrderInput(false)
+        toast.success(`Payment verified for order ${manualOrderId.trim()}! You can now complete registration without paying again.`)
+      } else {
+        toast.error(`Order ${manualOrderId.trim()} is not marked as paid (${res.data.order_status}).`)
+      }
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Could not verify order'
+      toast.error(typeof msg === 'string' ? msg : 'Could not verify order')
+    } finally {
+      setVerifyingManualOrder(false)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -143,36 +215,55 @@ export default function EventRegister() {
     try {
       const feeRequired = event?.registration_fee && event.registration_fee > 0
 
-      // If coupon is applied OR event is free, completely bypass Cashfree payment gateway!
+      // Case 1: Coupon applied or event is free -> direct free submission
       if (appliedCoupon || !feeRequired) {
         await submitRegistration()
+        return
+      }
+
+      // Case 2: Already verified payment order available -> complete registration directly!
+      if (paidOrderId) {
+        await submitRegistration(paidOrderId)
+        return
+      }
+
+      // Case 3: Need to create and execute payment on Cashfree
+      /* Create Cashfree order */
+      const orderRes = await client.post('/payments/create-order', {
+        event_slug: eventSlug,
+        amount: event.registration_fee,
+        customer_name: form.name,
+        customer_email: form.email,
+        customer_phone: form.phone || '9999999999',
+      })
+      const { payment_session_id, order_id } = orderRes.data
+
+      /* Load Cashfree SDK and open checkout modal */
+      const { load } = await import('@cashfreepayments/cashfree-js')
+      const cashfree = await load({ mode: 'sandbox' })
+
+      await cashfree.checkout({
+        paymentSessionId: payment_session_id,
+        redirectTarget: '_modal',
+      })
+
+      /* Verify payment */
+      const verifyRes = await client.post('/payments/verify', { order_id })
+      if (verifyRes.data.paid) {
+        // Payment is confirmed by Cashfree! Store immediately in state and localStorage so user is never re-charged!
+        setPaidOrderId(order_id)
+        try {
+          localStorage.setItem(`geekai_paid_order_${eventSlug}`, JSON.stringify({
+            order_id,
+            email: form.email,
+            name: form.name,
+            timestamp: Date.now(),
+          }))
+        } catch (e) {}
+
+        await submitRegistration(order_id)
       } else {
-        /* Create Cashfree order */
-        const orderRes = await client.post('/payments/create-order', {
-          event_slug: eventSlug,
-          amount: event.registration_fee,
-          customer_name: form.name,
-          customer_email: form.email,
-          customer_phone: form.phone || '9999999999',
-        })
-        const { payment_session_id, order_id } = orderRes.data
-
-        /* Load Cashfree SDK and open checkout modal */
-        const { load } = await import('@cashfreepayments/cashfree-js')
-        const cashfree = await load({ mode: 'sandbox' })
-
-        await cashfree.checkout({
-          paymentSessionId: payment_session_id,
-          redirectTarget: '_modal',
-        })
-
-        /* Verify payment */
-        const verifyRes = await client.post('/payments/verify', { order_id })
-        if (verifyRes.data.paid) {
-          await submitRegistration(order_id)
-        } else {
-          toast.error('Payment was not completed. Please try again.')
-        }
+        toast.error('Payment was not completed. Please try again.')
       }
     } catch (err) {
       const msg = err.response?.data?.detail || 'Registration failed'
@@ -225,6 +316,69 @@ export default function EventRegister() {
       >
         <ArrowLeft className="h-4 w-4" /> Back to Events
       </button>
+
+      {/* Recoverable Uncompleted Paid Order Banner */}
+      {recoverableOrder && !paidOrderId && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-6 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex gap-2.5">
+              <span className="text-xl">💳</span>
+              <div>
+                <h4 className="text-sm font-semibold text-amber-900">
+                  Unfinished Paid Registration Detected
+                </h4>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  We found a verified payment order <code className="font-mono font-bold bg-amber-100 px-1 py-0.5 rounded">{recoverableOrder.order_id}</code>
+                  {recoverableOrder.email ? ` for ${recoverableOrder.email}` : ''}. You can resume and complete registration without paying again!
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="accent"
+                type="button"
+                onClick={() => handleUseRecoverableOrder(recoverableOrder)}
+              >
+                Use this Payment
+              </Button>
+              <button
+                type="button"
+                onClick={handleDismissRecoverableOrder}
+                className="text-xs text-gray-500 hover:text-gray-700 underline cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active Verified Payment Order Banner */}
+      {paidOrderId && (
+        <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 mb-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">✅</span>
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">
+                  Payment Confirmed: <span className="font-mono">{paidOrderId}</span>
+                </p>
+                <p className="text-xs text-emerald-700">
+                  Your registration fee is paid. Submit below to generate your QR ticket!
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPaidOrderId(null)}
+              className="text-xs text-emerald-800 hover:text-emerald-950 font-semibold underline cursor-pointer"
+            >
+              Cancel Link
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Event Branding Banner */}
       {event && (
@@ -405,9 +559,52 @@ export default function EventRegister() {
           </div>
         )}
 
+        {/* Payment Reconciliation / Order Recovery Option */}
+        {event?.registration_fee > 0 && !appliedCoupon && !paidOrderId && (
+          <div className="text-center pt-1">
+            <button
+              type="button"
+              onClick={() => setShowManualOrderInput(!showManualOrderInput)}
+              className="text-xs text-primary hover:text-primary-dark font-medium underline cursor-pointer"
+            >
+              {showManualOrderInput
+                ? 'Hide Payment Order Recovery'
+                : 'Already paid? Click here to link your payment Order ID'}
+            </button>
+
+            {showManualOrderInput && (
+              <div className="mt-3 bg-gray-50 border border-gray-200 rounded-xl p-3 text-left space-y-2">
+                <p className="text-xs text-gray-600">
+                  If money was deducted from your account, enter your Cashfree Order ID (from SMS/email receipt) below to verify and complete registration without paying again.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. GEEKAI_OAIC_XXXXXX"
+                    value={manualOrderId}
+                    onChange={(e) => setManualOrderId(e.target.value.trim().toUpperCase())}
+                    className="flex-1 uppercase font-mono rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleVerifyManualOrder}
+                    loading={verifyingManualOrder}
+                    variant="accent"
+                    size="sm"
+                  >
+                    Verify & Link
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <Button type="submit" loading={loading} className="w-full" size="lg" variant="accent">
           {appliedCoupon
             ? 'Complete Free Registration (Coupon Applied)'
+            : paidOrderId
+            ? `Complete Registration (Paid Order: ${paidOrderId})`
             : event?.registration_fee > 0
             ? `Pay ${feeDisplay} & Register`
             : 'Complete Free Registration'}

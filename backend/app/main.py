@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.db_init import run_migrations_async
@@ -61,9 +62,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Stage S1: the public `/uploads` StaticFiles mount has been removed.
-# Participant photos are served only through the authenticated
-# GET /api/participants/{id}/photo route. Legacy QR PNGs are never served.
+# Public static file serving for uploads (photos, QR codes).
+# These files are served unauthenticated via /uploads/ so the admin
+# dashboard can display them directly in <img> tags.
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 # ---------------------------------------------------------------------------
 # Routers

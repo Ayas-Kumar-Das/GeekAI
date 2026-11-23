@@ -8,9 +8,11 @@ const sizeClasses = {
   xl: 'max-w-4xl',
 }
 
-export default function Modal({ isOpen, onClose, title, children, size = 'md' }) {
+export default function Modal({ isOpen, open, onClose, title, children, size = 'md' }) {
+  const visible = isOpen ?? open ?? false
+
   useEffect(() => {
-    if (isOpen) {
+    if (visible) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
@@ -18,9 +20,9 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
     return () => {
       document.body.style.overflow = ''
     }
-  }, [isOpen])
+  }, [visible])
 
-  if (!isOpen) return null
+  if (!visible) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

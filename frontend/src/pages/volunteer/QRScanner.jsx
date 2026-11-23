@@ -73,32 +73,45 @@ export default function QRScanner() {
     setLoading(true)
 
     try {
-      const qrData = JSON.parse(decodedText)
-      if (!qrData.participant_id) {
-        setResult({ status: 'error', message: 'Invalid QR code format' })
+      let participantId = null
+      let participantName = ''
+      try {
+        const qrData = JSON.parse(decodedText)
+        participantId = qrData.participant_id || qrData.id
+        participantName = qrData.name || ''
+      } catch {
+        const trimmed = (decodedText || '').trim()
+        if (/^\d+$/.test(trimmed)) {
+          participantId = parseInt(trimmed, 10)
+        }
+      }
+
+      if (!participantId) {
+        setResult({ status: 'error', message: 'Invalid QR code format. Expected GeekAI participant QR.' })
         setLoading(false)
         return
       }
 
       // Validate participant
       const validateRes = await client.post('/attendance/validate-qr', {
-        participant_id: qrData.participant_id,
-        name: qrData.name || '',
+        participant_id: participantId,
+        name: participantName,
       })
 
       if (!validateRes.data.valid) {
-        setResult({ status: 'error', message: validateRes.data.message })
+        setResult({ status: 'error', message: validateRes.data.message || 'Participant not found' })
         setLoading(false)
         return
       }
 
       const participant = validateRes.data.participant
+      const targetSessionId = sessionId && !isNaN(parseInt(sessionId, 10)) ? parseInt(sessionId, 10) : null
 
       // Record attendance
       try {
         await client.post('/attendance/', {
           participant_id: participant.id,
-          session_id: parseInt(sessionId),
+          session_id: targetSessionId,
           method: 'QR',
         })
         setResult({
@@ -120,9 +133,15 @@ export default function QRScanner() {
         }
       }
     } catch (err) {
-      if (!result) {
-        setResult({ status: 'error', message: 'Invalid QR code or network error' })
-      }
+      const errorMsg =
+        err.response?.data?.detail?.message ||
+        err.response?.data?.detail ||
+        err.message ||
+        'Invalid QR code or network error'
+      setResult({
+        status: 'error',
+        message: typeof errorMsg === 'string' ? errorMsg : 'Invalid QR code or network error',
+      })
     } finally {
       setLoading(false)
     }

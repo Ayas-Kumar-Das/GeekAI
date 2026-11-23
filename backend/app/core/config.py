@@ -64,6 +64,16 @@ class Settings(BaseSettings):
     # Uploads
     UPLOAD_DIR: str = "uploads"
 
+    # Cashfree Payment Gateway
+    CASHFREE_APP_ID: str = ""
+    CASHFREE_SECRET_KEY: str = ""
+    CASHFREE_ENV: str = "sandbox"  # "sandbox" or "production"
+    BACKEND_URL: str = "http://localhost:8000"
+
+    @property
+    def cashfree_configured(self) -> bool:
+        return bool(self.CASHFREE_APP_ID and self.CASHFREE_SECRET_KEY)
+
     @property
     def photos_dir(self) -> Path:
         p = Path(self.UPLOAD_DIR) / "photos"
@@ -79,18 +89,6 @@ class Settings(BaseSettings):
     # Bootstrap forced password change: tracked via password_changed_at on
     # the users table (null = change required on next login). No column is
     # added here; the migration creates it.
-
-    # Cashfree Payment Gateway
-    CASHFREE_APP_ID: str = ""
-    CASHFREE_SECRET_KEY: str = ""
-    CASHFREE_ENV: str = "sandbox"  # "sandbox" or "production"
-
-    @property
-    def cashfree_configured(self) -> bool:
-        return bool(self.CASHFREE_APP_ID and self.CASHFREE_SECRET_KEY)
-
-    # Backend base URL (for webhooks etc.)
-    BACKEND_URL: str = "http://localhost:8000"
 
 
 settings = Settings()

@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_admin, get_db
@@ -262,7 +262,7 @@ async def delete_volunteer(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ):
-    """Remove a volunteer account."""
+    """Remove a volunteer account, safely reassigning attendance logs to preserve history."""
     if volunteer_id == admin.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -277,9 +277,25 @@ async def delete_volunteer(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
 
-    await _audit(db, request, "VOLUNTEER_DELETED", admin, "user", str(volunteer_id), {})
+    # Preserve attendance logs: reassign marked_by to the deleting admin
+    await db.execute(
+        text("UPDATE attendance SET marked_by = :admin_id WHERE marked_by = :vol_id"),
+        {"admin_id": admin.id, "vol_id": volunteer_id},
+    )
+    # Clear any verified_by references
+    await db.execute(
+        text("UPDATE attendance SET verified_by = NULL WHERE verified_by = :vol_id"),
+        {"vol_id": volunteer_id},
+    )
+    # Remove any qr_tokens issued by this volunteer
+    await db.execute(
+        text("DELETE FROM qr_tokens WHERE issued_by = :vol_id"),
+        {"vol_id": volunteer_id},
+    )
+
+    await _audit(db, request, "VOLUNTEER_DELETED", admin, "user", str(volunteer_id), {"email": user.email, "name": user.name})
     await db.delete(user)
-    await db.flush()
+    await db.commit()
 
 
 # ===== Coupon Management =====================================================
@@ -351,6 +367,7 @@ async def create_coupon(
     db.add(coupon)
     await db.flush()
     await db.refresh(coupon)
+    await db.commit()
 
     evt = (await db.execute(select(Event).where(Event.id == target_event_id))).scalar_one_or_none()
     await _audit(db, request, "COUPON_CREATED", _admin, "coupon", str(coupon.id), {"code": coupon.code, "event_id": target_event_id})
@@ -387,6 +404,7 @@ async def toggle_coupon_status(
     coupon.is_active = not coupon.is_active
     await db.flush()
     await db.refresh(coupon)
+    await db.commit()
 
     evt = (await db.execute(select(Event).where(Event.id == coupon.event_id))).scalar_one_or_none()
     await _audit(db, request, "COUPON_STATUS_CHANGED", _admin, "coupon", str(coupon_id), {"is_active": coupon.is_active})
@@ -422,7 +440,7 @@ async def delete_coupon(
 
     await _audit(db, request, "COUPON_DELETED", _admin, "coupon", str(coupon_id), {"code": coupon.code})
     await db.delete(coupon)
-    await db.flush()
+    await db.commit()
 
 
 # ===== Export Data ===========================================================

@@ -13,10 +13,7 @@ import {
   Trash2,
   Search,
   CheckCircle2,
-  XCircle,
   Clock,
-  Sparkles,
-  Percent,
   Copy,
 } from 'lucide-react'
 import { formatDate } from '../../utils/helpers'
@@ -104,7 +101,7 @@ export default function Coupons() {
 
     createMutation.mutate({
       code: form.code.trim().toUpperCase(),
-      description: form.description.trim() || null,
+      description: form.description?.trim() || null,
       max_uses: maxUses,
       is_active: true,
     })
@@ -126,6 +123,118 @@ export default function Coupons() {
   const totalCoupons = coupons?.length || 0
   const activeCoupons = coupons?.filter((c) => c.is_active && c.used_count < c.max_uses).length || 0
   const exhaustedCoupons = coupons?.filter((c) => c.used_count >= c.max_uses).length || 0
+
+  const columns = [
+    {
+      key: 'code',
+      label: 'Coupon Code',
+      render: (code) => (
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-md text-sm tracking-wider">
+            {code}
+          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              copyToClipboard(code)
+            }}
+            className="text-gray-400 hover:text-primary transition-colors cursor-pointer"
+            title="Copy code"
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ),
+    },
+    {
+      key: 'description',
+      label: 'Description / Note',
+      render: (desc) => (
+        <span className="text-sm text-gray-600">
+          {desc || <span className="text-gray-400 italic">No description</span>}
+        </span>
+      ),
+    },
+    {
+      key: 'max_uses',
+      label: 'Usage Limit',
+      render: (_, row) => {
+        const isExhausted = row.used_count >= row.max_uses
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-900">
+              {row.used_count} / {row.max_uses} used
+            </span>
+            {row.max_uses === 1 && (
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded">
+                One-Time
+              </span>
+            )}
+            {isExhausted && (
+              <Badge className="bg-amber-100 text-amber-800">Exhausted</Badge>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      key: 'is_active',
+      label: 'Status',
+      render: (isActive, row) => {
+        const isAvailable = isActive && row.used_count < row.max_uses
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleMutation.mutate(row.id)
+            }}
+            disabled={toggleMutation.isPending}
+            className="cursor-pointer group flex items-center gap-1.5"
+            title="Click to toggle status"
+          >
+            {isActive ? (
+              <Badge className={isAvailable ? 'bg-emerald-100 text-emerald-800 group-hover:opacity-80' : 'bg-gray-100 text-gray-700 group-hover:opacity-80'}>
+                Active
+              </Badge>
+            ) : (
+              <Badge className="bg-red-100 text-red-800 group-hover:opacity-80">
+                Inactive
+              </Badge>
+            )}
+          </button>
+        )
+      },
+    },
+    {
+      key: 'created_at',
+      label: 'Created At',
+      render: (val) => (
+        <span className="text-xs text-gray-500">
+          {formatDate(val)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_, row) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            setSelectedCoupon(row)
+            setDeleteModalOpen(true)
+          }}
+          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+          title="Delete Coupon"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      ),
+    },
+  ]
 
   return (
     <div className="space-y-6">
@@ -203,101 +312,7 @@ export default function Coupons() {
       {/* Table */}
       <Card>
         <Table
-          columns={[
-            {
-              header: 'Coupon Code',
-              accessor: (c) => (
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-md text-sm tracking-wider">
-                    {c.code}
-                  </span>
-                  <button
-                    onClick={() => copyToClipboard(c.code)}
-                    className="text-gray-400 hover:text-primary transition-colors cursor-pointer"
-                    title="Copy code"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ),
-            },
-            {
-              header: 'Description / Note',
-              accessor: (c) => (
-                <span className="text-sm text-gray-600">
-                  {c.description || <span className="text-gray-400 italic">No description</span>}
-                </span>
-              ),
-            },
-            {
-              header: 'Usage Limit',
-              accessor: (c) => {
-                const isExhausted = c.used_count >= c.max_uses
-                return (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">
-                      {c.used_count} / {c.max_uses} used
-                    </span>
-                    {c.max_uses === 1 && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded">
-                        One-Time
-                      </span>
-                    )}
-                    {isExhausted && (
-                      <Badge variant="warning">Exhausted</Badge>
-                    )}
-                  </div>
-                )
-              },
-            },
-            {
-              header: 'Status',
-              accessor: (c) => {
-                const isAvailable = c.is_active && c.used_count < c.max_uses
-                return (
-                  <button
-                    onClick={() => toggleMutation.mutate(c.id)}
-                    disabled={toggleMutation.isPending}
-                    className="cursor-pointer group flex items-center gap-1.5"
-                    title="Click to toggle status"
-                  >
-                    {c.is_active ? (
-                      <Badge variant={isAvailable ? 'success' : 'default'} className="group-hover:opacity-80">
-                        Active
-                      </Badge>
-                    ) : (
-                      <Badge variant="danger" className="group-hover:opacity-80">
-                        Inactive
-                      </Badge>
-                    )}
-                  </button>
-                )
-              },
-            },
-            {
-              header: 'Created At',
-              accessor: (c) => (
-                <span className="text-xs text-gray-500">
-                  {formatDate(c.created_at)}
-                </span>
-              ),
-            },
-            {
-              header: 'Actions',
-              accessor: (c) => (
-                <button
-                  onClick={() => {
-                    setSelectedCoupon(c)
-                    setDeleteModalOpen(true)
-                  }}
-                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                  title="Delete Coupon"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              ),
-            },
-          ]}
+          columns={columns}
           data={filteredCoupons}
           loading={isLoading}
           emptyMessage="No coupons found. Click 'Create Coupon' to add one."
@@ -305,7 +320,7 @@ export default function Coupons() {
       </Card>
 
       {/* Create Coupon Modal */}
-      <Modal open={modalOpen} onClose={closeModal} title="Create New Coupon Code">
+      <Modal isOpen={modalOpen} onClose={closeModal} title="Create New Coupon Code">
         <form onSubmit={handleCreate} className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
             <strong>💡 Bypass Payment:</strong> Entering this coupon code on the registration page allows participants to bypass Cashfree and complete registration completely free.
@@ -366,7 +381,7 @@ export default function Coupons() {
 
       {/* Delete Confirmation Modal */}
       <Modal
-        open={deleteModalOpen}
+        isOpen={deleteModalOpen}
         onClose={() => {
           setDeleteModalOpen(false)
           setSelectedCoupon(null)

@@ -18,12 +18,12 @@ from fastapi import (
     status,
 )
 from fastapi.responses import FileResponse
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.core.deps import get_current_staff, get_db
+from app.core.deps import get_current_admin, get_current_staff, get_db
 from app.models.models import (
     Attendance,
     Coupon,
@@ -33,7 +33,7 @@ from app.models.models import (
     ParticipantCategory,
     User,
 )
-from app.schemas.schemas import AttendanceOut, ParticipantDetail, ParticipantList, ParticipantOut
+from app.schemas.schemas import AttendanceOut, ParticipantDetail, ParticipantList, ParticipantOut, ParticipantUpdate
 from app.services.audit import audit_log
 from app.services.email_service import send_qr_email
 from app.services.embedding_service import generate_embedding
@@ -84,27 +84,49 @@ async def register_participant(
     payment_order_id: Optional[str] = Form(None),
     payment_status: Optional[str] = Form("PENDING"),
     coupon_code: Optional[str] = Form(None),
+    source: Optional[str] = Form("ONLINE"),
     db: AsyncSession = Depends(get_db),
 ):
     """Public participant registration.
     
-    Supports paid events, free events, and coupon code bypass.
+    Supports paid events, free events, coupon code bypass, and payment recovery reconciliation.
     """
     target_event_id = event_id or 1
+    clean_email = email.strip().lower()
+    clean_source = (source or "ONLINE").strip().upper()[:9]
 
-    # Check duplicate email
-    existing = await db.execute(select(Participant).where(Participant.email == email))
-    if existing.scalar_one_or_none():
+    # 1. Idempotency: If this payment_order_id is already recorded, return existing participant
+    if payment_order_id and payment_order_id.strip():
+        existing_order_res = await db.execute(
+            select(Participant).where(
+                Participant.payment_order_id == payment_order_id.strip(),
+                Participant.event_id == target_event_id,
+            )
+        )
+        existing_by_order = existing_order_res.scalar_one_or_none()
+        if existing_by_order:
+            logger.info("Participant already registered with order_id %s, returning record", payment_order_id)
+            return existing_by_order
+
+    # 2. Check existing participant with same email in target event
+    existing_res = await db.execute(
+        select(Participant).where(
+            func.lower(Participant.email) == clean_email,
+            Participant.event_id == target_event_id,
+        )
+    )
+    existing_participant = existing_res.scalar_one_or_none()
+    if existing_participant and existing_participant.payment_status == "SUCCESS":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A participant with this email already exists",
+            detail="A participant with this email is already registered and confirmed for this event.",
         )
 
     final_payment_status = payment_status or "PENDING"
-    final_payment_order_id = payment_order_id
+    final_payment_order_id = payment_order_id.strip() if payment_order_id else None
     final_coupon_code = None
 
-    # Handle coupon code bypass
+    # 3. Handle coupon code bypass
     if coupon_code and coupon_code.strip():
         cleaned_coupon = coupon_code.strip().upper()
         c_stmt = select(Coupon).where(
@@ -133,6 +155,21 @@ async def register_participant(
         final_coupon_code = coupon.code
         final_payment_status = "SUCCESS"
         final_payment_order_id = f"COUPON_{coupon.code}"
+    elif final_payment_order_id and not final_payment_order_id.startswith("COUPON_"):
+        # 4. Verify with Cashfree if configured
+        if settings.cashfree_configured:
+            from app.api.payments import check_cashfree_order_paid
+            is_paid, cf_data = await check_cashfree_order_paid(final_payment_order_id)
+            if is_paid:
+                final_payment_status = "SUCCESS"
+            else:
+                logger.warning("Order %s was not marked as PAID on Cashfree", final_payment_order_id)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Payment has not been completed on Cashfree for this order.",
+                )
+        else:
+            final_payment_status = "SUCCESS"
     else:
         # Check if event is free
         evt_res = await db.execute(select(Event).where(Event.id == target_event_id))
@@ -140,18 +177,38 @@ async def register_participant(
         if evt and evt.registration_fee == 0:
             final_payment_status = "SUCCESS"
 
-    participant = Participant(
-        name=name,
-        email=email,
-        phone=phone,
-        institution=institution,
-        category=category,
-        event_id=target_event_id,
-        payment_order_id=final_payment_order_id,
-        payment_status=final_payment_status,
-        coupon_code=final_coupon_code,
-    )
-    db.add(participant)
+    participant_status = "CONFIRMED" if final_payment_status == "SUCCESS" else "PENDING"
+
+    # 5. Create or Update Participant record
+    if existing_participant:
+        # Reconcile existing pending participant
+        participant = existing_participant
+        participant.name = name
+        participant.phone = phone
+        participant.institution = institution
+        participant.category = category
+        participant.source = clean_source
+        participant.status = participant_status
+        participant.payment_order_id = final_payment_order_id
+        participant.payment_status = final_payment_status
+        participant.coupon_code = final_coupon_code
+    else:
+        participant = Participant(
+            name=name,
+            email=clean_email,
+            phone=phone,
+            institution=institution,
+            category=category,
+            event_id=target_event_id,
+            source=clean_source,
+            status=participant_status,
+            embedding_status="PENDING",
+            payment_order_id=final_payment_order_id,
+            payment_status=final_payment_status,
+            coupon_code=final_coupon_code,
+        )
+        db.add(participant)
+
     await db.flush()
     await db.refresh(participant)
 
@@ -301,6 +358,38 @@ async def get_participant(
     )
 
 
+def resolve_media_path(stored_path: str | None) -> Path | None:
+    """Resolve a relative or absolute stored media path to a valid existing Path on disk."""
+    if not stored_path:
+        return None
+    cleaned = stored_path.strip().lstrip("/")
+    
+    # 1. Direct path from current working directory
+    p_cwd = Path(cleaned)
+    if p_cwd.exists() and p_cwd.is_file():
+        return p_cwd
+
+    # 2. Inside settings.UPLOAD_DIR
+    upload_dir = Path(settings.UPLOAD_DIR)
+    p_upload = upload_dir / cleaned
+    if p_upload.exists() and p_upload.is_file():
+        return p_upload
+
+    # 3. Strip 'uploads/' if upload_dir is already 'uploads'
+    if cleaned.startswith("uploads/"):
+        sub = cleaned[len("uploads/"):]
+        p_sub = upload_dir / sub
+        if p_sub.exists() and p_sub.is_file():
+            return p_sub
+
+    # 4. Check absolute path as provided
+    p_abs = Path(stored_path)
+    if p_abs.exists() and p_abs.is_file():
+        return p_abs
+
+    return None
+
+
 @router.get("/{participant_id}/photo")
 async def get_participant_photo(
     participant_id: int,
@@ -308,7 +397,7 @@ async def get_participant_photo(
     db: AsyncSession = Depends(get_db),
     _staff: User = Depends(get_current_staff),
 ):
-    """Serve the participant photo through an authenticated handler."""
+    """Serve the participant photo through an authenticated handler with robust path resolution."""
     query = select(Participant).where(Participant.id == participant_id)
     if _staff.event_id:
         query = query.where(Participant.event_id == _staff.event_id)
@@ -318,8 +407,8 @@ async def get_participant_photo(
     if not participant or not participant.photo_url:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found")
 
-    filepath = Path(participant.photo_url)
-    if not filepath.exists():
+    filepath = resolve_media_path(participant.photo_url)
+    if not filepath or not filepath.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo file missing")
 
     await _audit(
@@ -349,7 +438,145 @@ async def get_participant_qrcode(
     if not participant or not participant.qr_code_url:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="QR code not found")
 
-    filepath = Path(participant.qr_code_url)
-    if not filepath.exists():
+    filepath = resolve_media_path(participant.qr_code_url)
+    if not filepath or not filepath.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="QR code file missing")
     return FileResponse(filepath, media_type="image/png")
+
+
+# ---------------------------------------------------------------------------
+# Edit / Delete (admin-only operations)
+# ---------------------------------------------------------------------------
+
+@router.patch("/{participant_id}", response_model=ParticipantOut)
+async def update_participant(
+    participant_id: int,
+    body: ParticipantUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _staff: User = Depends(get_current_staff),
+):
+    """Update mutable participant fields. Available to authorized event operators / admin."""
+    query = select(Participant).where(Participant.id == participant_id)
+    if _staff.event_id:
+        query = query.where(Participant.event_id == _staff.event_id)
+
+    result = await db.execute(query)
+    participant = result.scalar_one_or_none()
+    if not participant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participant not found")
+
+    before_snapshot = {
+        "name": participant.name,
+        "email": participant.email,
+        "phone": participant.phone,
+        "institution": participant.institution,
+        "category": participant.category.value if hasattr(participant.category, "value") else str(participant.category),
+        "payment_status": participant.payment_status,
+        "status": participant.status,
+    }
+
+    # Handle email change with uniqueness check
+    if body.email is not None:
+        clean_email = body.email.strip().lower()
+        if clean_email != participant.email.lower():
+            dup_stmt = select(Participant).where(
+                func.lower(Participant.email) == clean_email,
+                Participant.event_id == participant.event_id,
+                Participant.id != participant.id,
+            )
+            dup_res = await db.execute(dup_stmt)
+            if dup_res.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A participant with this email is already registered in this event.",
+                )
+            participant.email = clean_email
+
+    update_data = body.model_dump(exclude_unset=True)
+    # email is already handled
+    update_data.pop("email", None)
+
+    for field, value in update_data.items():
+        if value is not None:
+            setattr(participant, field, value)
+
+    await db.commit()
+    await db.refresh(participant)
+
+    after_snapshot = {
+        "name": participant.name,
+        "email": participant.email,
+        "phone": participant.phone,
+        "institution": participant.institution,
+        "category": participant.category.value if hasattr(participant.category, "value") else str(participant.category),
+        "payment_status": participant.payment_status,
+        "status": participant.status,
+    }
+
+    await _audit(
+        db,
+        request,
+        "PARTICIPANT_UPDATE",
+        _staff,
+        entity_id=str(participant_id),
+        before=before_snapshot,
+        after=after_snapshot,
+    )
+
+    return ParticipantOut.model_validate(participant)
+
+
+@router.delete("/{participant_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_participant(
+    participant_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _staff: User = Depends(get_current_admin),
+):
+    """Permanently delete a participant. Admin-only. Preserves data integrity by cascading cleanly."""
+    query = select(Participant).where(Participant.id == participant_id)
+    if _staff.event_id:
+        query = query.where(Participant.event_id == _staff.event_id)
+
+    result = await db.execute(query)
+    participant = result.scalar_one_or_none()
+    if not participant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participant not found")
+
+    before_snapshot = {
+        "name": participant.name,
+        "email": participant.email,
+        "event_id": participant.event_id,
+    }
+
+    # Clean up foreign key references that might be RESTRICT (qr_tokens, email_outbox)
+    try:
+        await db.execute(text("DELETE FROM qr_tokens WHERE participant_id = :pid"), {"pid": participant_id})
+        await db.execute(text("DELETE FROM email_outbox WHERE participant_id = :pid"), {"pid": participant_id})
+    except Exception as e:
+        logger.warning("Error cleaning dependent token/outbox rows: %s", e)
+
+    # Clean up uploaded media files
+    for file_path in [participant.photo_url, participant.qr_code_url]:
+        if file_path:
+            fp = resolve_media_path(file_path)
+            if fp and fp.exists():
+                try:
+                    fp.unlink()
+                except OSError:
+                    logger.warning("Could not delete file %s", file_path)
+
+    await db.delete(participant)
+    await db.commit()
+
+    await _audit(
+        db,
+        request,
+        "PARTICIPANT_DELETE",
+        _staff,
+        entity_id=str(participant_id),
+        before=before_snapshot,
+        after={"deleted": True},
+    )
+

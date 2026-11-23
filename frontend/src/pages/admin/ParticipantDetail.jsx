@@ -1,100 +1,428 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import client from '../../api/client'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
-import { ArrowLeft, Mail, Phone, Building, Tag } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, Building, Tag, Pencil, Trash2, X, Save, Download, QrCode, ShieldCheck } from 'lucide-react'
 import { getCategoryColor, getMethodBadge, formatDate } from '../../utils/helpers'
+
+const CATEGORIES = ['STUDENT', 'RESEARCHER', 'PROFESSIONAL', 'SPEAKER', 'OTHER']
+const PAYMENT_STATUSES = ['SUCCESS', 'PENDING', 'FAILED']
 
 export default function ParticipantDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  const { data: participant, isLoading } = useQuery({
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    institution: '',
+    category: 'OTHER',
+    payment_status: 'PENDING',
+  })
+  const [editError, setEditError] = useState('')
+
+  const { data: participant, isLoading, error } = useQuery({
     queryKey: ['participant', id],
     queryFn: () => client.get(`/participants/${id}`).then((r) => r.data),
   })
+
+  const updateMutation = useMutation({
+    mutationFn: (payload) => client.patch(`/participants/${id}`, payload).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['participant', id] })
+      queryClient.invalidateQueries({ queryKey: ['participants'] })
+      setEditOpen(false)
+      setEditError('')
+    },
+    onError: (err) => {
+      setEditError(err.response?.data?.detail || 'Failed to update participant. Please try again.')
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: () => client.delete(`/participants/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['participants'] })
+      navigate('/admin/participants')
+    },
+  })
+
+  const openEdit = () => {
+    if (participant) {
+      setForm({
+        name: participant.name || '',
+        email: participant.email || '',
+        phone: participant.phone || '',
+        institution: participant.institution || '',
+        category: participant.category || 'OTHER',
+        payment_status: participant.payment_status || 'PENDING',
+      })
+      setEditError('')
+    }
+    setEditOpen(true)
+  }
+
+  const handleSave = (e) => {
+    e.preventDefault()
+    if (!form.name.trim()) {
+      setEditError('Name is required')
+      return
+    }
+    if (!form.email.trim()) {
+      setEditError('Email is required')
+      return
+    }
+    updateMutation.mutate(form)
+  }
 
   if (isLoading) {
     return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
   }
 
-  if (!participant) {
-    return <p className="text-center text-gray-500 py-20">Participant not found</p>
+  if (error || !participant) {
+    return (
+      <div className="text-center py-20 space-y-3">
+        <p className="text-gray-500">Participant not found or inaccessible.</p>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/admin/participants')}>
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Participants
+        </Button>
+      </div>
+    )
   }
+
+  // Format static media URLs safely
+  const photoUrl = participant.photo_url
+    ? (participant.photo_url.startsWith('/') ? participant.photo_url : `/${participant.photo_url}`)
+    : null
+
+  const qrUrl = participant.qr_code_url
+    ? (participant.qr_code_url.startsWith('/') ? participant.qr_code_url : `/${participant.qr_code_url}`)
+    : null
+
+  const attendanceCount = participant.attendances?.length || 0
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
-        <h1 className="text-2xl font-bold text-gray-900">Participant Details</h1>
+      {/* Header bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/admin/participants')}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{participant.name}</h1>
+            <p className="text-xs text-gray-500">Participant ID: #{participant.id}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={openEdit}>
+            <Pencil className="h-4 w-4 mr-1" /> Edit Participant
+          </Button>
+          <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="h-4 w-4 mr-1" /> Delete
+          </Button>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Profile */}
+        {/* Profile Card */}
         <Card className="lg:col-span-1">
-          <div className="text-center">
-            {participant.photo_url ? (
-              <img
-                src={`/${participant.photo_url}`}
-                alt={participant.name}
-                className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-primary/20"
-              />
+          <div className="text-center pt-2">
+            {photoUrl ? (
+              <div className="relative inline-block">
+                <img
+                  src={photoUrl}
+                  alt={participant.name}
+                  className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-indigo-100 shadow-sm"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    const fb = document.getElementById(`avatar-fb-${participant.id}`)
+                    if (fb) fb.style.display = 'flex'
+                  }}
+                />
+                <div
+                  id={`avatar-fb-${participant.id}`}
+                  style={{ display: 'none' }}
+                  className="w-32 h-32 rounded-full mx-auto bg-gradient-to-tr from-indigo-500 to-purple-600 items-center justify-center text-3xl font-bold text-white shadow-sm"
+                >
+                  {participant.name?.charAt(0).toUpperCase()}
+                </div>
+              </div>
             ) : (
-              <div className="w-32 h-32 rounded-full mx-auto bg-gray-200 flex items-center justify-center text-3xl text-gray-400">
-                {participant.name?.charAt(0)}
+              <div className="w-32 h-32 rounded-full mx-auto bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white shadow-sm">
+                {participant.name?.charAt(0).toUpperCase()}
               </div>
             )}
+
             <h2 className="mt-4 text-xl font-bold text-gray-900">{participant.name}</h2>
-            <Badge className={`mt-2 ${getCategoryColor(participant.category)}`}>
-              {participant.category}
-            </Badge>
+            <div className="mt-2 flex items-center justify-center gap-2 flex-wrap">
+              <Badge className={getCategoryColor(participant.category)}>
+                {participant.category}
+              </Badge>
+              <Badge
+                className={
+                  participant.payment_status === 'SUCCESS'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : participant.payment_status === 'FAILED'
+                    ? 'bg-rose-100 text-rose-800'
+                    : 'bg-amber-100 text-amber-800'
+                }
+              >
+                Payment: {participant.payment_status || 'PENDING'}
+              </Badge>
+            </div>
           </div>
 
-          <div className="mt-6 space-y-3">
+          <div className="mt-6 space-y-3 border-t border-gray-100 pt-5">
             <InfoRow icon={Mail} label="Email" value={participant.email} />
             <InfoRow icon={Phone} label="Phone" value={participant.phone} />
             <InfoRow icon={Building} label="Institution" value={participant.institution} />
             <InfoRow icon={Tag} label="Registered" value={formatDate(participant.registered_at)} />
+            {participant.coupon_code && (
+              <InfoRow icon={ShieldCheck} label="Coupon" value={participant.coupon_code} />
+            )}
           </div>
 
-          {participant.qr_code_url && (
-            <div className="mt-6 text-center">
-              <img
-                src={`/${participant.qr_code_url}`}
-                alt="QR Code"
-                className="w-40 h-40 mx-auto border rounded-lg"
-              />
-              <p className="text-xs text-gray-400 mt-1">Participant QR Code</p>
-            </div>
-          )}
+          {/* QR Code Section */}
+          <div className="mt-6 border-t border-gray-100 pt-5 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 flex items-center justify-center gap-1">
+              <QrCode className="h-4 w-4" /> Check-in QR Code
+            </p>
+            {qrUrl ? (
+              <div className="space-y-3">
+                <div className="inline-block p-2 bg-white border border-gray-200 rounded-xl shadow-sm">
+                  <img
+                    src={qrUrl}
+                    alt="Participant QR Code"
+                    className="w-44 h-44 object-contain mx-auto"
+                    onError={(e) => {
+                      // Fallback to authenticated endpoint if static fails
+                      e.currentTarget.src = `/api/participants/${participant.id}/qrcode`
+                    }}
+                  />
+                </div>
+                <div>
+                  <a
+                    href={qrUrl}
+                    download={`participant_${participant.id}_qr.png`}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary-dark transition-colors"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Download QR Code PNG
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 bg-gray-50 rounded-lg text-sm text-gray-400">
+                No QR code generated yet.
+              </div>
+            )}
+          </div>
         </Card>
 
-        {/* Attendance History */}
-        <Card title="Attendance History" className="lg:col-span-2">
-          {participant.attendances?.length > 0 ? (
+        {/* Attendance History Card */}
+        <Card title={`Attendance History (${attendanceCount})`} className="lg:col-span-2">
+          {attendanceCount > 0 ? (
             <div className="mt-3 divide-y divide-gray-100">
               {participant.attendances.map((a) => (
-                <div key={a.id} className="flex items-center justify-between py-3">
+                <div key={a.id} className="flex items-center justify-between py-3.5">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {a.session_name || 'Event Check-in'}
+                    <p className="text-sm font-semibold text-gray-900">
+                      {a.session_name || 'Event General Check-in'}
                     </p>
-                    <p className="text-xs text-gray-500">{formatDate(a.marked_at)}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{formatDate(a.marked_at)}</p>
                   </div>
-                  <Badge className={getMethodBadge(a.method)}>{a.method}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className={getMethodBadge(a.method)}>{a.method}</Badge>
+                    <span className="text-xs text-gray-400">ID #{a.id}</span>
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-400 mt-3">No attendance records yet</p>
+            <div className="text-center py-12 text-gray-400 text-sm">
+              <p>No check-in attendance recorded for this participant yet.</p>
+              <p className="text-xs text-gray-400 mt-1">Check-ins via QR scanner, Face recognition, or Manual lookup will appear here.</p>
+            </div>
           )}
         </Card>
       </div>
+
+      {/* Edit Participant Modal */}
+      {editOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Pencil className="h-5 w-5 text-primary" /> Edit Participant
+              </h2>
+              <button
+                onClick={() => setEditOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="p-6 space-y-4">
+              {editError && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
+                  {editError}
+                </div>
+              )}
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Institution / Organization</label>
+                  <input
+                    type="text"
+                    value={form.institution}
+                    onChange={(e) => setForm({ ...form, institution: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Category</label>
+                  <select
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
+                  >
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Status</label>
+                  <select
+                    value={form.payment_status}
+                    onChange={(e) => setForm({ ...form, payment_status: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3.5 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
+                  >
+                    {PAYMENT_STATUSES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setEditOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={updateMutation.isPending}
+                >
+                  {updateMutation.isPending ? <Spinner size="sm" /> : <Save className="h-4 w-4 mr-1" />}
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-red-100 p-3 flex-shrink-0">
+                <Trash2 className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Delete Participant</h2>
+                <p className="text-xs text-gray-500">This action is permanent and cannot be undone.</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-700">
+              Are you sure you want to delete <strong>{participant.name}</strong> ({participant.email})?
+            </p>
+
+            {attendanceCount > 0 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                <strong>Warning:</strong> This participant has {attendanceCount} recorded check-in attendance record(s). Deleting will permanently remove all associated check-in records.
+              </div>
+            )}
+
+            {deleteMutation.isError && (
+              <p className="text-xs text-red-600">
+                {deleteMutation.error?.response?.data?.detail || 'Failed to delete participant. Only administrators can delete records.'}
+              </p>
+            )}
+
+            <div className="flex gap-3 justify-end pt-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setDeleteOpen(false)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? <Spinner size="sm" /> : <Trash2 className="h-4 w-4 mr-1" />}
+                Confirm Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -103,9 +431,8 @@ function InfoRow({ icon: Icon, label, value }) {
   return (
     <div className="flex items-center gap-3 text-sm">
       <Icon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-      <span className="text-gray-500 min-w-20">{label}</span>
-      <span className="text-gray-900 font-medium">{value || '—'}</span>
+      <span className="text-gray-500 min-w-24 text-xs font-medium">{label}</span>
+      <span className="text-gray-900 font-medium text-sm break-all">{value || '—'}</span>
     </div>
   )
 }
-

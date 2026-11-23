@@ -95,6 +95,9 @@ class Participant(Base):
         nullable=False,
     )
     event_id = Column(Integer, ForeignKey("events.id"), nullable=True, index=True)
+    source = Column(String(9), nullable=False, default="ONLINE")
+    status = Column(String(15), nullable=False, default="CONFIRMED")
+    embedding_status = Column(String(32), nullable=False, default="PENDING")
     payment_order_id = Column(String(255), nullable=True)
     payment_status = Column(String(50), nullable=True, default="PENDING")  # PENDING, SUCCESS, FAILED
     coupon_code = Column(String(50), nullable=True)
@@ -152,6 +155,7 @@ class Attendance(Base):
     method = Column(Enum(AttendanceMethod, name="attendance_method"), nullable=False)
     marked_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     marked_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, default=1, index=True)
 
     # Relationships
     participant = relationship("Participant", back_populates="attendances")

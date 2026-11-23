@@ -45,8 +45,13 @@ def upgrade() -> None:
     op.create_index("ix_users_event_id", "users", ["event_id"])
     op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ")
 
-    # 2. Add coupon_code to participants
-    op.add_column("participants", sa.Column("coupon_code", sa.String(50), nullable=True))
+    # 2. Add coupon_code and ensure defaults on participants
+    op.execute("""
+        ALTER TABLE participants ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(50);
+        ALTER TABLE participants ALTER COLUMN source SET DEFAULT 'ONLINE';
+        ALTER TABLE participants ALTER COLUMN status SET DEFAULT 'CONFIRMED';
+        ALTER TABLE participants ALTER COLUMN embedding_status SET DEFAULT 'PENDING';
+    """)
 
     # 3. Create coupons table
     op.create_table(

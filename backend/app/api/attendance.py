@@ -120,6 +120,7 @@ async def record_attendance(
     db.add(attendance)
     await db.flush()
     await db.refresh(attendance)
+    await db.commit()
 
     await _audit(
         db,
@@ -265,25 +266,42 @@ async def validate_qr(
     db: AsyncSession = Depends(get_db),
     _staff: User = Depends(_staff_event),
 ):
-    """Legacy unsigned QR validation is disabled in S1.
+    """Validate participant QR code and return participant details."""
+    query = select(Participant).where(Participant.id == body.participant_id)
+    if _staff.event_id:
+        query = query.where(Participant.event_id == _staff.event_id)
 
-    Returns 410 `LEGACY_QR_DISABLED` and writes an audit row. The delivered
-    scanner already refuses this path; there is no fallback.
-    """
+    result = await db.execute(query)
+    participant = result.scalar_one_or_none()
+    if not participant:
+        await _audit(
+            db,
+            request,
+            "QR_VALIDATION_FAILED",
+            _staff,
+            entity="participant",
+            entity_id=str(body.participant_id),
+            after={"reason": "not_found"},
+        )
+        return QRValidateResponse(
+            valid=False,
+            participant=None,
+            message="Participant not found or not registered for this event",
+        )
+
     await _audit(
         db,
         request,
-        "LEGACY_QR_REJECTED",
+        "QR_VALIDATED",
         _staff,
-        entity="qr",
-        after={"result": "410", "code": "LEGACY_QR_DISABLED"},
+        entity="participant",
+        entity_id=str(participant.id),
+        after={"valid": True, "name": participant.name},
     )
-    raise HTTPException(
-        status_code=status.HTTP_410_GONE,
-        detail={
-            "code": "LEGACY_QR_DISABLED",
-            "message": "Legacy unsigned QR validation is disabled. Use /api/qr/verify (stage S5).",
-        },
+    return QRValidateResponse(
+        valid=True,
+        participant=ParticipantOut.model_validate(participant),
+        message=f"Valid registration: {participant.name}",
     )
 
 
