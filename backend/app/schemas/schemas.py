@@ -269,9 +269,13 @@ class EventOut(BaseModel):
     tagline: Optional[str] = None
     logo_url: Optional[str] = None
     banner_url: Optional[str] = None
+    form_image_url: Optional[str] = None
     registration_fee: int = 0  # in paise
     is_active: bool = True
     is_published: bool = False
+    cashfree_enabled: bool = False
+    cashfree_env: str = "sandbox"
+    guidelines: Optional[List[str]] = None
     event_date: Optional[datetime] = None
     venue: Optional[str] = None
     registration_deadline: Optional[datetime] = None
@@ -302,7 +306,7 @@ class FormFieldValidation(BaseModel):
 class FormField(BaseModel):
     """A single field in a dynamic registration form."""
     id: str  # client-generated UUID
-    type: str  # text|email|phone|number|dropdown|radio|checkbox|date|textarea|file|photo
+    type: str  # text|email|phone|number|dropdown|radio|checkbox|date|textarea|file|photo|image
     label: str
     placeholder: Optional[str] = None
     required: bool = False
@@ -311,6 +315,7 @@ class FormField(BaseModel):
     order: int = 0
     help_text: Optional[str] = None
     mapping: Optional[str] = None  # name|email|phone|institution|category|photo|custom
+    image_url: Optional[str] = None  # for image field type
 
 
 class FormSchema(BaseModel):
@@ -326,7 +331,13 @@ class EventCreate(BaseModel):
     tagline: Optional[str] = None
     logo_url: Optional[str] = None
     banner_url: Optional[str] = None
+    form_image_url: Optional[str] = None
     registration_fee: int = Field(default=0, ge=0)
+    cashfree_enabled: bool = False
+    cashfree_app_id: Optional[str] = None
+    cashfree_secret_key: Optional[str] = None
+    cashfree_env: str = "sandbox"
+    guidelines: Optional[List[str]] = None
     event_date: Optional[datetime] = None
     venue: Optional[str] = None
     registration_deadline: Optional[datetime] = None
@@ -339,7 +350,13 @@ class EventUpdate(BaseModel):
     tagline: Optional[str] = None
     logo_url: Optional[str] = None
     banner_url: Optional[str] = None
+    form_image_url: Optional[str] = None
     registration_fee: Optional[int] = Field(default=None, ge=0)
+    cashfree_enabled: Optional[bool] = None
+    cashfree_app_id: Optional[str] = None
+    cashfree_secret_key: Optional[str] = None
+    cashfree_env: Optional[str] = None
+    guidelines: Optional[List[str]] = None
     is_active: Optional[bool] = None
     event_date: Optional[datetime] = None
     venue: Optional[str] = None
@@ -351,6 +368,8 @@ class SuperAdminEventOut(EventOut):
     registration_form_schema: Optional[dict] = None
     registration_form_version: int = 1
     participant_count: int = 0
+    cashfree_app_id: Optional[str] = None
+    has_cashfree_secret: bool = False
 
     class Config:
         from_attributes = True

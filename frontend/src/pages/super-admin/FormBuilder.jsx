@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Eye,
   Type, Mail, Phone, Hash, List, Circle, CheckSquare, Calendar,
-  AlignLeft, Upload, Globe, AlertCircle, Camera, User, Building,
+  AlignLeft, Upload, Globe, AlertCircle, Camera, User, Building, Image,
 } from 'lucide-react'
 import client from '../../api/client'
 import toast from 'react-hot-toast'
@@ -20,6 +20,7 @@ const FIELD_TYPES = [
   { type: 'checkbox', label: 'Checkbox', icon: CheckSquare, description: 'Multiple choices' },
   { type: 'date', label: 'Date', icon: Calendar, description: 'Date picker' },
   { type: 'file', label: 'File Upload', icon: Upload, description: 'Document or attachment upload' },
+  { type: 'image', label: 'Image', icon: Image, description: 'Display an image banner or illustration in the form' },
 ]
 
 const ICON_MAP = {
@@ -34,6 +35,7 @@ const ICON_MAP = {
   checkbox: CheckSquare,
   date: Calendar,
   file: Upload,
+  image: Image,
 }
 
 function newField(type, order, defaultLabel = null, defaultMapping = null) {
@@ -50,6 +52,7 @@ function newField(type, order, defaultLabel = null, defaultMapping = null) {
     if (type === 'photo') label = 'Check-in Photo'
     else if (type === 'email') label = 'Email Address'
     else if (type === 'phone') label = 'Phone Number'
+    else if (type === 'image') label = 'Event Illustration'
     else label = `${FIELD_TYPES.find(f => f.type === type)?.label || 'Field'} ${order + 1}`
   }
 
@@ -58,6 +61,7 @@ function newField(type, order, defaultLabel = null, defaultMapping = null) {
     type,
     label,
     placeholder: '',
+    image_url: '',
     required: ['photo', 'email'].includes(type) ? true : false,
     mapping,
     options: ['dropdown', 'radio', 'checkbox'].includes(type)
@@ -69,11 +73,32 @@ function newField(type, order, defaultLabel = null, defaultMapping = null) {
   }
 }
 
-function FieldEditor({ field, onChange, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) {
+function FieldEditor({ field, onChange, onDelete, onMoveUp, onMoveDown, isFirst, isLast, eventId }) {
   const Icon = ICON_MAP[field.type] || Type
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   const updateField = (key, value) => onChange({ ...field, [key]: value })
   const updateOptions = (options) => onChange({ ...field, options })
+
+  const handleFieldImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const formData = new FormData()
+    formData.append('image', file)
+    setUploadingImage(true)
+    try {
+      const url = eventId ? `/super-admin/events/${eventId}/upload-image` : '/super-admin/upload-image'
+      const res = await client.post(url, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      updateField('image_url', res.data.url)
+      toast.success('Image uploaded successfully!')
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to upload image')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
 
   const addOption = () => {
     const opts = field.options || []
@@ -102,7 +127,7 @@ function FieldEditor({ field, onChange, onDelete, onMoveUp, onMoveDown, isFirst,
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
             {FIELD_TYPES.find(f => f.type === field.type)?.label || field.type}
           </span>
-          {field.mapping && field.mapping !== 'custom' && (
+          {field.type !== 'image' && field.mapping && field.mapping !== 'custom' && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">
               Maps to: {field.mapping}
             </span>
@@ -140,68 +165,147 @@ function FieldEditor({ field, onChange, onDelete, onMoveUp, onMoveDown, isFirst,
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Label *</label>
-            <input
-              value={field.label}
-              onChange={e => updateField('label', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
-              placeholder="Field label"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">System Attribute Mapping</label>
-            <select
-              value={field.mapping || 'custom'}
-              onChange={e => updateField('mapping', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none bg-white"
-            >
-              <option value="custom">Custom Field (Stored in responses)</option>
-              <option value="name">Participant Full Name (Core DB & QR)</option>
-              <option value="email">Participant Email (Core DB & QR Email)</option>
-              <option value="phone">Participant Phone (Cashfree & SMS)</option>
-              <option value="institution">Institution / Organization</option>
-              <option value="category">Participant Category</option>
-              <option value="photo">Check-in Photo (Face Recognition)</option>
-            </select>
-          </div>
-        </div>
+        {field.type === 'image' ? (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 flex items-start gap-2.5">
+              <Image className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="font-semibold text-blue-900">Form Image / Illustration Field</strong>
+                <p className="mt-0.5 text-blue-700">
+                  Display an image banner or illustration at this exact position in the registration form. Rendered at original aspect ratio and natural dimensions.
+                </p>
+              </div>
+            </div>
 
-        {field.type !== 'photo' && (
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Placeholder</label>
-            <input
-              value={field.placeholder || ''}
-              onChange={e => updateField('placeholder', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
-              placeholder="Placeholder text"
-            />
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Image Heading / Alt Text</label>
+              <input
+                value={field.label}
+                onChange={e => updateField('label', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+                placeholder="e.g. Event Venue Map or Sponsor Illustration"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Image Source (URL or File Upload) *</label>
+              <div className="flex items-center gap-2">
+                <input
+                  value={field.image_url || ''}
+                  onChange={e => updateField('image_url', e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+                  placeholder="https://… or click upload"
+                />
+                <label className="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap">
+                  <Upload className="h-3.5 w-3.5" />
+                  {uploadingImage ? 'Uploading…' : 'Upload Image'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFieldImageUpload}
+                    disabled={uploadingImage}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {field.image_url && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Image Preview</label>
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex flex-col items-center justify-center">
+                  <img
+                    src={field.image_url}
+                    alt={field.label || 'Image preview'}
+                    style={{ maxWidth: '100%', height: 'auto', maxHeight: '260px', objectFit: 'contain', borderRadius: '6px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => updateField('image_url', '')}
+                    className="mt-2 text-xs text-red-600 hover:text-red-700 font-medium inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="h-3 w-3" /> Remove image
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Caption / Help Text</label>
+              <input
+                value={field.help_text || ''}
+                onChange={e => updateField('help_text', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+                placeholder="Optional caption displayed below image"
+              />
+            </div>
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Label *</label>
+                <input
+                  value={field.label}
+                  onChange={e => updateField('label', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+                  placeholder="Field label"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">System Attribute Mapping</label>
+                <select
+                  value={field.mapping || 'custom'}
+                  onChange={e => updateField('mapping', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none bg-white"
+                >
+                  <option value="custom">Custom Field (Stored in responses)</option>
+                  <option value="name">Participant Full Name (Core DB & QR)</option>
+                  <option value="email">Participant Email (Core DB & QR Email)</option>
+                  <option value="phone">Participant Phone (Cashfree & SMS)</option>
+                  <option value="institution">Institution / Organization</option>
+                  <option value="category">Participant Category</option>
+                  <option value="photo">Check-in Photo (Face Recognition)</option>
+                </select>
+              </div>
+            </div>
+
+            {field.type !== 'photo' && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Placeholder</label>
+                <input
+                  value={field.placeholder || ''}
+                  onChange={e => updateField('placeholder', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+                  placeholder="Placeholder text"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Help Text</label>
+              <input
+                value={field.help_text || ''}
+                onChange={e => updateField('help_text', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+                placeholder="Optional helper text shown below the field"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id={`required-${field.id}`}
+                checked={field.required}
+                onChange={e => updateField('required', e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+              />
+              <label htmlFor={`required-${field.id}`} className="text-sm text-gray-700 select-none cursor-pointer">
+                Required field
+              </label>
+            </div>
+          </>
         )}
-
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Help Text</label>
-          <input
-            value={field.help_text || ''}
-            onChange={e => updateField('help_text', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
-            placeholder="Optional helper text shown below the field"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id={`required-${field.id}`}
-            checked={field.required}
-            onChange={e => updateField('required', e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-          />
-          <label htmlFor={`required-${field.id}`} className="text-sm text-gray-700 select-none cursor-pointer">
-            Required field
-          </label>
-        </div>
 
         {/* Options for dropdown/radio/checkbox */}
         {['dropdown', 'radio', 'checkbox'].includes(field.type) && (
@@ -308,6 +412,33 @@ function FormPreview({ fields }) {
   return (
     <div className="space-y-5">
       {fields.map(field => {
+        if (field.type === 'image') {
+          return (
+            <div key={field.id} className="py-2">
+              {field.label && field.label !== 'Image' && (
+                <h4 className="text-sm font-semibold text-gray-800 mb-1.5">{field.label}</h4>
+              )}
+              {field.image_url ? (
+                <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex justify-center">
+                  <img
+                    src={field.image_url}
+                    alt={field.label || 'Form image'}
+                    style={{ maxWidth: '100%', height: 'auto', display: 'block', objectFit: 'contain' }}
+                  />
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50 text-gray-400">
+                  <Image className="h-8 w-8 mx-auto mb-1 text-gray-400" />
+                  <p className="text-xs">Image field (upload an image in the editor)</p>
+                </div>
+              )}
+              {field.help_text && (
+                <p className="text-xs text-gray-500 mt-1">{field.help_text}</p>
+              )}
+            </div>
+          )
+        }
+
         return (
           <div key={field.id}>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -565,6 +696,7 @@ export default function FormBuilder() {
                 <FieldEditor
                   key={field.id}
                   field={field}
+                  eventId={id}
                   onChange={(updated) => updateField(idx, updated)}
                   onDelete={() => deleteField(idx)}
                   onMoveUp={() => moveField(idx, -1)}

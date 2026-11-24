@@ -86,7 +86,47 @@ async def run_migrations_async() -> None:
     await asyncio.to_thread(run_migrations)
 
 
-# Stage S1: startup seeding was removed. The first admin user is created only
-# via POST /api/auth/bootstrap with the one-time BOOTSTRAP_TOKEN secret.
+async def init_super_admin_async() -> None:
+    """Ensure the Super Admin user exists and has the correct password and role."""
+    from datetime import datetime, timezone
+    from sqlalchemy import select
+    from app.core.deps import async_session_factory
+    from app.core.security import hash_password, verify_password
+    from app.models.models import User, UserRole
+
+    async with async_session_factory() as db:
+        res = await db.execute(select(User).where(User.email == settings.SEED_ADMIN_EMAIL))
+        user = res.scalar_one_or_none()
+        if not user:
+            user = User(
+                email=settings.SEED_ADMIN_EMAIL,
+                password_hash=hash_password(settings.SEED_ADMIN_PASSWORD),
+                name=settings.SEED_ADMIN_NAME,
+                role=UserRole.SUPER_ADMIN,
+                is_active=True,
+                event_id=None,
+                password_changed_at=datetime.now(timezone.utc),
+            )
+            db.add(user)
+            await db.commit()
+            logger.info("Created default Super Admin account: %s", settings.SEED_ADMIN_EMAIL)
+        else:
+            updated = False
+            if user.role != UserRole.SUPER_ADMIN:
+                user.role = UserRole.SUPER_ADMIN
+                updated = True
+            if user.event_id is not None:
+                user.event_id = None
+                updated = True
+            if not user.is_active:
+                user.is_active = True
+                updated = True
+            if not verify_password(settings.SEED_ADMIN_PASSWORD, user.password_hash):
+                user.password_hash = hash_password(settings.SEED_ADMIN_PASSWORD)
+                user.password_changed_at = datetime.now(timezone.utc)
+                updated = True
+            if updated:
+                await db.commit()
+                logger.info("Synchronized Super Admin account (%s) with SUPER_ADMIN role and credentials", settings.SEED_ADMIN_EMAIL)
 
 

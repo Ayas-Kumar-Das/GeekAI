@@ -44,7 +44,6 @@ function EventRegistration({ eventSlug }) {
     name: '', email: '', phone: '', institution: '', category: 'STUDENT',
   })
   const [photo, setPhoto] = useState(null)
-  const [selectedSessions, setSelectedSessions] = useState([])
   const [photoConsent, setPhotoConsent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadAttempt, setLoadAttempt] = useState(0)
@@ -124,11 +123,6 @@ function EventRegistration({ eventSlug }) {
   }, [hash, eventLoading])
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
-
-  const toggleSession = (id) =>
-    setSelectedSessions(prev =>
-      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
-    )
 
   /* ── Apply Coupon Code ── */
   const handleApplyCoupon = async () => {
@@ -230,7 +224,9 @@ function EventRegistration({ eventSlug }) {
       fd.append('custom_responses', JSON.stringify(customResponses))
     }
 
-    if (appliedCoupon) {
+    if (!isPaymentEnabled) {
+      fd.append('payment_status', 'SUCCESS')
+    } else if (appliedCoupon) {
       fd.append('coupon_code', appliedCoupon.code)
       fd.append('payment_status', 'SUCCESS')
     } else if (paymentOrderId) {
@@ -317,6 +313,8 @@ function EventRegistration({ eventSlug }) {
     if (customFormSchema && customFormSchema.length > 0) {
       // Validate dynamic form fields
       for (const field of customFormSchema) {
+        if (field.type === 'image') continue
+
         if (field.type === 'photo') {
           if (field.required && !photo) {
             photoSection.current?.querySelector('button')?.focus()
@@ -355,10 +353,10 @@ function EventRegistration({ eventSlug }) {
 
     setLoading(true)
     try {
-      const feeRequired = event?.registration_fee && event.registration_fee > 0
+      const isPaymentEnabled = !!(event?.cashfree_enabled && event?.registration_fee > 0)
 
-      // Case 1: Coupon applied or event is free -> direct free submission
-      if (appliedCoupon || !feeRequired) {
+      // Case 1: Cashfree disabled, or coupon applied, or free event -> direct Google Forms-like submission
+      if (!isPaymentEnabled || appliedCoupon) {
         await submitRegistration(null, participantData)
         return
       }
@@ -382,7 +380,8 @@ function EventRegistration({ eventSlug }) {
 
       /* Load Cashfree SDK and open checkout modal */
       const { load } = await import('@cashfreepayments/cashfree-js')
-      const cashfree = await load({ mode: 'sandbox' })
+      const cfMode = event.cashfree_env === 'production' ? 'production' : 'sandbox'
+      const cashfree = await load({ mode: cfMode })
 
       await cashfree.checkout({
         paymentSessionId: payment_session_id,
@@ -424,7 +423,8 @@ function EventRegistration({ eventSlug }) {
     </div>
   )
 
-  const amountDue = paidOrderId || appliedCoupon ? 0 : event.registration_fee
+  const isPaymentEnabled = !!(event?.cashfree_enabled && event?.registration_fee > 0)
+  const amountDue = isPaymentEnabled && !paidOrderId && !appliedCoupon ? event.registration_fee : 0
   const submitLabel = loading ? 'Processing…' : amountDue > 0 ? 'Pay & Register' : 'Complete Registration'
 
   return (
@@ -438,7 +438,7 @@ function EventRegistration({ eventSlug }) {
                 {oaicOrganizerLogos.map(({ src, alt, width, height }) => <li key={src}><img src={src} width={width} height={height} alt={alt} /></li>)}
               </ul>
             ) : (
-              <div className="summary-top"><Ticket size={24} strokeWidth={1.5} /><span className="fee mono">{eventFee(event.registration_fee)}</span></div>
+              <div className="summary-top"><Ticket size={24} strokeWidth={1.5} /><span className="fee mono">{isPaymentEnabled ? eventFee(event.registration_fee) : 'Free Registration'}</span></div>
             )}
             <h1>{event.name}</h1>
             {event.tagline && <p>{event.tagline}</p>}
@@ -453,10 +453,14 @@ function EventRegistration({ eventSlug }) {
               </p>
             )}
           </section>
-          {eventSlug === 'oaic' && (
+          {((event.guidelines && event.guidelines.length > 0) || eventSlug === 'oaic') && (
             <details className="guidelines disclosure">
               <summary>Registration Guidelines &amp; Refund Policy <ChevronDown size={18} /></summary>
-              <ol>{OAIC_GUIDELINES.map(item => <li key={item}>{item}</li>)}</ol>
+              <ol>
+                {((event.guidelines && event.guidelines.length > 0) ? event.guidelines : OAIC_GUIDELINES).map((item, idx) => (
+                  <li key={idx}>{item}</li>
+                ))}
+              </ol>
             </details>
           )}
         </aside>
@@ -468,6 +472,37 @@ function EventRegistration({ eventSlug }) {
               <h2 id="dynamic-reg-title">Registration details</h2>
               <div className="field-grid">
                 {customFormSchema.map(field => {
+                  if (field.type === 'image') {
+                    if (!field.image_url) return null
+                    return (
+                      <div key={field.id} className="full-width form-image-block" style={{ margin: '0.75rem 0' }}>
+                        {field.label && field.label !== 'Image' && (
+                          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--ink)' }}>
+                            {field.label}
+                          </h3>
+                        )}
+                        <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                          <img
+                            src={field.image_url}
+                            alt={field.label || 'Event illustration'}
+                            style={{
+                              maxWidth: '100%',
+                              height: 'auto',
+                              display: 'block',
+                              objectFit: 'contain',
+                              borderRadius: '8px',
+                            }}
+                          />
+                        </div>
+                        {field.help_text && (
+                          <p style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: '0.35rem', textAlign: 'center' }}>
+                            {field.help_text}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  }
+
                   if (field.type === 'photo') {
                     return (
                       <div key={field.id} className="full-width photo-field-block" ref={photoSection} style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
@@ -617,18 +652,6 @@ function EventRegistration({ eventSlug }) {
             </section>
           )}
 
-          {sessions.length > 0 && (
-            <fieldset className="form-section session-section">
-              <legend>Sessions <span>(optional)</span></legend>
-              {sessions.map(session => (
-                <label className="check-row" key={session.id}>
-                  <input type="checkbox" checked={selectedSessions.includes(session.id)} onChange={() => toggleSession(session.id)} />
-                  <span><strong>{session.name}</strong>{session.location && <small>{session.location}</small>}{session.description && <small>{session.description}</small>}</span>
-                </label>
-              ))}
-            </fieldset>
-          )}
-
           {/* Legacy photo section for events without dynamic form */}
           {(!customFormSchema || customFormSchema.length === 0) && (
             <section className="form-section" aria-labelledby="photo-title" ref={photoSection}>
@@ -642,51 +665,60 @@ function EventRegistration({ eventSlug }) {
             </section>
           )}
           <section className="form-section" aria-labelledby="checkout-title">
-            <h2 id="checkout-title">Checkout</h2>
-            {recoverableOrder && !paidOrderId && (
-              <div className="checkout-notice">
-                <strong>Previous payment found</strong>
-                <p className="mono">{recoverableOrder.order_id}</p>
-                <div className="action-row">
-                  <button type="button" className="public-button" onClick={() => handleUseRecoverableOrder(recoverableOrder)}>Use payment</button>
-                  <button type="button" className="public-button ghost" onClick={handleDismissRecoverableOrder}>Dismiss</button>
-                </div>
-              </div>
-            )}
-            {paidOrderId && (
-              <div className="checkout-notice">
-                <strong>Payment confirmed</strong>
-                <p className="mono">{paidOrderId}</p>
-                <button type="button" className="public-button ghost" onClick={() => setPaidOrderId(null)}>Detach payment</button>
-              </div>
-            )}
-            {event.registration_fee > 0 && !paidOrderId && (
+            <h2 id="checkout-title">{isPaymentEnabled ? 'Checkout' : 'Complete Registration'}</h2>
+            {isPaymentEnabled && (
               <>
-                <details className="disclosure checkout-option">
-                  <summary>{appliedCoupon ? 'Coupon applied' : 'Apply Coupon Code'} <ChevronDown size={18} /></summary>
-                  {appliedCoupon ? (
-                    <div className="inline-field"><span className="mono">{appliedCoupon.code} · Fee waived</span><button type="button" className="public-button" onClick={handleRemoveCoupon}>Remove</button></div>
-                  ) : (
-                    <div className="inline-field">
-                      <input className="mono" aria-label="Coupon code" placeholder="Coupon code" value={couponCode} onChange={event => setCouponCode(event.target.value.toUpperCase())} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (!validatingCoupon && !verifyingManualOrder && !loading) handleApplyCoupon() } }} />
-                      <button type="button" className="public-button" disabled={validatingCoupon || verifyingManualOrder || loading} onClick={handleApplyCoupon}>{validatingCoupon ? 'Applying…' : 'Apply'}</button>
+                {recoverableOrder && !paidOrderId && (
+                  <div className="checkout-notice">
+                    <strong>Previous payment found</strong>
+                    <p className="mono">{recoverableOrder.order_id}</p>
+                    <div className="action-row">
+                      <button type="button" className="public-button" onClick={() => handleUseRecoverableOrder(recoverableOrder)}>Use payment</button>
+                      <button type="button" className="public-button ghost" onClick={handleDismissRecoverableOrder}>Dismiss</button>
                     </div>
-                  )}
-                </details>
-
-                <details className="disclosure checkout-option" id="recover-order" ref={recoveryRef}>
-                  <summary>Already paid? Link Cashfree Order ID <ChevronDown size={18} /></summary>
-                  <p>Find the order ID in your Cashfree payment receipt.</p>
-                  <div className="inline-field">
-                    <input className="mono" aria-label="Cashfree order ID" placeholder="Order ID" value={manualOrderId} onChange={event => setManualOrderId(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (!verifyingManualOrder && !validatingCoupon && !loading) handleVerifyManualOrder() } }} />
-                    <button type="button" className="public-button" disabled={verifyingManualOrder || validatingCoupon || loading} onClick={handleVerifyManualOrder}>{verifyingManualOrder ? 'Verifying…' : 'Verify'}</button>
                   </div>
-                </details>
+                )}
+                {paidOrderId && (
+                  <div className="checkout-notice">
+                    <strong>Payment confirmed</strong>
+                    <p className="mono">{paidOrderId}</p>
+                    <button type="button" className="public-button ghost" onClick={() => setPaidOrderId(null)}>Detach payment</button>
+                  </div>
+                )}
+                {!paidOrderId && (
+                  <>
+                    <details className="disclosure checkout-option">
+                      <summary>{appliedCoupon ? 'Coupon applied' : 'Apply Coupon Code'} <ChevronDown size={18} /></summary>
+                      {appliedCoupon ? (
+                        <div className="inline-field"><span className="mono">{appliedCoupon.code} · Fee waived</span><button type="button" className="public-button" onClick={handleRemoveCoupon}>Remove</button></div>
+                      ) : (
+                        <div className="inline-field">
+                          <input className="mono" aria-label="Coupon code" placeholder="Coupon code" value={couponCode} onChange={event => setCouponCode(event.target.value.toUpperCase())} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (!validatingCoupon && !verifyingManualOrder && !loading) handleApplyCoupon() } }} />
+                          <button type="button" className="public-button" disabled={validatingCoupon || verifyingManualOrder || loading} onClick={handleApplyCoupon}>{validatingCoupon ? 'Applying…' : 'Apply'}</button>
+                        </div>
+                      )}
+                    </details>
+
+                    <details className="disclosure checkout-option" id="recover-order" ref={recoveryRef}>
+                      <summary>Already paid? Link Cashfree Order ID <ChevronDown size={18} /></summary>
+                      <p>Find the order ID in your Cashfree payment receipt.</p>
+                      <div className="inline-field">
+                        <input className="mono" aria-label="Cashfree order ID" placeholder="Order ID" value={manualOrderId} onChange={event => setManualOrderId(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (!verifyingManualOrder && !validatingCoupon && !loading) handleVerifyManualOrder() } }} />
+                        <button type="button" className="public-button" disabled={verifyingManualOrder || validatingCoupon || loading} onClick={handleVerifyManualOrder}>{verifyingManualOrder ? 'Verifying…' : 'Verify'}</button>
+                      </div>
+                    </details>
+                  </>
+                )}
               </>
             )}
             <div className="checkout-total">
-              <div role="status"><span>Total payable</span><strong className="mono">{amountDue > 0 ? eventFee(amountDue) : '₹0'}</strong></div>
-              <button type="submit" className="public-button primary" disabled={loading || verifyingManualOrder || validatingCoupon}>{submitLabel} <ArrowRight size={17} /></button>
+              <div role="status">
+                <span>{isPaymentEnabled ? 'Total payable' : 'Registration fee'}</span>
+                <strong className="mono">{amountDue > 0 ? eventFee(amountDue) : 'Free'}</strong>
+              </div>
+              <button type="submit" className="public-button primary" disabled={loading || verifyingManualOrder || validatingCoupon}>
+                {submitLabel} <ArrowRight size={17} />
+              </button>
             </div>
           </section>
         </form>

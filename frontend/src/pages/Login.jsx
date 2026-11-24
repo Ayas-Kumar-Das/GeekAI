@@ -16,14 +16,24 @@ export default function Login() {
     try {
       const userData = await login(email, password)
       const from = location.state?.from?.pathname
-      if (from) {
-        navigate(from, { replace: true })
-      } else if (userData.role === 'SUPER_ADMIN') {
-        navigate('/super-admin', { replace: true })
+      if (userData.role === 'SUPER_ADMIN') {
+        if (from && from.startsWith('/super-admin')) {
+          navigate(from, { replace: true })
+        } else {
+          navigate('/super-admin', { replace: true })
+        }
       } else if (userData.role === 'ADMIN') {
-        navigate('/admin', { replace: true })
+        if (from && from.startsWith('/admin')) {
+          navigate(from, { replace: true })
+        } else {
+          navigate('/admin', { replace: true })
+        }
       } else {
-        navigate('/volunteer', { replace: true })
+        if (from && from.startsWith('/volunteer')) {
+          navigate(from, { replace: true })
+        } else {
+          navigate('/volunteer', { replace: true })
+        }
       }
     } catch {
       // Error handled in AuthContext

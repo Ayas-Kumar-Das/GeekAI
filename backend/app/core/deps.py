@@ -148,6 +148,9 @@ def require_event_scope(event_id: str) -> Callable[[User], User]:
 
     async def dependency(user: User = Depends(get_current_staff)) -> User:
         claims = _claims(user)
+        role = claims.get("role", user.role.value if hasattr(user.role, "value") else user.role)
+        if role == UserRole.SUPER_ADMIN.value:
+            return user
         event_ids: List[str] = list(claims.get("event_ids", []))
         if event_id not in event_ids:
             raise HTTPException(

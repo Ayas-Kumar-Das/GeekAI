@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 import uuid
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.deps import get_db
-from app.models.models import Participant
+from app.models.models import Event, Participant
 from app.schemas.schemas import (
     CreateOrderRequest,
     CreateOrderResponse,
@@ -30,16 +31,51 @@ CASHFREE_SANDBOX_URL = "https://sandbox.cashfree.com/pg"
 CASHFREE_PROD_URL = "https://api.cashfree.com/pg"
 
 
-def get_cashfree_base_url() -> str:
-    if settings.CASHFREE_ENV == "production":
-        return CASHFREE_PROD_URL
-    return CASHFREE_SANDBOX_URL
+def get_cashfree_config_for_event(event: Optional[Event] = None) -> tuple[str, str, str, str]:
+    """Returns (app_id, secret_key, env, base_url) for a specific event or global settings."""
+    app_id = (event.cashfree_app_id if event and event.cashfree_app_id else None) or settings.CASHFREE_APP_ID
+    secret_key = (event.cashfree_secret_key if event and event.cashfree_secret_key else None) or settings.CASHFREE_SECRET_KEY
+    env = (event.cashfree_env if event and event.cashfree_env else None) or settings.CASHFREE_ENV or "sandbox"
+    base_url = CASHFREE_PROD_URL if env == "production" else CASHFREE_SANDBOX_URL
+    return app_id, secret_key, env, base_url
+
+
+async def resolve_event_for_order(order_id: str, db: AsyncSession) -> Optional[Event]:
+    """Find the Event associated with an order_id."""
+    # 1. Check if participant exists
+    res = await db.execute(select(Participant).where(Participant.payment_order_id == order_id))
+    p = res.scalar_one_or_none()
+    if p and p.event_id:
+        return await db.get(Event, p.event_id)
+
+    # 2. Extract slug from GEEKAI_{SLUG}_{UUID}
+    parts = order_id.split("_")
+    if len(parts) >= 3 and parts[0] == "GEEKAI":
+        slug_guess = "_".join(parts[1:-1]).lower()
+        evt_res = await db.execute(select(Event).where(func.lower(Event.slug) == slug_guess))
+        evt = evt_res.scalar_one_or_none()
+        if evt:
+            return evt
+
+    return None
 
 
 @router.post("/create-order", response_model=CreateOrderResponse)
 async def create_order(body: CreateOrderRequest, db: AsyncSession = Depends(get_db)):
-    if not settings.cashfree_configured:
-        raise HTTPException(status_code=503, detail="Payment gateway not configured")
+    event_res = await db.execute(select(Event).where(Event.slug == body.event_slug))
+    event = event_res.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if not event.cashfree_enabled:
+        raise HTTPException(status_code=400, detail="Cashfree payment is not enabled for this event")
+
+    if event.registration_fee == 0:
+        raise HTTPException(status_code=400, detail="Event registration is free; no payment required")
+
+    app_id, secret_key, env, base_url = get_cashfree_config_for_event(event)
+    if not app_id or not secret_key:
+        raise HTTPException(status_code=503, detail="Payment gateway not configured for this event")
 
     order_id = f"GEEKAI_{body.event_slug.upper()}_{uuid.uuid4().hex[:8].upper()}"
 
@@ -61,11 +97,9 @@ async def create_order(body: CreateOrderRequest, db: AsyncSession = Depends(get_
     headers = {
         "Content-Type": "application/json",
         "x-api-version": "2023-08-01",
-        "x-client-id": settings.CASHFREE_APP_ID,
-        "x-client-secret": settings.CASHFREE_SECRET_KEY,
+        "x-client-id": app_id,
+        "x-client-secret": secret_key,
     }
-
-    base_url = get_cashfree_base_url()
 
     async with httpx.AsyncClient() as client:
         response = await client.post(f"{base_url}/orders", json=payload, headers=headers)
@@ -83,18 +117,19 @@ async def create_order(body: CreateOrderRequest, db: AsyncSession = Depends(get_
 
 
 @router.post("/verify", response_model=VerifyPaymentResponse)
-async def verify_payment(body: VerifyPaymentRequest):
+async def verify_payment(body: VerifyPaymentRequest, db: AsyncSession = Depends(get_db)):
     """Verify Cashfree payment using order ID."""
-    if not settings.cashfree_configured:
+    event = await resolve_event_for_order(body.order_id, db)
+    app_id, secret_key, env, base_url = get_cashfree_config_for_event(event)
+
+    if not app_id or not secret_key:
         raise HTTPException(status_code=503, detail="Payment gateway not configured")
 
     headers = {
         "x-api-version": "2023-08-01",
-        "x-client-id": settings.CASHFREE_APP_ID,
-        "x-client-secret": settings.CASHFREE_SECRET_KEY,
+        "x-client-id": app_id,
+        "x-client-secret": secret_key,
     }
-
-    base_url = get_cashfree_base_url()
 
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{base_url}/orders/{body.order_id}", headers=headers)
@@ -114,16 +149,25 @@ async def verify_payment(body: VerifyPaymentRequest):
     )
 
 
-async def check_cashfree_order_paid(order_id: str) -> tuple[bool, dict]:
+async def check_cashfree_order_paid(
+    order_id: str,
+    db: Optional[AsyncSession] = None,
+    event: Optional[Event] = None,
+) -> tuple[bool, dict]:
     """Helper to check if a Cashfree order has been paid."""
-    if not settings.cashfree_configured:
+    if not event and db:
+        event = await resolve_event_for_order(order_id, db)
+    app_id, secret_key, env, base_url = get_cashfree_config_for_event(event)
+
+    if not app_id or not secret_key:
         return False, {}
+
     headers = {
         "x-api-version": "2023-08-01",
-        "x-client-id": settings.CASHFREE_APP_ID,
-        "x-client-secret": settings.CASHFREE_SECRET_KEY,
+        "x-client-id": app_id,
+        "x-client-secret": secret_key,
     }
-    base_url = get_cashfree_base_url()
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(f"{base_url}/orders/{order_id}", headers=headers)
@@ -142,7 +186,7 @@ async def reconcile_payment(
     db: AsyncSession = Depends(get_db),
 ):
     """Reconcile a paid Cashfree order with an existing or pending participant."""
-    paid, data = await check_cashfree_order_paid(body.order_id)
+    paid, data = await check_cashfree_order_paid(body.order_id, db=db)
     if not paid:
         return ReconcilePaymentResponse(
             reconciled=False,

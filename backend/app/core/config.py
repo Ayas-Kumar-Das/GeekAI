@@ -86,9 +86,20 @@ class Settings(BaseSettings):
         p.mkdir(parents=True, exist_ok=True)
         return p
 
+    @property
+    def events_dir(self) -> Path:
+        p = Path(self.UPLOAD_DIR) / "events"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
     # Bootstrap forced password change: tracked via password_changed_at on
     # the users table (null = change required on next login). No column is
     # added here; the migration creates it.
+
+    # Seed Admin / Super Admin (auto-initialized at startup)
+    SEED_ADMIN_EMAIL: str = "admin@geekai.in"
+    SEED_ADMIN_PASSWORD: str = "admin123"
+    SEED_ADMIN_NAME: str = "Super Admin"
 
 
 settings = Settings()

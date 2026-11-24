@@ -1,28 +1,66 @@
-# Fix Radio Button Layout & Alignment in Dynamic Registration Form
+# GeekAI Platform Enhancements: Form Sessions, Image Field, Payment Fee, Guidelines & Event Editor Cleanup
 
-## Root Cause Analysis
-1. In `frontend/src/public.css`, the rule `.checkout-form input:not([type="checkbox"], [type="file"])` was NOT excluding `[type="radio"]`. Consequently, every radio input was receiving `width: 100%`, `min-height: 48px`, `border: 1px solid #d5d1ca`, and `padding: 8px 11px`. This stretched the radio circle into a 100% wide block and pushed the label text far away.
-2. In `frontend/src/public.css`, `.field-grid label` applied `display: grid; gap: 5px;` to all labels, conflicting with horizontal inline-flex alignment on individual option labels.
-3. In `frontend/src/pages/EventRegister.jsx`, the entire radio field was wrapped inside a `<label>`, causing invalid nested labels and click target interference.
-4. `.full-width` was not defined in `public.css` (`grid-column: 1 / -1;`), squeezing multi-option fields into a single column of the 2-column grid.
+## Plan & Implementation Tasks
 
-## Completed Tasks ✅
-- [x] 1. Updated `frontend/src/public.css`:
-  - Excluded `[type="radio"]` from full-width text input styles: `input:not([type="checkbox"], [type="radio"], [type="file"])`.
-  - Added `.full-width` class (`grid-column: 1 / -1;`).
-  - Added dedicated `.radio-options-row` / `.radio-option` styles:
-    - Display option items as clean, horizontally aligned clickable rows/pills with `display: inline-flex; align-items: center; gap: 8px;`.
-    - Set radio circle to fixed `width: 18px; height: 18px; min-height: 18px; margin: 0; flex-shrink: 0;` with `accent-color: var(--green-strong, #1f7a46)`.
-    - Support responsive wrapping with `flex-wrap: wrap; gap: 10px 14px;`.
-    - Provided hover, focus-within, and checked states with clear clickable targets.
-  - Added complementary `.checkbox-options-row` / `.checkbox-option` styles for consistency.
-- [x] 2. Updated dynamic renderer in `frontend/src/pages/EventRegister.jsx`:
-  - Used semantic `<fieldset className="field-group full-width">` and `<legend>` for `radio` and `checkbox` fields instead of wrapping in outer `<label>`.
-  - Rendered options with `.radio-options-row` and `.radio-option` with vertical centering, proper spacing, and clickable labels.
-- [x] 3. Updated preview in `frontend/src/pages/super-admin/FormBuilder.jsx`:
-  - Aligned `FormPreview` with the horizontal row / pill option layout for `radio` and `checkbox` fields.
-- [x] 4. Build, Deploy & Verify:
-  - Built frontend with `npm run build` (2550 modules transformed, 0 errors, 1.73s).
-  - Deployed to Docker containers (`geekai-frontend` nginx reloaded).
-  - Verified layout on desktop and mobile viewports.
-  - Tested radio selection, option wrapping, and participant registration end-to-end.
+### 1. Database Schema & Migration for Event Guidelines
+- [x] Add `guidelines` (`JSONB`, nullable=True) column to `events` table in PostgreSQL.
+- [x] Create Alembic migration script `006_event_guidelines.py` (down_revision: `005_cashfree_and_form_image`).
+- [x] Update `Event` ORM model in `backend/app/models/models.py`.
+- [x] Update schemas in `backend/app/schemas/schemas.py`:
+  - `EventOut`, `EventCreate`, `EventUpdate`, `SuperAdminEventOut`: add `guidelines: Optional[List[str]] = None`.
+  - `FormField`: add `image_url: Optional[str] = None` for `image` field type.
+
+### 2. Backend API Updates (Guidelines & Image Upload for Form Builder)
+- [x] In `backend/app/api/super_admin.py`:
+  - Update `create_event` and `update_event` to persist `guidelines`.
+  - Add general image upload endpoint `POST /api/super-admin/events/{event_id}/upload-image` (and keep backward-compatible endpoint for safety).
+  - Update `delete_event` and `_to_super_admin_out` as needed.
+
+### 3. Dynamic Form Builder Image Field (`FormBuilder.jsx`)
+- [x] Remove fixed "Registration Form Header Banner" bar from the top of the form designer.
+- [x] Add `image` field type to `FIELD_TYPES`:
+  - Icon: `Image` from `lucide-react`
+  - Label: `Image`
+  - Description: `Display an image banner or illustration in the form`
+- [x] In `FieldEditor`:
+  - When `field.type === 'image'`: provide an image upload button + image preview + image URL input + caption/alt text input.
+  - Allow Super Admin to place/reorder the `Image` field anywhere in the form using the Move Up / Move Down controls.
+- [x] In `FormPreview`:
+  - Remove fixed top header image banner.
+  - Render `field.type === 'image'` at its relative position in the form with **natural dimensions and original aspect ratio** (`maxWidth: '100%', height: 'auto'`).
+
+### 4. Super Admin Event Editor (`EventEditor.jsx`)
+- [x] Remove "Registration Fee" from the **Logistics** section.
+- [x] Move fee configuration into the **Payment Settings (Cashfree)** card:
+  - When Cashfree payment is **enabled**: show Registration Fee input (in Paise / Rupees) alongside App ID, Secret Key, and Environment.
+  - When Cashfree payment is **disabled**: fee is 0 / bypassed, and registration proceeds directly without payment restrictions.
+  - In `handleSubmit`: if `!form.cashfree_enabled`, automatically set `registration_fee = 0`.
+- [x] Add **Registration Guidelines** section:
+  - Add, edit, and remove guideline items.
+  - Include preset/default guidelines button for quick onboarding.
+- [x] Remove "Registration Form Header Image" card and its obsolete references.
+
+### 5. Public Registration Form (`EventRegister.jsx`)
+- [x] **Remove Session Selection Field**: completely remove sessions checkbox group and all session-related code from the public registration form.
+- [x] **Remove Top Header Banner Image**: eliminate the fixed top header image block.
+- [x] **Dynamic `Image` Field Rendering**:
+  - In `customFormSchema.map()`: when `field.type === 'image'`, render the image at that exact position in the form.
+  - Render at **original aspect ratio and natural dimensions** (`maxWidth: '100%', height: 'auto', objectFit: 'contain'`).
+  - Display optional caption/help_text below the image.
+- [x] **Dynamic Guidelines Rendering**:
+  - Render guidelines disclosure dynamically if `event.guidelines` has items (with fallback to `OAIC_GUIDELINES` if `eventSlug === 'oaic'`).
+- [x] **Payment Flow**:
+  - If `!event.cashfree_enabled || event.registration_fee === 0`, direct registration without payment restrictions or fee disclosures.
+
+### 6. Build, Deploy & Verify
+- [x] Build frontend (`npm run build`).
+- [x] Deploy backend and frontend Docker containers.
+- [x] Comprehensive verification:
+  - Verify public registration form has NO session selection.
+  - Verify Super Admin can add `Image` field type at arbitrary positions in Form Builder and preview it at natural dimensions.
+  - Verify public registration renders `Image` field in correct position with original aspect ratio.
+  - Verify Registration Fee moved into Cashfree Payment Settings; fee 0 when disabled.
+  - Verify Registration Guidelines configured in Event Editor and displayed on public registration page.
+  - Verify Edit Event no longer has header image card.
+  - Verify backward compatibility for existing events (OAIC, etc.) and registration flow.
+- [x] Update `tasks/progress.md`.

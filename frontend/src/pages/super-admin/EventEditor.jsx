@@ -1,12 +1,26 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, CreditCard, Shield, Eye, EyeOff, Trash2, Plus, List } from 'lucide-react'
 import client from '../../api/client'
 import toast from 'react-hot-toast'
 
+const DEFAULT_GUIDELINES = [
+  'Each participant must register with a unique, valid email address.',
+  'Upload a clear, front-facing photograph for AI face recognition check-in.',
+  'Registration fee is non-refundable once paid unless waived by authorized coupon.',
+  'Your QR entry ticket will be generated and emailed upon registration.',
+  'Please carry a valid photo ID matching your registration details to the venue.',
+]
+
 const EMPTY_FORM = {
   name: '', slug: '', description: '', tagline: '',
-  logo_url: '', banner_url: '', registration_fee: 0,
+  logo_url: '', banner_url: '',
+  registration_fee: 0,
+  cashfree_enabled: false,
+  cashfree_app_id: '',
+  cashfree_secret_key: '',
+  cashfree_env: 'sandbox',
+  guidelines: [],
   venue: '', website: '',
   event_date: '', registration_deadline: '',
 }
@@ -30,6 +44,8 @@ export default function EventEditor() {
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [slugDirty, setSlugDirty] = useState(false)
+  const [showSecret, setShowSecret] = useState(false)
+  const [hasSecret, setHasSecret] = useState(false)
 
   useEffect(() => {
     if (!isEdit) return
@@ -44,11 +60,17 @@ export default function EventEditor() {
           logo_url: e.logo_url || '',
           banner_url: e.banner_url || '',
           registration_fee: e.registration_fee || 0,
+          cashfree_enabled: e.cashfree_enabled ?? false,
+          cashfree_app_id: e.cashfree_app_id || '',
+          cashfree_secret_key: '',
+          cashfree_env: e.cashfree_env || 'sandbox',
+          guidelines: Array.isArray(e.guidelines) ? e.guidelines : [],
           venue: e.venue || '',
           website: e.website || '',
           event_date: toLocalDatetime(e.event_date),
           registration_deadline: toLocalDatetime(e.registration_deadline),
         })
+        setHasSecret(!!e.has_cashfree_secret)
         setSlugDirty(true)
       })
       .catch(() => toast.error('Failed to load event'))
@@ -56,7 +78,7 @@ export default function EventEditor() {
   }, [id, isEdit])
 
   const handleChange = (e) => {
-    const { name, value } = e.target
+    const { name, value, type, checked } = e.target
     if (name === 'name' && !slugDirty && !isEdit) {
       setForm(f => ({
         ...f,
@@ -66,22 +88,55 @@ export default function EventEditor() {
     } else if (name === 'slug') {
       setSlugDirty(true)
       setForm(f => ({ ...f, slug: value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))
+    } else if (type === 'checkbox') {
+      setForm(f => ({ ...f, [name]: checked }))
     } else {
       setForm(f => ({ ...f, [name]: value }))
     }
+  }
+
+  const handleAddGuideline = () => {
+    setForm(f => ({ ...f, guidelines: [...(f.guidelines || []), ''] }))
+  }
+
+  const handleUpdateGuideline = (idx, text) => {
+    setForm(f => {
+      const g = [...(f.guidelines || [])]
+      g[idx] = text
+      return { ...f, guidelines: g }
+    })
+  }
+
+  const handleRemoveGuideline = (idx) => {
+    setForm(f => ({
+      ...f,
+      guidelines: (f.guidelines || []).filter((_, i) => i !== idx)
+    }))
+  }
+
+  const handleLoadDefaultGuidelines = () => {
+    setForm(f => ({ ...f, guidelines: [...DEFAULT_GUIDELINES] }))
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSaving(true)
     try {
+      const isCfEnabled = !!form.cashfree_enabled
       const payload = {
         ...form,
-        registration_fee: parseInt(form.registration_fee) || 0,
+        registration_fee: isCfEnabled ? (parseInt(form.registration_fee) || 0) : 0,
+        cashfree_enabled: isCfEnabled,
+        guidelines: (form.guidelines || []).map(g => g.trim()).filter(g => g.length > 0),
         event_date: toISO(form.event_date),
         registration_deadline: toISO(form.registration_deadline),
       }
-      // Remove empty strings → null
+      // Only send secret key if non-empty, otherwise omit to keep existing secret
+      if (!payload.cashfree_secret_key) {
+        delete payload.cashfree_secret_key
+      }
+
+      // Remove empty strings → null for optional text fields
       Object.keys(payload).forEach(k => {
         if (payload[k] === '') payload[k] = null
       })
@@ -89,6 +144,10 @@ export default function EventEditor() {
       if (isEdit) {
         await client.patch(`/super-admin/events/${id}`, payload)
         toast.success('Event updated!')
+        if (form.cashfree_secret_key) {
+          setHasSecret(true)
+          setForm(f => ({ ...f, cashfree_secret_key: '' }))
+        }
       } else {
         const r = await client.post('/super-admin/events', payload)
         toast.success('Event created!')
@@ -114,7 +173,7 @@ export default function EventEditor() {
         </Link>
         <div>
           <h2 className="text-2xl font-extrabold text-gray-900">{isEdit ? 'Edit Event' : 'New Event'}</h2>
-          <p className="text-gray-500 text-sm mt-0.5">Configure event details and settings</p>
+          <p className="text-gray-500 text-sm mt-0.5">Configure event details, payments and settings</p>
         </div>
       </div>
 
@@ -195,27 +254,179 @@ export default function EventEditor() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Registration Fee (in Paise)</label>
-            <div className="flex items-center gap-2">
-              <input
-                name="registration_fee" type="number" min="0" value={form.registration_fee} onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
-                placeholder="30000"
-              />
-              <span className="text-sm text-gray-500 whitespace-nowrap">
-                = ₹{(parseInt(form.registration_fee) / 100 || 0).toFixed(0)}
-              </span>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Enter 0 for free events. 30000 = ₹300</p>
-          </div>
-
-          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Event Website</label>
             <input
               name="website" type="url" value={form.website} onChange={handleChange}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
               placeholder="https://oaic.in"
             />
+          </div>
+        </div>
+
+        {/* Cashfree Payment Settings Card */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-gray-700" />
+              <h3 className="font-semibold text-gray-900">Payment Settings (Cashfree)</h3>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                name="cashfree_enabled"
+                checked={form.cashfree_enabled}
+                onChange={handleChange}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              <span className="ml-3 text-sm font-medium text-gray-700">
+                {form.cashfree_enabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </label>
+          </div>
+
+          <p className="text-xs text-gray-500">
+            {form.cashfree_enabled
+              ? 'Cashfree payments are enabled. Configure the registration fee and Cashfree credentials below. Participants will complete payment during registration.'
+              : 'Cashfree payments are disabled. Registration will proceed directly without payment or payment-related restrictions (Google Forms-like flow).'}
+          </p>
+
+          {form.cashfree_enabled && (
+            <div className="space-y-4 pt-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Registration Fee (in Paise) *</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    name="registration_fee"
+                    type="number"
+                    min="0"
+                    value={form.registration_fee}
+                    onChange={handleChange}
+                    required={form.cashfree_enabled}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+                    placeholder="30000"
+                  />
+                  <span className="text-sm font-semibold text-gray-700 whitespace-nowrap bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg">
+                    = ₹{(parseInt(form.registration_fee) / 100 || 0).toFixed(0)}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Amount to charge participant in Paise (e.g. 30000 = ₹300, 50000 = ₹500).</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Environment *
+                  </label>
+                  <select
+                    name="cashfree_env"
+                    value={form.cashfree_env}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none bg-white"
+                  >
+                    <option value="sandbox">Sandbox (Testing / Test Mode)</option>
+                    <option value="production">Production (Live Gateway)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cashfree App ID (Client ID)
+                  </label>
+                  <input
+                    name="cashfree_app_id"
+                    value={form.cashfree_app_id}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+                    placeholder="e.g. CF_APP_12345"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Cashfree Secret Key
+                  </label>
+                  {hasSecret && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      <Shield className="h-3 w-3" /> Configured & Secured
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    name="cashfree_secret_key"
+                    type={showSecret ? 'text' : 'password'}
+                    value={form.cashfree_secret_key}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded-lg pl-3 pr-10 py-2 text-sm font-mono focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+                    placeholder={hasSecret ? '•••••••••••••••• (Leave blank to keep existing key)' : 'Enter Cashfree Secret Key'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSecret(s => !s)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  >
+                    {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Secret keys are encrypted and never transmitted to participant browsers.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Registration Guidelines Card */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div className="flex items-center gap-2">
+              <List className="h-5 w-5 text-gray-700" />
+              <h3 className="font-semibold text-gray-900">Registration Guidelines</h3>
+            </div>
+            <button
+              type="button"
+              onClick={handleLoadDefaultGuidelines}
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+            >
+              Load Preset Guidelines
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-500">
+            Configure guidelines, terms, or instructions displayed to attendees on the public event registration page.
+          </p>
+
+          <div className="space-y-2.5">
+            {(form.guidelines || []).map((guide, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <span className="text-xs font-mono text-gray-400 w-5 text-right">{idx + 1}.</span>
+                <input
+                  value={guide}
+                  onChange={e => handleUpdateGuideline(idx, e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+                  placeholder={`Guideline ${idx + 1}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveGuideline(idx)}
+                  className="p-1.5 text-gray-400 hover:text-red-600 cursor-pointer transition-colors"
+                  title="Remove guideline"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={handleAddGuideline}
+              className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium cursor-pointer transition-colors pt-1"
+            >
+              <Plus className="h-3.5 w-3.5" /> + Add Guideline Item
+            </button>
           </div>
         </div>
 

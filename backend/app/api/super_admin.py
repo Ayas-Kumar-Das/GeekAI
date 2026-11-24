@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from pathlib import Path
+from typing import Optional
+import uuid
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.deps import get_current_super_admin, get_db
-from app.models.models import Event, Participant, User
+from app.models.models import Attendance, Event, FaceEmbedding, Participant, Session, User
 from app.schemas.schemas import (
     EventCreate,
     EventUpdate,
@@ -16,6 +20,15 @@ from app.schemas.schemas import (
 )
 
 router = APIRouter(prefix="/api/super-admin", tags=["super-admin"])
+
+
+def _to_super_admin_out(event: Event, participant_count: int = 0) -> SuperAdminEventOut:
+    """Helper to convert Event ORM to SuperAdminEventOut with masked credentials."""
+    out = SuperAdminEventOut.model_validate(event)
+    return out.model_copy(update={
+        "participant_count": participant_count,
+        "has_cashfree_secret": bool(event.cashfree_secret_key),
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -82,9 +95,7 @@ async def list_all_events(
 
     results = []
     for event, count in rows:
-        out = SuperAdminEventOut.model_validate(event)
-        out = out.model_copy(update={"participant_count": count})
-        results.append(out)
+        results.append(_to_super_admin_out(event, count))
     return results
 
 
@@ -103,9 +114,7 @@ async def get_event_detail(
         select(func.count()).select_from(Participant).where(Participant.event_id == event_id)
     )).scalar()
 
-    out = SuperAdminEventOut.model_validate(event)
-    out = out.model_copy(update={"participant_count": count})
-    return out
+    return _to_super_admin_out(event, count)
 
 
 @router.post("/events", response_model=SuperAdminEventOut, status_code=status.HTTP_201_CREATED)
@@ -126,7 +135,13 @@ async def create_event(
         tagline=body.tagline,
         logo_url=body.logo_url,
         banner_url=body.banner_url,
+        form_image_url=body.form_image_url,
         registration_fee=body.registration_fee,
+        cashfree_enabled=body.cashfree_enabled,
+        cashfree_app_id=body.cashfree_app_id,
+        cashfree_secret_key=body.cashfree_secret_key,
+        cashfree_env=body.cashfree_env,
+        guidelines=body.guidelines,
         event_date=body.event_date,
         venue=body.venue,
         registration_deadline=body.registration_deadline,
@@ -138,9 +153,7 @@ async def create_event(
     await db.flush()
     await db.refresh(event)
 
-    out = SuperAdminEventOut.model_validate(event)
-    out = out.model_copy(update={"participant_count": 0})
-    return out
+    return _to_super_admin_out(event, 0)
 
 
 @router.patch("/events/{event_id}", response_model=SuperAdminEventOut)
@@ -155,7 +168,12 @@ async def update_event(
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    for field, value in body.model_dump(exclude_unset=True).items():
+    update_data = body.model_dump(exclude_unset=True)
+    # Only update secret key if non-empty string is passed
+    if "cashfree_secret_key" in update_data and not update_data["cashfree_secret_key"]:
+        del update_data["cashfree_secret_key"]
+
+    for field, value in update_data.items():
         setattr(event, field, value)
 
     await db.flush()
@@ -165,9 +183,7 @@ async def update_event(
         select(func.count()).select_from(Participant).where(Participant.event_id == event_id)
     )).scalar()
 
-    out = SuperAdminEventOut.model_validate(event)
-    out = out.model_copy(update={"participant_count": count})
-    return out
+    return _to_super_admin_out(event, count)
 
 
 @router.delete("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -181,8 +197,100 @@ async def delete_event(
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
+    # Delete child records with RESTRICT foreign keys
+    await db.execute(delete(Attendance).where(Attendance.event_id == event_id))
+    p_ids = (await db.execute(select(Participant.id).where(Participant.event_id == event_id))).scalars().all()
+    if p_ids:
+        await db.execute(delete(FaceEmbedding).where(FaceEmbedding.participant_id.in_(p_ids)))
+        await db.execute(delete(Attendance).where(Attendance.participant_id.in_(p_ids)))
+        await db.execute(delete(Participant).where(Participant.event_id == event_id))
+    await db.execute(delete(Session).where(Session.event_id == event_id))
+
     await db.delete(event)
     await db.flush()
+
+
+@router.post("/events/{event_id}/form-image")
+async def upload_form_image(
+    event_id: int,
+    image: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_super_admin),
+):
+    """Upload header image for registration form."""
+    result = await db.execute(select(Event).where(Event.id == event_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if not image.content_type or not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    ext = Path(image.filename or "image.jpg").suffix.lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+        ext = ".jpg"
+
+    events_dir = settings.events_dir
+    filename = f"{event_id}_form_image{ext}"
+    filepath = events_dir / filename
+
+    content = await image.read()
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    image_rel = f"/uploads/events/{filename}"
+    event.form_image_url = image_rel
+    await db.flush()
+    await db.refresh(event)
+
+    return {"form_image_url": image_rel, "url": image_rel}
+
+
+@router.post("/events/{event_id}/upload-image")
+@router.post("/upload-image")
+async def upload_form_field_image(
+    event_id: Optional[int] = None,
+    image: UploadFile = File(...),
+    _: User = Depends(get_current_super_admin),
+):
+    """Upload an image to be embedded in a dynamic form or event page."""
+    if not image.content_type or not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    ext = Path(image.filename or "image.jpg").suffix.lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"]:
+        ext = ".jpg"
+
+    events_dir = settings.events_dir
+    prefix = f"{event_id}_" if event_id else ""
+    filename = f"{prefix}form_img_{uuid.uuid4().hex[:10]}{ext}"
+    filepath = events_dir / filename
+
+    content = await image.read()
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    url = f"/uploads/events/{filename}"
+    return {"url": url, "filename": filename}
+
+
+@router.delete("/events/{event_id}/form-image")
+async def delete_form_image(
+    event_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_super_admin),
+):
+    """Remove header image from registration form."""
+    result = await db.execute(select(Event).where(Event.id == event_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    event.form_image_url = None
+    await db.flush()
+    await db.refresh(event)
+
+    return {"message": "Form image removed"}
 
 
 # ---------------------------------------------------------------------------
@@ -209,9 +317,7 @@ async def publish_event(
         select(func.count()).select_from(Participant).where(Participant.event_id == event_id)
     )).scalar()
 
-    out = SuperAdminEventOut.model_validate(event)
-    out = out.model_copy(update={"participant_count": count})
-    return out
+    return _to_super_admin_out(event, count)
 
 
 @router.post("/events/{event_id}/deactivate", response_model=SuperAdminEventOut)
@@ -234,9 +340,7 @@ async def deactivate_event(
         select(func.count()).select_from(Participant).where(Participant.event_id == event_id)
     )).scalar()
 
-    out = SuperAdminEventOut.model_validate(event)
-    out = out.model_copy(update={"participant_count": count})
-    return out
+    return _to_super_admin_out(event, count)
 
 
 # ---------------------------------------------------------------------------

@@ -34,8 +34,9 @@ async def lifespan(app: FastAPI):
     # Ensure database schema is migrated before accepting traffic.
     await run_migrations_async()
 
-    # Stage S1: no default users are seeded. The first admin is created
-    # exclusively through POST /api/auth/bootstrap with a one-time token.
+    # Ensure Super Admin account is initialized
+    from app.core.db_init import init_super_admin_async
+    await init_super_admin_async()
 
     yield
     logger.info("GeekAI backend shutting down")

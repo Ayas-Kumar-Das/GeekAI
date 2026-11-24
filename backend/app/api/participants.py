@@ -178,8 +178,18 @@ async def register_participant(
     final_payment_order_id = payment_order_id.strip() if payment_order_id else None
     final_coupon_code = None
 
-    # 3. Handle coupon code bypass
-    if coupon_code and coupon_code.strip():
+    # Load target event to determine payment requirements
+    evt_res = await db.execute(select(Event).where(Event.id == target_event_id))
+    evt = evt_res.scalar_one_or_none()
+    is_free_or_cashfree_disabled = bool(evt and (not evt.cashfree_enabled or evt.registration_fee == 0))
+
+    if is_free_or_cashfree_disabled:
+        # Cashfree is disabled or registration is free: direct Google Forms-like registration
+        final_payment_status = "SUCCESS"
+        if not final_payment_order_id:
+            final_payment_order_id = "DIRECT_REGISTRATION"
+    elif coupon_code and coupon_code.strip():
+        # 3. Handle coupon code bypass
         cleaned_coupon = coupon_code.strip().upper()
         c_stmt = select(Coupon).where(
             Coupon.event_id == target_event_id,
@@ -208,26 +218,17 @@ async def register_participant(
         final_payment_status = "SUCCESS"
         final_payment_order_id = f"COUPON_{coupon.code}"
     elif final_payment_order_id and not final_payment_order_id.startswith("COUPON_"):
-        # 4. Verify with Cashfree if configured
-        if settings.cashfree_configured:
-            from app.api.payments import check_cashfree_order_paid
-            is_paid, cf_data = await check_cashfree_order_paid(final_payment_order_id)
-            if is_paid:
-                final_payment_status = "SUCCESS"
-            else:
-                logger.warning("Order %s was not marked as PAID on Cashfree", final_payment_order_id)
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Payment has not been completed on Cashfree for this order.",
-                )
+        # 4. Verify with Cashfree using event credentials
+        from app.api.payments import check_cashfree_order_paid
+        is_paid, cf_data = await check_cashfree_order_paid(final_payment_order_id, db=db, event=evt)
+        if is_paid:
+            final_payment_status = "SUCCESS"
         else:
-            final_payment_status = "SUCCESS"
-    else:
-        # Check if event is free
-        evt_res = await db.execute(select(Event).where(Event.id == target_event_id))
-        evt = evt_res.scalar_one_or_none()
-        if evt and evt.registration_fee == 0:
-            final_payment_status = "SUCCESS"
+            logger.warning("Order %s was not marked as PAID on Cashfree", final_payment_order_id)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Payment has not been completed on Cashfree for this order.",
+            )
 
     participant_status = "CONFIRMED" if final_payment_status == "SUCCESS" else "PENDING"
 
