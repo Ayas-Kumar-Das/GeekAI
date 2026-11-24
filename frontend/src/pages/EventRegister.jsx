@@ -158,15 +158,70 @@ function EventRegistration({ eventSlug }) {
     toast.success('Coupon removed')
   }
 
+  /* ── Resolve participant attributes from dynamic form or static form ── */
+  const resolveParticipantData = () => {
+    if (!customFormSchema || customFormSchema.length === 0) {
+      return {
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        institution: form.institution.trim(),
+        category: form.category || 'OTHER',
+        photo: photo,
+      }
+    }
+
+    let resolvedName = ''
+    let resolvedEmail = ''
+    let resolvedPhone = ''
+    let resolvedInstitution = ''
+    let resolvedCategory = 'OTHER'
+
+    customFormSchema.forEach(field => {
+      const val = customResponses[field.id]
+      if (val === undefined || val === null || val === '') return
+
+      const mapping = field.mapping
+      const labelLower = (field.label || '').toLowerCase()
+
+      if (mapping === 'name' || (!resolvedName && (labelLower.includes('name') || labelLower.includes('attendee')))) {
+        resolvedName = typeof val === 'string' ? val.trim() : String(val)
+      } else if (mapping === 'email' || field.type === 'email' || (!resolvedEmail && (labelLower.includes('email') || labelLower.includes('mail')))) {
+        resolvedEmail = typeof val === 'string' ? val.trim().toLowerCase() : String(val).toLowerCase()
+      } else if (mapping === 'phone' || field.type === 'phone' || (!resolvedPhone && (labelLower.includes('phone') || labelLower.includes('mobile') || labelLower.includes('contact')))) {
+        resolvedPhone = typeof val === 'string' ? val.trim() : String(val)
+      } else if (mapping === 'institution' || (!resolvedInstitution && (labelLower.includes('institution') || labelLower.includes('college') || labelLower.includes('organization') || labelLower.includes('company') || labelLower.includes('university')))) {
+        resolvedInstitution = typeof val === 'string' ? val.trim() : String(val)
+      } else if (mapping === 'category' || labelLower.includes('category')) {
+        resolvedCategory = typeof val === 'string' ? val : String(val)
+      }
+    })
+
+    if (!resolvedName) {
+      const firstText = customFormSchema.find(f => f.type === 'text' && customResponses[f.id])
+      resolvedName = firstText ? String(customResponses[firstText.id]).trim() : 'Participant'
+    }
+
+    return {
+      name: resolvedName,
+      email: resolvedEmail,
+      phone: resolvedPhone,
+      institution: resolvedInstitution,
+      category: resolvedCategory,
+      photo: photo,
+    }
+  }
+
   /* ── Submit registration (after payment or coupon bypass) ── */
-  const submitRegistration = async (paymentOrderId = null) => {
+  const submitRegistration = async (paymentOrderId = null, dataOverride = null) => {
+    const data = dataOverride || resolveParticipantData()
     const fd = new FormData()
-    fd.append('name', form.name)
-    fd.append('email', form.email)
-    if (form.phone) fd.append('phone', form.phone)
-    if (form.institution) fd.append('institution', form.institution)
-    fd.append('category', form.category)
-    fd.append('photo', photo)
+    fd.append('name', data.name)
+    fd.append('email', data.email)
+    if (data.phone) fd.append('phone', data.phone)
+    if (data.institution) fd.append('institution', data.institution)
+    fd.append('category', data.category)
+    if (data.photo) fd.append('photo', data.photo)
     fd.append('source', 'ONLINE')
     if (event?.id) fd.append('event_id', String(event.id))
 
@@ -211,6 +266,16 @@ function EventRegistration({ eventSlug }) {
     setPaidOrderId(rec.order_id)
     if (rec.email && !form.email) setForm(prev => ({ ...prev, email: rec.email }))
     if (rec.name && !form.name) setForm(prev => ({ ...prev, name: rec.name }))
+    if (customFormSchema && customFormSchema.length > 0) {
+      const emailField = customFormSchema.find(f => f.mapping === 'email' || f.type === 'email')
+      if (emailField && rec.email) {
+        setCustomResponses(prev => ({ ...prev, [emailField.id]: rec.email }))
+      }
+      const nameField = customFormSchema.find(f => f.mapping === 'name' || f.label?.toLowerCase().includes('name'))
+      if (nameField && rec.name) {
+        setCustomResponses(prev => ({ ...prev, [nameField.id]: rec.name }))
+      }
+    }
   }
 
   const handleDismissRecoverableOrder = () => {
@@ -246,12 +311,47 @@ function EventRegistration({ eventSlug }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!photo) {
-      photoSection.current?.querySelector('button')?.focus()
-      toast.error('Please capture or upload a photo')
-      return
+
+    const participantData = resolveParticipantData()
+
+    if (customFormSchema && customFormSchema.length > 0) {
+      // Validate dynamic form fields
+      for (const field of customFormSchema) {
+        if (field.type === 'photo') {
+          if (field.required && !photo) {
+            photoSection.current?.querySelector('button')?.focus()
+            toast.error(`Please capture or upload "${field.label}"`)
+            return
+          }
+          if (photo && !photoConsent) {
+            toast.error('Please consent to photo usage for face recognition')
+            return
+          }
+        } else if (field.required) {
+          const val = customResponses[field.id]
+          if (val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)) {
+            toast.error(`Please fill in required field: "${field.label}"`)
+            return
+          }
+        }
+      }
+
+      if (!participantData.email || !participantData.email.includes('@')) {
+        toast.error('Please enter a valid email address')
+        return
+      }
+    } else {
+      // Legacy static form validation
+      if (!photo) {
+        photoSection.current?.querySelector('button')?.focus()
+        toast.error('Please capture or upload a photo')
+        return
+      }
+      if (!photoConsent) {
+        toast.error('Please consent to photo usage for face recognition')
+        return
+      }
     }
-    if (!photoConsent) { toast.error('Please consent to photo usage for face recognition'); return }
 
     setLoading(true)
     try {
@@ -259,13 +359,13 @@ function EventRegistration({ eventSlug }) {
 
       // Case 1: Coupon applied or event is free -> direct free submission
       if (appliedCoupon || !feeRequired) {
-        await submitRegistration()
+        await submitRegistration(null, participantData)
         return
       }
 
       // Case 2: Already verified payment order available -> complete registration directly!
       if (paidOrderId) {
-        await submitRegistration(paidOrderId)
+        await submitRegistration(paidOrderId, participantData)
         return
       }
 
@@ -274,9 +374,9 @@ function EventRegistration({ eventSlug }) {
       const orderRes = await client.post('/payments/create-order', {
         event_slug: eventSlug,
         amount: event.registration_fee,
-        customer_name: form.name,
-        customer_email: form.email,
-        customer_phone: form.phone || '9999999999',
+        customer_name: participantData.name || 'Participant',
+        customer_email: participantData.email,
+        customer_phone: participantData.phone || '9999999999',
       })
       const { payment_session_id, order_id } = orderRes.data
 
@@ -297,13 +397,13 @@ function EventRegistration({ eventSlug }) {
         try {
           localStorage.setItem(`geekai_paid_order_${eventSlug}`, JSON.stringify({
             order_id,
-            email: form.email,
-            name: form.name,
+            email: participantData.email,
+            name: participantData.name,
             timestamp: Date.now(),
           }))
         } catch (e) {}
 
-        await submitRegistration(order_id)
+        await submitRegistration(order_id, participantData)
       } else {
         toast.error('Payment was not completed. Please try again.')
       }
@@ -362,72 +462,124 @@ function EventRegistration({ eventSlug }) {
         </aside>
 
         <form id="event-registration" className="checkout-form" onSubmit={handleSubmit}>
-          <section className="form-section" aria-labelledby="attendee-title">
-            <h2 id="attendee-title">Attendee details</h2>
-            <div className="field-grid">
-              <label>Full name <input name="name" autoComplete="name" value={form.name} onChange={handleChange} required /></label>
-              <label>Email <input name="email" type="email" autoComplete="email" value={form.email} onChange={handleChange} required /></label>
-              <label>Phone number
-                <span className="phone-field"><span aria-hidden="true">+91</span><input name="phone" type="tel" autoComplete="tel-national" value={form.phone} onChange={handleChange} required /></span>
-              </label>
-              <label>Institution <input name="institution" autoComplete="organization" value={form.institution} onChange={handleChange} required /></label>
-              <label>Category
-                <select name="category" value={form.category} onChange={handleChange}>
-                  {CATEGORIES.map(category => <option key={category.value} value={category.value}>{category.label}</option>)}
-                </select>
-              </label>
-            </div>
-          </section>
-          {/* ── Dynamic custom fields from form schema ── */}
-          {customFormSchema && customFormSchema.length > 0 && (
-            <section className="form-section" aria-labelledby="custom-fields-title">
-              <h2 id="custom-fields-title">Additional Information</h2>
+          {/* ── Dynamic form if custom schema configured, else fallback to standard legacy form ── */}
+          {customFormSchema && customFormSchema.length > 0 ? (
+            <section className="form-section" aria-labelledby="dynamic-reg-title">
+              <h2 id="dynamic-reg-title">Registration details</h2>
               <div className="field-grid">
                 {customFormSchema.map(field => {
+                  if (field.type === 'photo') {
+                    return (
+                      <div key={field.id} className="full-width photo-field-block" ref={photoSection} style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                        <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.25rem' }}>
+                          {field.label}
+                          {field.required && <span aria-hidden="true" style={{ color: 'var(--red,#dc2626)', marginLeft: 2 }}>*</span>}
+                        </label>
+                        {field.help_text && <small style={{ display: 'block', color: '#6b7280', marginBottom: 6 }}>{field.help_text}</small>}
+                        <EventPhoto photo={photo} onChange={setPhoto} />
+                        <p className="privacy-note"><LockKeyhole size={15} /> Your photo is used for AI face recognition at event check-in.</p>
+                        <label className="check-row" style={{ marginTop: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={photoConsent}
+                            onChange={event => setPhotoConsent(event.target.checked)}
+                            required={field.required}
+                          />
+                          <span>I consent to using my photo for face recognition at this event.</span>
+                        </label>
+                      </div>
+                    )
+                  }
+
                   const val = customResponses[field.id] ?? ''
                   const setVal = (v) => setCustomResponses(prev => ({ ...prev, [field.id]: v }))
+
+                  if (field.type === 'radio') {
+                    return (
+                      <fieldset key={field.id} className="field-group full-width" style={{ border: 'none', padding: 0, margin: 0 }}>
+                        <legend className="field-label" style={{ display: 'block', fontSize: '.83rem', fontWeight: 750, color: 'var(--ink)', marginBottom: 4 }}>
+                          {field.label}
+                          {field.required && <span aria-hidden="true" style={{ color: 'var(--red,#dc2626)', marginLeft: 2 }}>*</span>}
+                        </legend>
+                        {field.help_text && <small style={{ display: 'block', color: '#6b7280', marginBottom: 6 }}>{field.help_text}</small>}
+                        <div className="radio-options-row">
+                          {(field.options || []).map(o => {
+                            const isChecked = val === o.value
+                            return (
+                              <label
+                                key={o.value}
+                                className={`radio-option ${isChecked ? 'selected' : ''}`}
+                              >
+                                <input
+                                  type="radio"
+                                  name={field.id}
+                                  value={o.value}
+                                  checked={isChecked}
+                                  onChange={() => setVal(o.value)}
+                                  required={field.required && !val}
+                                />
+                                <span className="option-label">{o.label}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </fieldset>
+                    )
+                  }
+
+                  if (field.type === 'checkbox') {
+                    return (
+                      <fieldset key={field.id} className="field-group full-width" style={{ border: 'none', padding: 0, margin: 0 }}>
+                        <legend className="field-label" style={{ display: 'block', fontSize: '.83rem', fontWeight: 750, color: 'var(--ink)', marginBottom: 4 }}>
+                          {field.label}
+                          {field.required && <span aria-hidden="true" style={{ color: 'var(--red,#dc2626)', marginLeft: 2 }}>*</span>}
+                        </legend>
+                        {field.help_text && <small style={{ display: 'block', color: '#6b7280', marginBottom: 6 }}>{field.help_text}</small>}
+                        <div className="checkbox-options-row">
+                          {(field.options || []).map(o => {
+                            const checked = Array.isArray(val) ? val.includes(o.value) : false
+                            return (
+                              <label
+                                key={o.value}
+                                className={`checkbox-option ${checked ? 'selected' : ''}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  value={o.value}
+                                  checked={checked}
+                                  onChange={e => {
+                                    const arr = Array.isArray(val) ? [...val] : []
+                                    setVal(e.target.checked ? [...arr, o.value] : arr.filter(v => v !== o.value))
+                                  }}
+                                />
+                                <span className="option-label">{o.label}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </fieldset>
+                    )
+                  }
+
                   return (
                     <label key={field.id} className={field.type === 'textarea' ? 'full-width' : ''}>
-                      {field.label}{field.required && <span aria-hidden="true" style={{color:'var(--red,#dc2626)',marginLeft:2}}>*</span>}
-                      {field.help_text && <small style={{display:'block',color:'#6b7280',marginBottom:4}}>{field.help_text}</small>}
+                      {field.label}
+                      {field.required && <span aria-hidden="true" style={{ color: 'var(--red,#dc2626)', marginLeft: 2 }}>*</span>}
+                      {field.help_text && <small style={{ display: 'block', color: '#6b7280', marginBottom: 4 }}>{field.help_text}</small>}
                       {field.type === 'textarea' ? (
                         <textarea
-                          value={val} onChange={e => setVal(e.target.value)}
-                          required={field.required} placeholder={field.placeholder}
-                          rows={4} style={{width:'100%',resize:'vertical'}}
+                          value={val}
+                          onChange={e => setVal(e.target.value)}
+                          required={field.required}
+                          placeholder={field.placeholder}
+                          rows={4}
+                          style={{ width: '100%', resize: 'vertical' }}
                         />
                       ) : field.type === 'dropdown' ? (
                         <select value={val} onChange={e => setVal(e.target.value)} required={field.required}>
                           <option value="">Select…</option>
                           {(field.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
-                      ) : field.type === 'radio' ? (
-                        <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
-                          {(field.options || []).map(o => (
-                            <label key={o.value} style={{display:'flex',alignItems:'center',gap:8,fontWeight:'normal',cursor:'pointer'}}>
-                              <input type="radio" name={field.id} value={o.value}
-                                checked={val === o.value} onChange={() => setVal(o.value)}
-                                required={field.required && !val} />
-                              {o.label}
-                            </label>
-                          ))}
-                        </div>
-                      ) : field.type === 'checkbox' ? (
-                        <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
-                          {(field.options || []).map(o => {
-                            const checked = Array.isArray(val) ? val.includes(o.value) : false
-                            return (
-                              <label key={o.value} style={{display:'flex',alignItems:'center',gap:8,fontWeight:'normal',cursor:'pointer'}}>
-                                <input type="checkbox" value={o.value} checked={checked}
-                                  onChange={e => {
-                                    const arr = Array.isArray(val) ? [...val] : []
-                                    setVal(e.target.checked ? [...arr, o.value] : arr.filter(v => v !== o.value))
-                                  }} />
-                                {o.label}
-                              </label>
-                            )
-                          })}
-                        </div>
                       ) : (
                         <input
                           type={field.type === 'phone' ? 'tel' : field.type === 'file' ? 'file' : field.type}
@@ -435,8 +587,10 @@ function EventRegistration({ eventSlug }) {
                           onChange={e => field.type === 'file' ? setVal(e.target.files[0]) : setVal(e.target.value)}
                           required={field.required}
                           placeholder={field.placeholder}
-                          min={field.validation?.min} max={field.validation?.max}
-                          minLength={field.validation?.min_length} maxLength={field.validation?.max_length}
+                          min={field.validation?.min}
+                          max={field.validation?.max}
+                          minLength={field.validation?.min_length}
+                          maxLength={field.validation?.max_length}
                         />
                       )}
                     </label>
@@ -444,7 +598,25 @@ function EventRegistration({ eventSlug }) {
                 })}
               </div>
             </section>
+          ) : (
+            <section className="form-section" aria-labelledby="attendee-title">
+              <h2 id="attendee-title">Attendee details</h2>
+              <div className="field-grid">
+                <label>Full name <input name="name" autoComplete="name" value={form.name} onChange={handleChange} required /></label>
+                <label>Email <input name="email" type="email" autoComplete="email" value={form.email} onChange={handleChange} required /></label>
+                <label>Phone number
+                  <span className="phone-field"><span aria-hidden="true">+91</span><input name="phone" type="tel" autoComplete="tel-national" value={form.phone} onChange={handleChange} required /></span>
+                </label>
+                <label>Institution <input name="institution" autoComplete="organization" value={form.institution} onChange={handleChange} required /></label>
+                <label>Category
+                  <select name="category" value={form.category} onChange={handleChange}>
+                    {CATEGORIES.map(category => <option key={category.value} value={category.value}>{category.label}</option>)}
+                  </select>
+                </label>
+              </div>
+            </section>
           )}
+
           {sessions.length > 0 && (
             <fieldset className="form-section session-section">
               <legend>Sessions <span>(optional)</span></legend>
@@ -456,15 +628,19 @@ function EventRegistration({ eventSlug }) {
               ))}
             </fieldset>
           )}
-          <section className="form-section" aria-labelledby="photo-title" ref={photoSection}>
-            <h2 id="photo-title">Check-in photo</h2>
-            <EventPhoto photo={photo} onChange={setPhoto} />
-            <p className="privacy-note"><LockKeyhole size={15} /> Your photo is used for face recognition at event check-in.</p>
-            <label className="check-row">
-              <input type="checkbox" checked={photoConsent} onChange={event => setPhotoConsent(event.target.checked)} required />
-              <span>I consent to using my photo for face recognition at this event.</span>
-            </label>
-          </section>
+
+          {/* Legacy photo section for events without dynamic form */}
+          {(!customFormSchema || customFormSchema.length === 0) && (
+            <section className="form-section" aria-labelledby="photo-title" ref={photoSection}>
+              <h2 id="photo-title">Check-in photo</h2>
+              <EventPhoto photo={photo} onChange={setPhoto} />
+              <p className="privacy-note"><LockKeyhole size={15} /> Your photo is used for face recognition at event check-in.</p>
+              <label className="check-row">
+                <input type="checkbox" checked={photoConsent} onChange={event => setPhotoConsent(event.target.checked)} required />
+                <span>I consent to using my photo for face recognition at this event.</span>
+              </label>
+            </section>
+          )}
           <section className="form-section" aria-labelledby="checkout-title">
             <h2 id="checkout-title">Checkout</h2>
             {recoverableOrder && !paidOrderId && (

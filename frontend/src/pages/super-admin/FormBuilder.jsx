@@ -3,39 +3,69 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Eye,
   Type, Mail, Phone, Hash, List, Circle, CheckSquare, Calendar,
-  AlignLeft, Upload, Globe, AlertCircle,
+  AlignLeft, Upload, Globe, AlertCircle, Camera, User, Building,
 } from 'lucide-react'
 import client from '../../api/client'
 import toast from 'react-hot-toast'
 
 const FIELD_TYPES = [
-  { type: 'text', label: 'Text', icon: Type, description: 'Short text answer' },
-  { type: 'email', label: 'Email', icon: Mail, description: 'Email address' },
+  { type: 'text', label: 'Text', icon: Type, description: 'Short text answer (e.g. name, institution)' },
+  { type: 'email', label: 'Email', icon: Mail, description: 'Email address (for QR ticket & notifications)' },
   { type: 'phone', label: 'Phone', icon: Phone, description: 'Phone number' },
+  { type: 'photo', label: 'Photo (Face Check-in)', icon: Camera, description: 'Webcam capture or upload for AI face recognition' },
   { type: 'number', label: 'Number', icon: Hash, description: 'Numeric input' },
-  { type: 'textarea', label: 'Long Text', icon: AlignLeft, description: 'Multi-line text' },
+  { type: 'textarea', label: 'Long Text', icon: AlignLeft, description: 'Multi-line text response' },
   { type: 'dropdown', label: 'Dropdown', icon: List, description: 'Select one option' },
   { type: 'radio', label: 'Radio', icon: Circle, description: 'Choose one option' },
   { type: 'checkbox', label: 'Checkbox', icon: CheckSquare, description: 'Multiple choices' },
   { type: 'date', label: 'Date', icon: Calendar, description: 'Date picker' },
-  { type: 'file', label: 'File/Image', icon: Upload, description: 'File upload' },
+  { type: 'file', label: 'File Upload', icon: Upload, description: 'Document or attachment upload' },
 ]
 
-const ICON_MAP = { text: Type, email: Mail, phone: Phone, number: Hash, textarea: AlignLeft, dropdown: List, radio: Circle, checkbox: CheckSquare, date: Calendar, file: Upload }
+const ICON_MAP = {
+  text: Type,
+  email: Mail,
+  phone: Phone,
+  photo: Camera,
+  number: Hash,
+  textarea: AlignLeft,
+  dropdown: List,
+  radio: Circle,
+  checkbox: CheckSquare,
+  date: Calendar,
+  file: Upload,
+}
 
-function newField(type, order) {
+function newField(type, order, defaultLabel = null, defaultMapping = null) {
+  let mapping = defaultMapping
+  if (!mapping) {
+    if (type === 'photo') mapping = 'photo'
+    else if (type === 'email') mapping = 'email'
+    else if (type === 'phone') mapping = 'phone'
+    else mapping = 'custom'
+  }
+
+  let label = defaultLabel
+  if (!label) {
+    if (type === 'photo') label = 'Check-in Photo'
+    else if (type === 'email') label = 'Email Address'
+    else if (type === 'phone') label = 'Phone Number'
+    else label = `${FIELD_TYPES.find(f => f.type === type)?.label || 'Field'} ${order + 1}`
+  }
+
   return {
     id: `field_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     type,
-    label: `${FIELD_TYPES.find(f => f.type === type)?.label || 'Field'} ${order + 1}`,
+    label,
     placeholder: '',
-    required: false,
+    required: ['photo', 'email'].includes(type) ? true : false,
+    mapping,
     options: ['dropdown', 'radio', 'checkbox'].includes(type)
       ? [{ label: 'Option 1', value: 'option_1' }]
       : null,
     validation: null,
     order,
-    help_text: '',
+    help_text: type === 'photo' ? 'Upload or capture a front-facing photo for AI face recognition check-in' : '',
   }
 }
 
@@ -72,8 +102,15 @@ function FieldEditor({ field, onChange, onDelete, onMoveUp, onMoveDown, isFirst,
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
             {FIELD_TYPES.find(f => f.type === field.type)?.label || field.type}
           </span>
+          {field.mapping && field.mapping !== 'custom' && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700">
+              Maps to: {field.mapping}
+            </span>
+          )}
           {field.required && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600">Required</span>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600">
+              Required
+            </span>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -91,7 +128,19 @@ function FieldEditor({ field, onChange, onDelete, onMoveUp, onMoveDown, isFirst,
 
       {/* Field config */}
       <div className="p-4 space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        {field.type === 'photo' && (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs text-purple-800 flex items-start gap-2.5">
+            <Camera className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
+            <div>
+              <strong className="font-semibold text-purple-900">Dedicated Face Recognition Check-in Field</strong>
+              <p className="mt-0.5 text-purple-700">
+                This field provides live webcam capture and photo upload. Captured images are automatically processed by the backend face embedding service for instant face recognition check-in by event staff.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Label *</label>
             <input
@@ -102,6 +151,25 @@ function FieldEditor({ field, onChange, onDelete, onMoveUp, onMoveDown, isFirst,
             />
           </div>
           <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">System Attribute Mapping</label>
+            <select
+              value={field.mapping || 'custom'}
+              onChange={e => updateField('mapping', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none bg-white"
+            >
+              <option value="custom">Custom Field (Stored in responses)</option>
+              <option value="name">Participant Full Name (Core DB & QR)</option>
+              <option value="email">Participant Email (Core DB & QR Email)</option>
+              <option value="phone">Participant Phone (Cashfree & SMS)</option>
+              <option value="institution">Institution / Organization</option>
+              <option value="category">Participant Category</option>
+              <option value="photo">Check-in Photo (Face Recognition)</option>
+            </select>
+          </div>
+        </div>
+
+        {field.type !== 'photo' && (
+          <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Placeholder</label>
             <input
               value={field.placeholder || ''}
@@ -110,7 +178,7 @@ function FieldEditor({ field, onChange, onDelete, onMoveUp, onMoveDown, isFirst,
               placeholder="Placeholder text"
             />
           </div>
-        </div>
+        )}
 
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">Help Text</label>
@@ -233,14 +301,13 @@ function FormPreview({ fields }) {
   if (!fields.length) return (
     <div className="text-center py-12 text-gray-400">
       <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
-      <p className="text-sm">No fields yet. Add fields from the left panel.</p>
+      <p className="text-sm">No fields configured yet. Add fields from the left panel.</p>
     </div>
   )
 
   return (
     <div className="space-y-5">
       {fields.map(field => {
-        const Icon = ICON_MAP[field.type] || Type
         return (
           <div key={field.id}>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -248,7 +315,17 @@ function FormPreview({ fields }) {
               {field.required && <span className="text-red-500 ml-0.5">*</span>}
             </label>
             {field.help_text && <p className="text-xs text-gray-500 mb-1">{field.help_text}</p>}
-            {field.type === 'textarea' ? (
+            {field.type === 'photo' ? (
+              <div className="border-2 border-dashed border-purple-300 bg-purple-50/50 rounded-xl p-5 text-center">
+                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-2 text-purple-600">
+                  <Camera className="h-6 w-6" />
+                </div>
+                <p className="text-sm font-semibold text-gray-800">Check-in Photo Capture & Upload</p>
+                <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+                  Live webcam capture and file upload for AI face recognition check-in.
+                </p>
+              </div>
+            ) : field.type === 'textarea' ? (
               <textarea rows={3} disabled placeholder={field.placeholder}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 resize-none opacity-70" />
             ) : field.type === 'dropdown' ? (
@@ -257,12 +334,12 @@ function FormPreview({ fields }) {
                 {(field.options || []).map(o => <option key={o.value}>{o.label}</option>)}
               </select>
             ) : ['radio', 'checkbox'].includes(field.type) ? (
-              <div className="space-y-1.5">
+              <div className="flex flex-wrap gap-2 pt-1">
                 {(field.options || []).map(o => (
-                  <label key={o.value} className="flex items-center gap-2 text-sm text-gray-700 opacity-70">
-                    <input type={field.type === 'radio' ? 'radio' : 'checkbox'} disabled />
-                    {o.label}
-                  </label>
+                  <div key={o.value} className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 opacity-80">
+                    <input type={field.type === 'radio' ? 'radio' : 'checkbox'} disabled className="h-3.5 w-3.5" />
+                    <span>{o.label}</span>
+                  </div>
                 ))}
               </div>
             ) : field.type === 'file' ? (
@@ -306,6 +383,12 @@ export default function FormBuilder() {
 
   const addField = (type) => {
     setFields(prev => [...prev, newField(type, prev.length)])
+  }
+
+  const addCustomField = (type, defaultLabel, defaultMapping, required = false) => {
+    const f = newField(type, fields.length, defaultLabel, defaultMapping)
+    f.required = required
+    setFields(prev => [...prev, f])
   }
 
   const updateField = (idx, updated) => {
@@ -381,15 +464,64 @@ export default function FormBuilder() {
       </div>
 
       {/* Info banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
-        <strong>Standard fields</strong> (name, email, phone, institution, category, photo) are always included in registration.
-        Add <strong>custom fields</strong> here for event-specific information — they'll appear after the standard fields.
-        Don't forget to <Link to={`/super-admin/events/${id}/edit`} className="underline">publish the event</Link> for public registration to go live.
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-700">
+        <div className="flex items-start gap-3">
+          <div className="p-1 bg-slate-200 rounded-md mt-0.5">
+            <AlertCircle className="h-4 w-4 text-slate-700" />
+          </div>
+          <div>
+            <p className="font-semibold text-slate-900">Custom Dynamic Form Designer</p>
+            <p className="mt-0.5 text-xs text-slate-600">
+              There are <strong>no predefined or mandatory standard registration fields</strong>. You must manually add and configure every field for this event (such as Full Name, Email, Phone, Institution, and Photo for Face Recognition).
+              Add the dedicated <strong>Photo (Face Check-in)</strong> field type to enable AI face recognition at the event check-in desk.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Add Presets */}
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl shadow-xs">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mr-1">Quick Add:</span>
+        <button
+          type="button"
+          onClick={() => addCustomField('text', 'Full Name', 'name', true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs font-medium text-blue-700 hover:bg-blue-100 cursor-pointer transition-colors"
+        >
+          <User className="h-3.5 w-3.5 text-blue-600" /> + Full Name
+        </button>
+        <button
+          type="button"
+          onClick={() => addCustomField('email', 'Email Address', 'email', true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-medium text-emerald-700 hover:bg-emerald-100 cursor-pointer transition-colors"
+        >
+          <Mail className="h-3.5 w-3.5 text-emerald-600" /> + Email Address
+        </button>
+        <button
+          type="button"
+          onClick={() => addCustomField('phone', 'Phone Number', 'phone', false)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs font-medium text-amber-700 hover:bg-amber-100 cursor-pointer transition-colors"
+        >
+          <Phone className="h-3.5 w-3.5 text-amber-600" /> + Phone Number
+        </button>
+        <button
+          type="button"
+          onClick={() => addCustomField('text', 'Institution / Organization', 'institution', false)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-100 cursor-pointer transition-colors"
+        >
+          <Building className="h-3.5 w-3.5 text-indigo-600" /> + Institution
+        </button>
+        <button
+          type="button"
+          onClick={() => addCustomField('photo', 'Check-in Photo', 'photo', true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-300 rounded-lg text-xs font-semibold text-purple-700 hover:bg-purple-100 cursor-pointer transition-colors"
+        >
+          <Camera className="h-3.5 w-3.5 text-purple-600" /> + Photo (Face Check-in)
+        </button>
       </div>
 
       {activeTab === 'preview' ? (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 max-w-lg">
-          <h3 className="font-bold text-gray-900 mb-6">Custom Fields Preview</h3>
+          <h3 className="font-bold text-gray-900 mb-6">Form Preview</h3>
           <FormPreview fields={fields} />
         </div>
       ) : (
@@ -398,7 +530,7 @@ export default function FormBuilder() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 sticky top-6">
               <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Plus className="h-4 w-4 text-gray-500" /> Add Field
+                <Plus className="h-4 w-4 text-gray-500" /> All Field Types
               </h3>
               <div className="space-y-1.5">
                 {FIELD_TYPES.map(({ type, label, icon: Icon, description }) => (
@@ -407,11 +539,11 @@ export default function FormBuilder() {
                     onClick={() => addField(type)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-left transition-colors group cursor-pointer"
                   >
-                    <div className="p-1.5 bg-gray-100 rounded-md group-hover:bg-gray-200 transition-colors">
-                      <Icon className="h-4 w-4 text-gray-600" />
+                    <div className={`p-1.5 rounded-md transition-colors ${type === 'photo' ? 'bg-purple-100 text-purple-700 group-hover:bg-purple-200' : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'}`}>
+                      <Icon className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-800">{label}</p>
+                      <p className={`text-sm font-medium ${type === 'photo' ? 'text-purple-900 font-semibold' : 'text-gray-800'}`}>{label}</p>
                       <p className="text-xs text-gray-400">{description}</p>
                     </div>
                   </button>
@@ -425,8 +557,8 @@ export default function FormBuilder() {
             {fields.length === 0 ? (
               <div className="bg-white rounded-xl border-2 border-dashed border-gray-200 py-16 text-center text-gray-400">
                 <Plus className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p className="font-medium">No custom fields yet</p>
-                <p className="text-sm mt-1">Click a field type on the left to add it</p>
+                <p className="font-medium text-gray-600">No fields configured yet</p>
+                <p className="text-sm mt-1">Click a field type on the left or use the Quick Add buttons above</p>
               </div>
             ) : (
               fields.map((field, idx) => (
@@ -445,7 +577,7 @@ export default function FormBuilder() {
 
             {fields.length > 0 && (
               <div className="text-center py-2">
-                <p className="text-xs text-gray-400">{fields.length} custom field{fields.length !== 1 ? 's' : ''} configured</p>
+                <p className="text-xs text-gray-400">{fields.length} field{fields.length !== 1 ? 's' : ''} configured</p>
               </div>
             )}
           </div>

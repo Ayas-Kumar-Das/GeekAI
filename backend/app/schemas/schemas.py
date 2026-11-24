@@ -302,7 +302,7 @@ class FormFieldValidation(BaseModel):
 class FormField(BaseModel):
     """A single field in a dynamic registration form."""
     id: str  # client-generated UUID
-    type: str  # text|email|phone|number|dropdown|radio|checkbox|date|textarea|file
+    type: str  # text|email|phone|number|dropdown|radio|checkbox|date|textarea|file|photo
     label: str
     placeholder: Optional[str] = None
     required: bool = False
@@ -310,6 +310,7 @@ class FormField(BaseModel):
     validation: Optional[FormFieldValidation] = None
     order: int = 0
     help_text: Optional[str] = None
+    mapping: Optional[str] = None  # name|email|phone|institution|category|photo|custom
 
 
 class FormSchema(BaseModel):

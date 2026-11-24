@@ -94,7 +94,8 @@ async def get_registration_form(slug: str, db: AsyncSession = Depends(get_db)):
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    if not event.registration_form_schema:
+    schema = event.registration_form_schema
+    if not schema or not schema.get("fields"):
         # No custom form — frontend uses static form
         return {
             "has_custom_form": False,

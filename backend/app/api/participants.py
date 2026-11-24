@@ -75,8 +75,8 @@ async def _audit(
 async def register_participant(
     background_tasks: BackgroundTasks,
     request: Request,
-    name: str = Form(...),
-    email: str = Form(...),
+    name: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
     phone: Optional[str] = Form(None),
     institution: Optional[str] = Form(None),
     category: ParticipantCategory = Form(ParticipantCategory.OTHER),
@@ -91,10 +91,9 @@ async def register_participant(
 ):
     """Public participant registration.
     
-    Supports paid events, free events, coupon code bypass, and payment recovery reconciliation.
+    Supports dynamic schema forms, paid events, free events, coupon code bypass, and payment recovery reconciliation.
     """
     target_event_id = event_id or 1
-    clean_email = email.strip().lower()
     clean_source = (source or "ONLINE").strip().upper()[:9]
 
     # Parse custom_responses JSON string if provided
@@ -104,6 +103,49 @@ async def register_participant(
             parsed_custom_responses = json.loads(custom_responses)
         except (json.JSONDecodeError, ValueError):
             logger.warning("Failed to parse custom_responses JSON: %s", custom_responses)
+
+    resolved_name = (name or "").strip()
+    resolved_email = (email or "").strip().lower()
+    resolved_phone = (phone or "").strip() if phone else None
+    resolved_institution = (institution or "").strip() if institution else None
+    resolved_category = category
+
+    if parsed_custom_responses and isinstance(parsed_custom_responses, dict):
+        if not resolved_name:
+            for k, v in parsed_custom_responses.items():
+                k_lower = k.lower()
+                if isinstance(v, str) and v.strip() and any(x in k_lower for x in ["name", "full_name", "attendee", "participant"]):
+                    resolved_name = v.strip()
+                    break
+        if not resolved_email:
+            for k, v in parsed_custom_responses.items():
+                k_lower = k.lower()
+                if isinstance(v, str) and "@" in v and any(x in k_lower for x in ["email", "mail"]):
+                    resolved_email = v.strip().lower()
+                    break
+        if not resolved_phone:
+            for k, v in parsed_custom_responses.items():
+                k_lower = k.lower()
+                if isinstance(v, str) and any(x in k_lower for x in ["phone", "mobile", "contact"]):
+                    resolved_phone = v.strip()
+                    break
+        if not resolved_institution:
+            for k, v in parsed_custom_responses.items():
+                k_lower = k.lower()
+                if isinstance(v, str) and any(x in k_lower for x in ["institution", "college", "org", "university", "company"]):
+                    resolved_institution = v.strip()
+                    break
+
+    if not resolved_name:
+        resolved_name = "Participant"
+
+    if not resolved_email:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Email is required for registration",
+        )
+
+    clean_email = resolved_email
 
     # 1. Idempotency: If this payment_order_id is already recorded, return existing participant
     if payment_order_id and payment_order_id.strip():
@@ -193,10 +235,10 @@ async def register_participant(
     if existing_participant:
         # Reconcile existing pending participant
         participant = existing_participant
-        participant.name = name
-        participant.phone = phone
-        participant.institution = institution
-        participant.category = category
+        participant.name = resolved_name
+        participant.phone = resolved_phone
+        participant.institution = resolved_institution
+        participant.category = resolved_category
         participant.source = clean_source
         participant.status = participant_status
         participant.payment_order_id = final_payment_order_id
@@ -206,11 +248,11 @@ async def register_participant(
             participant.custom_responses = parsed_custom_responses
     else:
         participant = Participant(
-            name=name,
+            name=resolved_name,
             email=clean_email,
-            phone=phone,
-            institution=institution,
-            category=category,
+            phone=resolved_phone,
+            institution=resolved_institution,
+            category=resolved_category,
             event_id=target_event_id,
             source=clean_source,
             status=participant_status,
@@ -248,6 +290,10 @@ async def register_participant(
             embedding=embedding_vec,
         )
         db.add(face_emb)
+        participant.embedding_status = "COMPLETED"
+        await db.flush()
+    else:
+        participant.embedding_status = "NOT_REQUIRED"
         await db.flush()
 
     qr_abs_path = str(settings.qrcodes_dir / f"{participant.id}.png")
