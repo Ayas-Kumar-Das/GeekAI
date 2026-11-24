@@ -6,6 +6,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional
+import uuid
 
 from fastapi import (
     APIRouter,
@@ -412,10 +413,43 @@ async def get_participant(
         qr_code_url=participant.qr_code_url,
         registered_at=participant.registered_at,
         event_id=participant.event_id,
+        source=participant.source,
+        status=participant.status,
         payment_status=participant.payment_status,
         coupon_code=participant.coupon_code,
+        custom_responses=participant.custom_responses,
         attendances=attendances,
     )
+
+
+@router.post("/upload-file")
+async def upload_participant_file(
+    file: UploadFile = File(...),
+):
+    """Upload a file or document submitted as part of dynamic form registration."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename required")
+
+    ext = Path(file.filename).suffix.lower()
+    allowed_exts = [
+        ".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf",
+        ".doc", ".docx", ".txt", ".csv", ".xlsx", ".zip"
+    ]
+    if ext not in allowed_exts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File extension '{ext}' is not supported. Allowed: {', '.join(allowed_exts)}",
+        )
+
+    safe_name = f"{uuid.uuid4().hex[:12]}_{Path(file.filename).name}"
+    filepath = settings.documents_dir / safe_name
+
+    content = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    url = f"/uploads/documents/{safe_name}"
+    return {"url": url, "filename": file.filename, "size": len(content)}
 
 
 def resolve_media_path(stored_path: str | None) -> Path | None:

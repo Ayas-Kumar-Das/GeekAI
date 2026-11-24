@@ -92,6 +92,12 @@ class Settings(BaseSettings):
         p.mkdir(parents=True, exist_ok=True)
         return p
 
+    @property
+    def documents_dir(self) -> Path:
+        p = Path(self.UPLOAD_DIR) / "documents"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
     # Bootstrap forced password change: tracked via password_changed_at on
     # the users table (null = change required on next login). No column is
     # added here; the migration creates it.

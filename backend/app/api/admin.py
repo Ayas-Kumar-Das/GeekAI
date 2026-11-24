@@ -119,6 +119,23 @@ async def dashboard(
     )
 
 
+@router.get("/event/form-schema")
+async def get_admin_event_form_schema(
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """Return the registration form schema for the admin's scoped event."""
+    target_event_id = _admin.event_id or 1
+    event = (await db.execute(select(Event).where(Event.id == target_event_id))).scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return {
+        "event_id": event.id,
+        "event_name": event.name,
+        "schema": event.registration_form_schema,
+    }
+
+
 # ===== Volunteer Management =================================================
 
 @router.get("/volunteers", response_model=list[VolunteerOut])

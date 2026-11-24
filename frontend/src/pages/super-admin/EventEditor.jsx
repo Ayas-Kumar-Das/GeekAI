@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Save, CreditCard, Shield, Eye, EyeOff, Trash2, Plus, List } from 'lucide-react'
+import { ArrowLeft, Save, CreditCard, Shield, Eye, EyeOff, Trash2, Plus, List, UserCheck } from 'lucide-react'
 import client from '../../api/client'
 import toast from 'react-hot-toast'
 
@@ -47,6 +47,18 @@ export default function EventEditor() {
   const [showSecret, setShowSecret] = useState(false)
   const [hasSecret, setHasSecret] = useState(false)
 
+  // Event Admin Credentials State
+  const [adminForm, setAdminForm] = useState({
+    id: null,
+    email: '',
+    name: '',
+    password: '',
+    is_active: true,
+  })
+  const [hasExistingAdmin, setHasExistingAdmin] = useState(false)
+  const [showAdminPassword, setShowAdminPassword] = useState(false)
+  const [savingAdmin, setSavingAdmin] = useState(false)
+
   useEffect(() => {
     if (!isEdit) return
     client.get(`/super-admin/events/${id}`)
@@ -75,7 +87,61 @@ export default function EventEditor() {
       })
       .catch(() => toast.error('Failed to load event'))
       .finally(() => setLoading(false))
+
+    // Fetch existing assigned event admin
+    client.get(`/super-admin/events/${id}/admin`)
+      .then(res => {
+        if (res.data) {
+          setAdminForm({
+            id: res.data.id,
+            email: res.data.email || '',
+            name: res.data.name || '',
+            password: '',
+            is_active: res.data.is_active ?? true,
+          })
+          setHasExistingAdmin(true)
+        }
+      })
+      .catch(() => {})
   }, [id, isEdit])
+
+  const handleSaveAdmin = async (e) => {
+    if (e) e.preventDefault()
+    if (!adminForm.email.trim()) {
+      toast.error('Admin email is required')
+      return
+    }
+    if (!hasExistingAdmin && (!adminForm.password || adminForm.password.trim().length < 6)) {
+      toast.error('Password must be at least 6 characters for a new admin')
+      return
+    }
+    setSavingAdmin(true)
+    try {
+      const payload = {
+        email: adminForm.email.trim(),
+        name: adminForm.name.trim() || undefined,
+        is_active: adminForm.is_active,
+      }
+      if (adminForm.password && adminForm.password.trim()) {
+        payload.password = adminForm.password.trim()
+      }
+      const res = await client.post(`/super-admin/events/${id}/admin`, payload)
+      setAdminForm(prev => ({
+        ...prev,
+        id: res.data.id,
+        email: res.data.email,
+        name: res.data.name || '',
+        password: '',
+        is_active: res.data.is_active,
+      }))
+      setHasExistingAdmin(true)
+      toast.success(hasExistingAdmin ? 'Admin credentials updated!' : 'Event admin assigned successfully!')
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to save admin credentials')
+    } finally {
+      setSavingAdmin(false)
+    }
+  }
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -150,6 +216,18 @@ export default function EventEditor() {
         }
       } else {
         const r = await client.post('/super-admin/events', payload)
+        if (adminForm.email.trim() && adminForm.password.trim()) {
+          try {
+            await client.post(`/super-admin/events/${r.data.id}/admin`, {
+              email: adminForm.email.trim(),
+              name: adminForm.name.trim() || undefined,
+              password: adminForm.password.trim(),
+              is_active: adminForm.is_active,
+            })
+          } catch (adminErr) {
+            toast.error(adminErr.response?.data?.detail || 'Event created, but failed to assign admin credentials')
+          }
+        }
         toast.success('Event created!')
         navigate(`/super-admin/events/${r.data.id}/edit`, { replace: true })
       }
@@ -377,6 +455,116 @@ export default function EventEditor() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Event Admin Credentials Card */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-gray-700" />
+              <h3 className="font-semibold text-gray-900">Event Admin Credentials</h3>
+            </div>
+            {hasExistingAdmin ? (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                <Shield className="h-3 w-3" /> Admin Assigned &amp; Scoped
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
+                No Admin Assigned
+              </span>
+            )}
+          </div>
+
+          <p className="text-xs text-gray-500">
+            Assign, create, or modify the login email and password for this event's dedicated admin.
+            The admin will have full access strictly scoped to this event ({form.name || 'this event'}).
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Admin Login Email *
+              </label>
+              <input
+                type="email"
+                value={adminForm.email}
+                onChange={(e) => setAdminForm(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="e.g. oaic_admin@geekai.in"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Admin Display Name
+              </label>
+              <input
+                type="text"
+                value={adminForm.name}
+                onChange={(e) => setAdminForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g. Odisha AI Conference Admin"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                {hasExistingAdmin ? 'Update Login Password' : 'Login Password *'}
+              </label>
+              {hasExistingAdmin && (
+                <span className="text-xs text-gray-400">
+                  Leave blank to keep current password
+                </span>
+              )}
+            </div>
+            <div className="relative">
+              <input
+                type={showAdminPassword ? 'text' : 'password'}
+                value={adminForm.password}
+                onChange={(e) => setAdminForm(prev => ({ ...prev, password: e.target.value }))}
+                placeholder={hasExistingAdmin ? '•••••••• (Leave blank to keep existing password)' : 'Enter password (min 6 characters)'}
+                className="w-full border border-gray-300 rounded-lg pl-3 pr-10 py-2 text-sm font-mono focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowAdminPassword(s => !s)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                {showAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Passwords are securely hashed using bcrypt. Existing passwords are never exposed or transmitted in plaintext.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={adminForm.is_active}
+                onChange={(e) => setAdminForm(prev => ({ ...prev, is_active: e.target.checked }))}
+                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+              />
+              <span className="text-sm font-medium text-gray-700 select-none">
+                Admin account active
+              </span>
+            </label>
+
+            {isEdit && (
+              <button
+                type="button"
+                onClick={handleSaveAdmin}
+                disabled={savingAdmin}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-60"
+              >
+                <Save className="h-3.5 w-3.5" />
+                {savingAdmin ? 'Saving Credentials…' : hasExistingAdmin ? 'Update Credentials' : 'Assign Admin'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Registration Guidelines Card */}

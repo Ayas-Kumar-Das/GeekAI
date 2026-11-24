@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { PlusCircle, Edit2, Trash2, Eye, EyeOff, Layers, Globe, AlertCircle } from 'lucide-react'
+import { PlusCircle, Edit2, Trash2, Eye, EyeOff, Layers, Globe, AlertCircle, UserCheck } from 'lucide-react'
 import client from '../../api/client'
 import toast from 'react-hot-toast'
 
@@ -95,12 +95,16 @@ export default function SuperAdminEvents() {
                   )}
                 </div>
                 {event.tagline && <p className="text-sm text-gray-500 mt-1">{event.tagline}</p>}
-                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 flex-wrap">
                   <span><strong className="text-gray-700">{event.participant_count}</strong> participants</span>
                   {event.registration_fee > 0 && (
                     <span>Fee: ₹{(event.registration_fee / 100).toFixed(0)}</span>
                   )}
                   {event.venue && <span>📍 {event.venue}</span>}
+                  <span className="inline-flex items-center gap-1 text-gray-600 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                    <UserCheck className="h-3 w-3 text-indigo-600" />
+                    Admin: {event.admin_email ? <strong className="text-gray-800">{event.admin_email}</strong> : <span className="text-amber-600 font-medium">Unassigned</span>}
+                  </span>
                 </div>
               </div>
 

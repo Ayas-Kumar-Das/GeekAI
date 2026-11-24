@@ -124,6 +124,22 @@ function EventRegistration({ eventSlug }) {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
+  const handleFileUpload = async (fieldId, file) => {
+    if (!file) return
+    const fd = new FormData()
+    fd.append('file', file)
+    const toastId = toast.loading('Uploading file…')
+    try {
+      const res = await client.post('/participants/upload-file', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setCustomResponses(prev => ({ ...prev, [fieldId]: res.data.url }))
+      toast.success('File uploaded successfully!', { id: toastId })
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to upload file', { id: toastId })
+    }
+  }
+
   /* ── Apply Coupon Code ── */
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -438,7 +454,9 @@ function EventRegistration({ eventSlug }) {
                 {oaicOrganizerLogos.map(({ src, alt, width, height }) => <li key={src}><img src={src} width={width} height={height} alt={alt} /></li>)}
               </ul>
             ) : (
-              <div className="summary-top"><Ticket size={24} strokeWidth={1.5} /><span className="fee mono">{isPaymentEnabled ? eventFee(event.registration_fee) : 'Free Registration'}</span></div>
+              isPaymentEnabled && (
+                <div className="summary-top"><Ticket size={24} strokeWidth={1.5} /><span className="fee mono">{eventFee(event.registration_fee)}</span></div>
+              )
             )}
             <h1>{event.name}</h1>
             {event.tagline && <p>{event.tagline}</p>}
@@ -455,11 +473,13 @@ function EventRegistration({ eventSlug }) {
           </section>
           {((event.guidelines && event.guidelines.length > 0) || eventSlug === 'oaic') && (
             <details className="guidelines disclosure">
-              <summary>Registration Guidelines &amp; Refund Policy <ChevronDown size={18} /></summary>
+              <summary>Registration Guidelines{isPaymentEnabled ? ' & Refund Policy' : ''} <ChevronDown size={18} /></summary>
               <ol>
-                {((event.guidelines && event.guidelines.length > 0) ? event.guidelines : OAIC_GUIDELINES).map((item, idx) => (
-                  <li key={idx}>{item}</li>
-                ))}
+                {((event.guidelines && event.guidelines.length > 0) ? event.guidelines : OAIC_GUIDELINES)
+                  .filter(item => isPaymentEnabled || (!item.toLowerCase().includes('fee') && !item.toLowerCase().includes('₹') && !item.toLowerCase().includes('refund')))
+                  .map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
               </ol>
             </details>
           )}
@@ -615,11 +635,24 @@ function EventRegistration({ eventSlug }) {
                           <option value="">Select…</option>
                           {(field.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
+                      ) : field.type === 'file' ? (
+                        <div style={{ width: '100%' }}>
+                          {val && typeof val === 'string' && (
+                            <div style={{ marginBottom: 6, fontSize: '0.8rem', color: '#4338ca', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span>✓ Uploaded: {val.split('/').pop()}</span>
+                            </div>
+                          )}
+                          <input
+                            type="file"
+                            onChange={e => handleFileUpload(field.id, e.target.files[0])}
+                            required={field.required && !val}
+                          />
+                        </div>
                       ) : (
                         <input
-                          type={field.type === 'phone' ? 'tel' : field.type === 'file' ? 'file' : field.type}
-                          value={field.type === 'file' ? undefined : val}
-                          onChange={e => field.type === 'file' ? setVal(e.target.files[0]) : setVal(e.target.value)}
+                          type={field.type === 'phone' ? 'tel' : field.type}
+                          value={val}
+                          onChange={e => setVal(e.target.value)}
                           required={field.required}
                           placeholder={field.placeholder}
                           min={field.validation?.min}
@@ -712,10 +745,12 @@ function EventRegistration({ eventSlug }) {
               </>
             )}
             <div className="checkout-total">
-              <div role="status">
-                <span>{isPaymentEnabled ? 'Total payable' : 'Registration fee'}</span>
-                <strong className="mono">{amountDue > 0 ? eventFee(amountDue) : 'Free'}</strong>
-              </div>
+              {isPaymentEnabled && (
+                <div role="status">
+                  <span>Total payable</span>
+                  <strong className="mono">{amountDue > 0 ? eventFee(amountDue) : 'Free'}</strong>
+                </div>
+              )}
               <button type="submit" className="public-button primary" disabled={loading || verifyingManualOrder || validatingCoupon}>
                 {submitLabel} <ArrowRight size={17} />
               </button>
