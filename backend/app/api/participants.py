@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Optional
@@ -85,6 +86,7 @@ async def register_participant(
     payment_status: Optional[str] = Form("PENDING"),
     coupon_code: Optional[str] = Form(None),
     source: Optional[str] = Form("ONLINE"),
+    custom_responses: Optional[str] = Form(None),  # JSON string of {field_id: value}
     db: AsyncSession = Depends(get_db),
 ):
     """Public participant registration.
@@ -94,6 +96,14 @@ async def register_participant(
     target_event_id = event_id or 1
     clean_email = email.strip().lower()
     clean_source = (source or "ONLINE").strip().upper()[:9]
+
+    # Parse custom_responses JSON string if provided
+    parsed_custom_responses = None
+    if custom_responses and custom_responses.strip():
+        try:
+            parsed_custom_responses = json.loads(custom_responses)
+        except (json.JSONDecodeError, ValueError):
+            logger.warning("Failed to parse custom_responses JSON: %s", custom_responses)
 
     # 1. Idempotency: If this payment_order_id is already recorded, return existing participant
     if payment_order_id and payment_order_id.strip():
@@ -192,6 +202,8 @@ async def register_participant(
         participant.payment_order_id = final_payment_order_id
         participant.payment_status = final_payment_status
         participant.coupon_code = final_coupon_code
+        if parsed_custom_responses is not None:
+            participant.custom_responses = parsed_custom_responses
     else:
         participant = Participant(
             name=name,
@@ -206,6 +218,7 @@ async def register_participant(
             payment_order_id=final_payment_order_id,
             payment_status=final_payment_status,
             coupon_code=final_coupon_code,
+            custom_responses=parsed_custom_responses,
         )
         db.add(participant)
 

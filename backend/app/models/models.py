@@ -18,6 +18,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -30,6 +31,7 @@ class Base(DeclarativeBase):
 # ---------------------------------------------------------------------------
 
 class UserRole(str, enum.Enum):
+    SUPER_ADMIN = "SUPER_ADMIN"
     ADMIN = "ADMIN"
     VOLUNTEER = "VOLUNTEER"
 
@@ -101,6 +103,9 @@ class Participant(Base):
     payment_order_id = Column(String(255), nullable=True)
     payment_status = Column(String(50), nullable=True, default="PENDING")  # PENDING, SUCCESS, FAILED
     coupon_code = Column(String(50), nullable=True)
+
+    # Custom form responses (JSONB for dynamic form fields)
+    custom_responses = Column(JSONB, nullable=True)
 
     # Relationships
     face_embeddings = relationship("FaceEmbedding", back_populates="participant", cascade="all, delete-orphan")
@@ -175,6 +180,9 @@ class Event(Base):
     banner_url = Column(String(512), nullable=True)
     registration_fee = Column(Integer, nullable=False, default=0)  # in paise/smallest unit
     is_active = Column(Boolean, default=True, nullable=False)
+    is_published = Column(Boolean, default=False, nullable=False)
+    registration_form_schema = Column(JSONB, nullable=True)
+    registration_form_version = Column(Integer, nullable=False, default=1)
     event_date = Column(DateTime(timezone=True), nullable=True)
     venue = Column(String(255), nullable=True)
     registration_deadline = Column(DateTime(timezone=True), nullable=True)

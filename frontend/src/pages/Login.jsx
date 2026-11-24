@@ -18,6 +18,8 @@ export default function Login() {
       const from = location.state?.from?.pathname
       if (from) {
         navigate(from, { replace: true })
+      } else if (userData.role === 'SUPER_ADMIN') {
+        navigate('/super-admin', { replace: true })
       } else if (userData.role === 'ADMIN') {
         navigate('/admin', { replace: true })
       } else {

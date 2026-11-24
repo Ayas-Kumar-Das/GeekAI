@@ -95,7 +95,7 @@ def _claims(user: User) -> dict:
 async def get_current_staff(user: User = Depends(get_current_user)) -> User:
     """Return the user if they are staff (admin or volunteer), else 403."""
     role = _claims(user).get("role", user.role.value if hasattr(user.role, "value") else user.role)
-    if role not in (UserRole.ADMIN.value, UserRole.VOLUNTEER.value):
+    if role not in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.VOLUNTEER.value):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Staff privileges required",
@@ -104,12 +104,23 @@ async def get_current_staff(user: User = Depends(get_current_user)) -> User:
 
 
 async def get_current_admin(user: User = Depends(get_current_user)) -> User:
-    """Return the user if they are an admin, else 403."""
+    """Return the user if they are an admin (or super admin), else 403."""
     role = _claims(user).get("role", user.role.value if hasattr(user.role, "value") else user.role)
-    if role != UserRole.ADMIN.value:
+    if role not in (UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin privileges required",
+        )
+    return user
+
+
+async def get_current_super_admin(user: User = Depends(get_current_user)) -> User:
+    """Return the user if they are a super admin, else 403."""
+    role = _claims(user).get("role", user.role.value if hasattr(user.role, "value") else user.role)
+    if role != UserRole.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin privileges required",
         )
     return user
 

@@ -60,6 +60,10 @@ function EventRegistration({ eventSlug }) {
   const [appliedCoupon, setAppliedCoupon] = useState(null)
   const [validatingCoupon, setValidatingCoupon] = useState(false)
 
+  // Dynamic form schema state
+  const [customFormSchema, setCustomFormSchema] = useState(null) // null = not loaded, false = no schema
+  const [customResponses, setCustomResponses] = useState({}) // {field_id: value}
+
   /* ── Check for uncompleted paid order in localStorage ── */
   useEffect(() => {
     try {
@@ -83,12 +87,16 @@ function EventRegistration({ eventSlug }) {
     const controller = new AbortController()
     const load = async () => {
       try {
-        const [evtRes, sessRes] = await Promise.all([
+        const [evtRes, sessRes, formRes] = await Promise.all([
           client.get(`/events/${eventSlug}`, { signal: controller.signal }),
           client.get(`/events/${eventSlug}/sessions`, { signal: controller.signal }),
+          client.get(`/events/${eventSlug}/registration-form`, { signal: controller.signal }).catch(() => null),
         ])
         setEvent(evtRes.data)
         setSessions(sessRes.data)
+        if (formRes?.data?.has_custom_form && formRes.data.schema?.fields?.length) {
+          setCustomFormSchema(formRes.data.schema.fields.sort((a, b) => a.order - b.order))
+        }
       } catch (err) {
         if (controller.signal.aborted) return
         if (err.response?.status === 404) {
@@ -161,6 +169,11 @@ function EventRegistration({ eventSlug }) {
     fd.append('photo', photo)
     fd.append('source', 'ONLINE')
     if (event?.id) fd.append('event_id', String(event.id))
+
+    // Append custom form responses as JSON string
+    if (customFormSchema && Object.keys(customResponses).length > 0) {
+      fd.append('custom_responses', JSON.stringify(customResponses))
+    }
 
     if (appliedCoupon) {
       fd.append('coupon_code', appliedCoupon.code)
@@ -365,6 +378,73 @@ function EventRegistration({ eventSlug }) {
               </label>
             </div>
           </section>
+          {/* ── Dynamic custom fields from form schema ── */}
+          {customFormSchema && customFormSchema.length > 0 && (
+            <section className="form-section" aria-labelledby="custom-fields-title">
+              <h2 id="custom-fields-title">Additional Information</h2>
+              <div className="field-grid">
+                {customFormSchema.map(field => {
+                  const val = customResponses[field.id] ?? ''
+                  const setVal = (v) => setCustomResponses(prev => ({ ...prev, [field.id]: v }))
+                  return (
+                    <label key={field.id} className={field.type === 'textarea' ? 'full-width' : ''}>
+                      {field.label}{field.required && <span aria-hidden="true" style={{color:'var(--red,#dc2626)',marginLeft:2}}>*</span>}
+                      {field.help_text && <small style={{display:'block',color:'#6b7280',marginBottom:4}}>{field.help_text}</small>}
+                      {field.type === 'textarea' ? (
+                        <textarea
+                          value={val} onChange={e => setVal(e.target.value)}
+                          required={field.required} placeholder={field.placeholder}
+                          rows={4} style={{width:'100%',resize:'vertical'}}
+                        />
+                      ) : field.type === 'dropdown' ? (
+                        <select value={val} onChange={e => setVal(e.target.value)} required={field.required}>
+                          <option value="">Select…</option>
+                          {(field.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      ) : field.type === 'radio' ? (
+                        <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
+                          {(field.options || []).map(o => (
+                            <label key={o.value} style={{display:'flex',alignItems:'center',gap:8,fontWeight:'normal',cursor:'pointer'}}>
+                              <input type="radio" name={field.id} value={o.value}
+                                checked={val === o.value} onChange={() => setVal(o.value)}
+                                required={field.required && !val} />
+                              {o.label}
+                            </label>
+                          ))}
+                        </div>
+                      ) : field.type === 'checkbox' ? (
+                        <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:4}}>
+                          {(field.options || []).map(o => {
+                            const checked = Array.isArray(val) ? val.includes(o.value) : false
+                            return (
+                              <label key={o.value} style={{display:'flex',alignItems:'center',gap:8,fontWeight:'normal',cursor:'pointer'}}>
+                                <input type="checkbox" value={o.value} checked={checked}
+                                  onChange={e => {
+                                    const arr = Array.isArray(val) ? [...val] : []
+                                    setVal(e.target.checked ? [...arr, o.value] : arr.filter(v => v !== o.value))
+                                  }} />
+                                {o.label}
+                              </label>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <input
+                          type={field.type === 'phone' ? 'tel' : field.type === 'file' ? 'file' : field.type}
+                          value={field.type === 'file' ? undefined : val}
+                          onChange={e => field.type === 'file' ? setVal(e.target.files[0]) : setVal(e.target.value)}
+                          required={field.required}
+                          placeholder={field.placeholder}
+                          min={field.validation?.min} max={field.validation?.max}
+                          minLength={field.validation?.min_length} maxLength={field.validation?.max_length}
+                        />
+                      )}
+                    </label>
+                  )
+                })}
+              </div>
+            </section>
+          )}
           {sessions.length > 0 && (
             <fieldset className="form-section session-section">
               <legend>Sessions <span>(optional)</span></legend>

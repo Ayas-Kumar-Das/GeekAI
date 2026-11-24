@@ -45,10 +45,11 @@ export function AuthProvider({ children }) {
   const isAuthenticated = !!token && !!user
   const isAdmin = user?.role === 'ADMIN'
   const isVolunteer = user?.role === 'VOLUNTEER'
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, login, logout, isAuthenticated, isAdmin, isVolunteer }}
+      value={{ user, token, loading, login, logout, isAuthenticated, isAdmin, isVolunteer, isSuperAdmin }}
     >
       {children}
     </AuthContext.Provider>

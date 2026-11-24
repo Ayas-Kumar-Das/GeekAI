@@ -81,3 +81,31 @@ async def validate_coupon(
         event_name=event.name,
     )
 
+
+@router.get("/{slug}/registration-form")
+async def get_registration_form(slug: str, db: AsyncSession = Depends(get_db)):
+    """Return the published registration form schema for an event.
+
+    Returns 200 with the form schema if the event has a custom form schema,
+    or 204 (no content) if the event uses the standard registration form.
+    """
+    event_result = await db.execute(select(Event).where(Event.slug == slug))
+    event = event_result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if not event.registration_form_schema:
+        # No custom form — frontend uses static form
+        return {
+            "has_custom_form": False,
+            "event_id": event.id,
+            "schema": None,
+        }
+
+    return {
+        "has_custom_form": True,
+        "event_id": event.id,
+        "schema": event.registration_form_schema,
+        "version": event.registration_form_version,
+    }
+

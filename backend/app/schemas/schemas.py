@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -127,6 +127,7 @@ class ParticipantOut(BaseModel):
     status: Optional[str] = "CONFIRMED"
     payment_status: Optional[str] = None
     coupon_code: Optional[str] = None
+    custom_responses: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -270,11 +271,85 @@ class EventOut(BaseModel):
     banner_url: Optional[str] = None
     registration_fee: int = 0  # in paise
     is_active: bool = True
+    is_published: bool = False
     event_date: Optional[datetime] = None
     venue: Optional[str] = None
     registration_deadline: Optional[datetime] = None
     website: Optional[str] = None
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ===== Form Builder ==========================================================
+
+class FormFieldOption(BaseModel):
+    """An option for select/radio/checkbox group fields."""
+    label: str
+    value: str
+
+
+class FormFieldValidation(BaseModel):
+    """Optional validation rules for a field."""
+    min_length: Optional[int] = None
+    max_length: Optional[int] = None
+    pattern: Optional[str] = None
+    min: Optional[float] = None
+    max: Optional[float] = None
+
+
+class FormField(BaseModel):
+    """A single field in a dynamic registration form."""
+    id: str  # client-generated UUID
+    type: str  # text|email|phone|number|dropdown|radio|checkbox|date|textarea|file
+    label: str
+    placeholder: Optional[str] = None
+    required: bool = False
+    options: Optional[List[FormFieldOption]] = None  # for dropdown/radio/checkbox
+    validation: Optional[FormFieldValidation] = None
+    order: int = 0
+    help_text: Optional[str] = None
+
+
+class FormSchema(BaseModel):
+    """Full form schema stored as JSONB in Event.registration_form_schema."""
+    fields: List[FormField] = []
+    version: int = 1
+
+
+class EventCreate(BaseModel):
+    name: str = Field(min_length=1)
+    slug: str = Field(min_length=1, max_length=100, pattern=r'^[a-z0-9-]+$')
+    description: Optional[str] = None
+    tagline: Optional[str] = None
+    logo_url: Optional[str] = None
+    banner_url: Optional[str] = None
+    registration_fee: int = Field(default=0, ge=0)
+    event_date: Optional[datetime] = None
+    venue: Optional[str] = None
+    registration_deadline: Optional[datetime] = None
+    website: Optional[str] = None
+
+
+class EventUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    tagline: Optional[str] = None
+    logo_url: Optional[str] = None
+    banner_url: Optional[str] = None
+    registration_fee: Optional[int] = Field(default=None, ge=0)
+    is_active: Optional[bool] = None
+    event_date: Optional[datetime] = None
+    venue: Optional[str] = None
+    registration_deadline: Optional[datetime] = None
+    website: Optional[str] = None
+
+
+class SuperAdminEventOut(EventOut):
+    registration_form_schema: Optional[dict] = None
+    registration_form_version: int = 1
+    participant_count: int = 0
 
     class Config:
         from_attributes = True

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import AdminLayout from './components/AdminLayout'
+import SuperAdminLayout from './components/SuperAdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -19,6 +20,10 @@ import VolunteerDashboard from './pages/volunteer/VolunteerDashboard'
 import FaceCheckIn from './pages/volunteer/FaceCheckIn'
 import QRScanner from './pages/volunteer/QRScanner'
 import ManualLookup from './pages/volunteer/ManualLookup'
+import SuperAdminDashboard from './pages/super-admin/Dashboard'
+import SuperAdminEvents from './pages/super-admin/Events'
+import EventEditor from './pages/super-admin/EventEditor'
+import FormBuilder from './pages/super-admin/FormBuilder'
 
 export default function App() {
   return (
@@ -33,6 +38,23 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/admin/login" element={<Login />} />
         <Route path="/volunteer/login" element={<Login />} />
+      </Route>
+
+      {/* Super Admin routes */}
+      <Route
+        path="/super-admin"
+        element={
+          <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+            <SuperAdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<SuperAdminDashboard />} />
+        <Route path="events" element={<SuperAdminEvents />} />
+        <Route path="events/new" element={<EventEditor />} />
+        <Route path="events/:id/edit" element={<EventEditor />} />
+        <Route path="events/:id/form-builder" element={<FormBuilder />} />
       </Route>
 
       {/* Admin routes */}
