@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Edit2, Trash2, Eye, EyeOff, Layers, MapPin } from 'lucide-react'
+import { Plus, Edit2, Trash2, Eye, EyeOff, Layers, MapPin, UserCheck } from 'lucide-react'
 import client from '../../api/client'
 import toast from 'react-hot-toast'
 
@@ -73,6 +73,10 @@ export default function SuperAdminEvents() {
                 <span>{event.participant_count} participants</span>
                 {event.registration_fee > 0 && <code>₹{(event.registration_fee / 100).toFixed(0)}</code>}
                 {event.venue && <span><MapPin size={13} />{event.venue}</span>}
+                <span>
+                  <UserCheck size={13} aria-hidden="true" />
+                  Admin <strong>{event.admin_email || 'Unassigned'}</strong>
+                </span>
               </div>
               {event.tagline && <p>{event.tagline}</p>}
             </div>

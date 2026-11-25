@@ -370,9 +370,32 @@ class SuperAdminEventOut(EventOut):
     participant_count: int = 0
     cashfree_app_id: Optional[str] = None
     has_cashfree_secret: bool = False
+    admin_id: Optional[int] = None
+    admin_email: Optional[str] = None
+    admin_name: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class EventAdminOut(BaseModel):
+    id: int
+    email: str
+    name: Optional[str] = None
+    role: UserRole
+    event_id: Optional[int] = None
+    is_active: bool
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class EventAdminUpsert(BaseModel):
+    email: EmailStr
+    name: Optional[str] = None
+    password: Optional[str] = None
+    is_active: Optional[bool] = True
 
 
 # ===== Payments =============================================================

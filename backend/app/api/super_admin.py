@@ -11,8 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.deps import get_current_super_admin, get_db
-from app.models.models import Attendance, Event, FaceEmbedding, Participant, Session, User
+from app.core.security import hash_password
+from app.models.models import Attendance, Event, FaceEmbedding, Participant, Session, User, UserRole
 from app.schemas.schemas import (
+    EventAdminOut,
+    EventAdminUpsert,
     EventCreate,
     EventUpdate,
     FormSchema,
@@ -22,12 +25,19 @@ from app.schemas.schemas import (
 router = APIRouter(prefix="/api/super-admin", tags=["super-admin"])
 
 
-def _to_super_admin_out(event: Event, participant_count: int = 0) -> SuperAdminEventOut:
-    """Helper to convert Event ORM to SuperAdminEventOut with masked credentials."""
+def _to_super_admin_out(
+    event: Event,
+    participant_count: int = 0,
+    admin: Optional[User] = None,
+) -> SuperAdminEventOut:
+    """Helper to convert Event ORM to SuperAdminEventOut with masked credentials and admin info."""
     out = SuperAdminEventOut.model_validate(event)
     return out.model_copy(update={
         "participant_count": participant_count,
         "has_cashfree_secret": bool(event.cashfree_secret_key),
+        "admin_id": admin.id if admin else None,
+        "admin_email": admin.email if admin else None,
+        "admin_name": admin.name if admin else None,
     })
 
 
@@ -85,7 +95,7 @@ async def list_all_events(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_super_admin),
 ):
-    """List all events (active and inactive) with participant counts."""
+    """List all events (active and inactive) with participant counts and assigned admins."""
     rows = (await db.execute(
         select(Event, func.count(Participant.id).label("participant_count"))
         .outerjoin(Participant, Participant.event_id == Event.id)
@@ -93,9 +103,14 @@ async def list_all_events(
         .order_by(Event.id)
     )).all()
 
+    admins = (await db.execute(
+        select(User).where(User.role == UserRole.ADMIN)
+    )).scalars().all()
+    admin_by_event = {u.event_id: u for u in admins if u.event_id is not None}
+
     results = []
     for event, count in rows:
-        results.append(_to_super_admin_out(event, count))
+        results.append(_to_super_admin_out(event, count, admin_by_event.get(event.id)))
     return results
 
 
@@ -114,7 +129,125 @@ async def get_event_detail(
         select(func.count()).select_from(Participant).where(Participant.event_id == event_id)
     )).scalar()
 
-    return _to_super_admin_out(event, count)
+    admin = (await db.execute(
+        select(User).where(User.event_id == event_id, User.role == UserRole.ADMIN)
+    )).scalar_one_or_none()
+
+    return _to_super_admin_out(event, count, admin)
+
+
+@router.get("/events/{event_id}/admin", response_model=Optional[EventAdminOut])
+async def get_event_admin(
+    event_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_super_admin),
+):
+    """Retrieve the assigned admin user for a specific event."""
+    result = await db.execute(
+        select(User).where(User.event_id == event_id, User.role == UserRole.ADMIN)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        return None
+    return EventAdminOut.model_validate(user)
+
+
+@router.post("/events/{event_id}/admin", response_model=EventAdminOut)
+@router.put("/events/{event_id}/admin", response_model=EventAdminOut)
+async def upsert_event_admin(
+    event_id: int,
+    body: EventAdminUpsert,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_super_admin),
+):
+    """Assign, create, or update the login email and password for an event's admin."""
+    event_res = await db.execute(select(Event).where(Event.id == event_id))
+    event = event_res.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    cleaned_email = body.email.strip().lower()
+
+    # Find existing admin assigned to this event
+    admin_res = await db.execute(
+        select(User).where(User.event_id == event_id, User.role == UserRole.ADMIN)
+    )
+    admin = admin_res.scalar_one_or_none()
+
+    if admin:
+        # Updating existing admin
+        if cleaned_email != admin.email.lower():
+            # Verify new email not already in use by another user
+            existing_email_user = (await db.execute(
+                select(User).where(func.lower(User.email) == cleaned_email, User.id != admin.id)
+            )).scalar_one_or_none()
+            if existing_email_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"User with email '{cleaned_email}' already exists",
+                )
+            admin.email = cleaned_email
+
+        if body.name is not None and body.name.strip():
+            admin.name = body.name.strip()
+        if body.is_active is not None:
+            admin.is_active = body.is_active
+
+        # If password is provided, securely update password hash without exposing previous password
+        if body.password and body.password.strip():
+            if len(body.password.strip()) < 6:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Password must be at least 6 characters long",
+                )
+            admin.password_hash = hash_password(body.password.strip())
+
+        await db.flush()
+        await db.refresh(admin)
+        return EventAdminOut.model_validate(admin)
+    else:
+        # Creating or assigning new admin for this event
+        if not body.password or len(body.password.strip()) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is required and must be at least 6 characters long for a new admin",
+            )
+
+        # Check if email is already taken
+        existing_user = (await db.execute(
+            select(User).where(func.lower(User.email) == cleaned_email)
+        )).scalar_one_or_none()
+
+        if existing_user:
+            if existing_user.role == UserRole.ADMIN and existing_user.event_id is None:
+                # Assign unlinked admin user to this event
+                existing_user.event_id = event_id
+                if body.name and body.name.strip():
+                    existing_user.name = body.name.strip()
+                existing_user.password_hash = hash_password(body.password.strip())
+                if body.is_active is not None:
+                    existing_user.is_active = body.is_active
+                await db.flush()
+                await db.refresh(existing_user)
+                return EventAdminOut.model_validate(existing_user)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"User with email '{cleaned_email}' already exists",
+                )
+
+        new_admin = User(
+            email=cleaned_email,
+            password_hash=hash_password(body.password.strip()),
+            name=body.name.strip() if (body.name and body.name.strip()) else f"{event.name} Admin",
+            role=UserRole.ADMIN,
+            event_id=event_id,
+            is_active=body.is_active if body.is_active is not None else True,
+        )
+        db.add(new_admin)
+        await db.flush()
+        await db.refresh(new_admin)
+        return EventAdminOut.model_validate(new_admin)
 
 
 @router.post("/events", response_model=SuperAdminEventOut, status_code=status.HTTP_201_CREATED)

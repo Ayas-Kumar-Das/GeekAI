@@ -99,3 +99,43 @@
 - **Verification**:
   - Automated end-to-end tests executed inside container: event creation with guidelines, image upload, form schema with Image field, direct registration without payment, payment fee toggle and fee reset, and cleanup.
   - Verified backward compatibility with existing events (OAIC).
+
+
+### 7. Conditional Registration Fee, Complete Dynamic Participant Details & Event Admin Credentials Management (Complete ✅)
+- **1. Conditional Registration Fee on Public Registration Page**:
+  - In `frontend/src/pages/EventRegister.jsx`, conditionally hidden all fee-related information when Cashfree payment is disabled (`!isPaymentEnabled`):
+    - Omitted top summary fee pill (`eventFee`) when payment is disabled (no "Free Registration" tag shown).
+    - In checkout section (`checkout-total`), hid the `role="status"` fee box (no "Total payable: Free" or "Registration fee: Free" rendered).
+    - Filtered out fee and refund mentions from guidelines when payment is disabled so no fee-related wording appears.
+    - Preserved direct one-click registration without payment modal or payment restrictions.
+- **2. Event Admin Credentials Management in Super Admin Dashboard**:
+  - **Backend Schemas & API**:
+    - Created `EventAdminOut` and `EventAdminUpsert` schemas in `backend/app/schemas/schemas.py`.
+    - Added `admin_id`, `admin_email`, and `admin_name` to `SuperAdminEventOut`.
+    - Added `GET /api/super-admin/events/{event_id}/admin` to fetch the assigned admin for an event.
+    - Added `POST /api/super-admin/events/{event_id}/admin` (and PUT) to assign, create, or update the login email and password of each event's admin.
+    - Credentials are securely hashed with bcrypt (`hash_password()`), and password updates do not expose previous passwords (if password omitted on update, existing hash is preserved).
+    - Enforced event-level scoping (`event_id`) and role-based access (`role=UserRole.ADMIN`).
+  - **Frontend UI (`EventEditor.jsx` & `Events.jsx`)**:
+    - Added "Event Admin Credentials" card in `EventEditor.jsx` with email input, admin name input, password update input with show/hide eye toggle, active status checkbox, status indicators ("Admin Assigned & Scoped" vs "No Admin Assigned"), and "Update Credentials" / "Assign Admin" action.
+    - Added assigned admin email badge (`Admin: <email>`) in `Events.jsx` card meta tags.
+- **3. Complete Dynamic Participant Details in Event Admin Dashboard**:
+  - **Backend API (`participants.py`)**:
+    - Updated `get_participant` endpoint to return `custom_responses=participant.custom_responses`, `source`, and `status`.
+    - Added `POST /api/participants/upload-file` to handle document and image attachments for dynamic form file fields, saving to `uploads/documents/` and returning static URLs.
+    - Updated `GET /api/events/{slug_or_id}/registration-form` to support both numeric event ID and slug.
+    - Added `GET /api/admin/event/form-schema` to retrieve registration schema for the event admin's scoped event.
+  - **Frontend UI (`ParticipantDetail.jsx` & `Participants.jsx`)**:
+    - Implemented schema-driven dynamic rendering in `ParticipantDetail.jsx`: fetches event registration schema and maps participant's submitted responses.
+    - Resolves single-choice options (`radio`, `dropdown`) and multi-choice options (`checkbox`) to human-readable option labels and styled badges.
+    - Formats text, textarea, dates, and numbers with appropriate typography.
+    - Renders image attachments and photos with thumbnail previews and an interactive full-size lightbox modal.
+    - Renders documents/files with file type icons and external download/view links.
+    - Surfaces unmapped custom response keys in an "Additional Submitted Data" section to ensure zero data loss.
+    - Added an "Eye" view button in `Participants.jsx` table action column for quick access to participant details.
+- **Verification**:
+  - Executed automated E2E test suite in `geekai-backend` testing:
+    1. Conditional fee hidden when payment is disabled.
+    2. Admin assignment, login verification, strict 403 blocking on Super Admin APIs, and password update without exposing existing passwords.
+    3. File upload, participant registration with rich custom responses, and dynamic detail retrieval by the event admin.
+    4. Verified OAIC backward compatibility with 7 participants, 19 custom response keys, and 22 schema fields.

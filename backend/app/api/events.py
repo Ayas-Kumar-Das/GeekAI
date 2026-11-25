@@ -31,7 +31,10 @@ async def get_event(slug: str, db: AsyncSession = Depends(get_db)):
 @router.get("/{slug}/sessions", response_model=list[SessionOut])
 async def get_event_sessions(slug: str, db: AsyncSession = Depends(get_db)):
     # Get event first
-    event_result = await db.execute(select(Event).where(Event.slug == slug))
+    if slug.isdigit():
+        event_result = await db.execute(select(Event).where((Event.id == int(slug)) | (Event.slug == slug)))
+    else:
+        event_result = await db.execute(select(Event).where(Event.slug == slug))
     event = event_result.scalar_one_or_none()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -52,7 +55,10 @@ async def validate_coupon(
     db: AsyncSession = Depends(get_db),
 ):
     """Validate a coupon code for an event to bypass payment."""
-    event_result = await db.execute(select(Event).where(Event.slug == slug))
+    if slug.isdigit():
+        event_result = await db.execute(select(Event).where((Event.id == int(slug)) | (Event.slug == slug)))
+    else:
+        event_result = await db.execute(select(Event).where(Event.slug == slug))
     event = event_result.scalar_one_or_none()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -89,7 +95,10 @@ async def get_registration_form(slug: str, db: AsyncSession = Depends(get_db)):
     Returns 200 with the form schema if the event has a custom form schema,
     or 204 (no content) if the event uses the standard registration form.
     """
-    event_result = await db.execute(select(Event).where(Event.slug == slug))
+    if slug.isdigit():
+        event_result = await db.execute(select(Event).where((Event.id == int(slug)) | (Event.slug == slug)))
+    else:
+        event_result = await db.execute(select(Event).where(Event.slug == slug))
     event = event_result.scalar_one_or_none()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")

@@ -7,7 +7,7 @@ import Input from '../../components/ui/Input'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
-import { Search, ChevronLeft, ChevronRight, Pencil, Trash2, X, Save } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Pencil, Trash2, X, Save, Eye } from 'lucide-react'
 import { getCategoryColor, formatShortDate } from '../../utils/helpers'
 
 const CATEGORIES = ['STUDENT', 'RESEARCHER', 'PROFESSIONAL', 'SPEAKER', 'OTHER']
@@ -171,6 +171,13 @@ export default function Participants() {
       label: 'Actions',
       render: (_, row) => (
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            title="View Details"
+            onClick={() => navigate(`/admin/participants/${row.id}`)}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
           <button
             title="Edit Participant"
             onClick={() => openEditModal(row)}
